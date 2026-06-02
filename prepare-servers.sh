@@ -94,16 +94,24 @@ echo "  Done."
 echo ""
 echo ">>> Installing essential packages..."
 
+if [ "${ROLE}" = "tikv" ] || [ "${ROLE}" = "all" ]; then
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        curl wget tar gzip \
+        >/dev/null 2>&1 || {
+        echo "  ERROR: failed to install TiKV prerequisites."
+        echo "  Check network connectivity and apt sources."
+        exit 1
+    }
+fi
+# Monitoring tools (nice-to-have, non-critical)
 DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    curl wget tar gzip \
     htop iotop iftop sysstat \
-    gdisk parted \
-    python3 python3-pip \
-    >/dev/null 2>&1 || {
-    echo "  ERROR: failed to install essential packages."
-    echo "  Check network connectivity and apt sources."
-    exit 1
-}
+    >/dev/null 2>&1 || echo "  (monitoring tools unavailable, continuing)"
+# gdisk/parted for Ceph OSD partitioning (also installed by deploy-ceph.sh)
+if [ "${ROLE}" = "ceph" ] || [ "${ROLE}" = "all" ]; then
+    DEBIAN_FRONTEND=noninteractive apt-get install -y gdisk parted >/dev/null 2>&1 || \
+        echo "  (gdisk/parted unavailable, deploy-ceph.sh will retry)"
+fi
 
 echo "  Packages installed."
 
