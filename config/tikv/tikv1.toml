@@ -1,0 +1,51 @@
+[server]
+addr = "0.0.0.0:20160"
+advertise-addr = "192.168.11.12:20160"
+status-addr = "0.0.0.0:20180"
+advertise-status-addr = "192.168.11.12:20180"
+labels = { host = "tikv-node" }
+
+[storage]
+data-dir = "/data/tikv"
+reserve-space = "5GB"
+
+[raftstore]
+raftdb-path = "/data/tikv/raft"
+sync-log = true
+
+[rocksdb]
+wal-dir = "/data/tikv/wal"
+
+[rocksdb.titan]
+enabled = false
+
+[rocksdb.defaultcf]
+block-size = "64KB"
+compression-per-level = ["no", "no", "lz4", "lz4", "lz4", "zstd", "zstd"]
+target-file-size-base = "256MB"
+
+[rocksdb.writecf]
+block-size = "64KB"
+compression-per-level = ["no", "no", "lz4", "lz4", "lz4", "zstd", "zstd"]
+
+[rocksdb.lockcf]
+block-size = "64KB"
+compression-per-level = ["no", "no", "no", "no", "no", "no", "no"]
+
+[raftdb.defaultcf]
+compression-per-level = ["no", "no", "lz4", "lz4", "lz4", "zstd", "zstd"]
+
+[coprocessor]
+
+# Single PD endpoint
+[pd]
+endpoints = ["192.168.11.12:2379"]
+
+[log]
+level = "info"
+
+[log.file]
+filename = "/var/log/tikv/tikv.log"
+
+[storage.block-cache]
+capacity = "4GB"

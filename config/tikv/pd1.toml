@@ -1,0 +1,23 @@
+name = "pd-1"
+data-dir = "/data/pd"
+
+client-urls = "http://0.0.0.0:2379"
+advertise-client-urls = "http://192.168.11.12:2379"
+
+peer-urls = "http://0.0.0.0:2380"
+advertise-peer-urls = "http://192.168.11.12:2380"
+
+# Single-node cluster — no Raft group, just one member
+initial-cluster = "pd-1=http://192.168.11.12:2380"
+initial-cluster-state = "new"
+
+[security]
+
+[log]
+level = "info"
+
+[replication]
+# Single replica because we only have one TiKV node.
+# A 3-replica setting on a single node wastes disk and misleads PD
+# into raising replica-mismatch alarms.
+max-replicas = 1
