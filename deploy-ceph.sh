@@ -136,7 +136,8 @@ for i in "${!CEPH_SERVERS[@]}"; do
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y gdisk parted >/dev/null 2>&1
         fi
 
-        # Stop docker if present (conflicts with cephadm)
+        # Stop docker if present (docker and podman conflict on the
+        # same socket; cephadm requires podman).  Harmless if no docker.
         sudo systemctl stop docker docker.socket 2>/dev/null || true
         sudo systemctl disable docker docker.socket 2>/dev/null || true
 

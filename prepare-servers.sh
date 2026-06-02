@@ -234,7 +234,10 @@ if [ "${ROLE}" = "ceph" ] || [ "${ROLE}" = "all" ]; then
         DEBIAN_FRONTEND=noninteractive apt-get install -y podman >/dev/null 2>&1
     fi
 
-    # Stop docker if running (conflicts with cephadm)
+    # Stop docker if present (docker and podman both listen on the
+    # same socket; cephadm requires podman).  If docker was never
+    # installed, these commands are harmless — they fail silently
+    # thanks to "|| true".
     systemctl stop docker docker.socket 2>/dev/null || true
     systemctl disable docker docker.socket 2>/dev/null || true
 
