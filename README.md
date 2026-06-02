@@ -55,42 +55,29 @@ Ceph 内部 cephadm 通信仍需 root SSH（脚本自动配置）。
 
 ## 快速开始
 
-### 0. 配置 SSH 免密登录（一次性）
+### 0. 配置 SSH 免密登录
 
 ```bash
-# 生成密钥 + 分发到所有目标机器（过程中输入各机器密码一次）
+# 生成密钥 + 分发到所有 Ceph 机器（输入各机器密码一次）
 bash production/setup-ssh-keys.sh
 ```
 
-如需 passwordless sudo（避免部署时交互输入密码），在每台机器上执行：
-```bash
-echo 'turboai ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/turboai
-```
+### 1. 准备所有服务器
 
-### 1. 检查配置
-
-确认 `config.sh` 中 IP 与当前环境一致：
-```bash
-TIKV_SERVER="192.168.11.12"
-CEPH_SERVERS=("192.168.11.11" "192.168.11.13" "192.168.11.14")
-```
-
-### 2. 准备所有服务器
-
-每台机器上执行（从本机控制台）：
+每台机器上执行（setup-ssh-keys.sh 完成后即可远程执行 Ceph 节点）：
 
 ```bash
 # TiKV 服务器（本机 192.168.11.12）
 sudo bash production/prepare-servers.sh tikv
 
-# Ceph 服务器 × 3
+# Ceph 服务器 × 3（NOPASSWD sudo 由 prepare-servers.sh 自动配置）
 for ip in 192.168.11.11 192.168.11.13 192.168.11.14; do
     scp -i ~/.ssh/id_ed25519 production/prepare-servers.sh turboai@${ip}:/tmp/
     ssh -i ~/.ssh/id_ed25519 turboai@${ip} 'sudo bash /tmp/prepare-servers.sh ceph'
 done
 ```
 
-### 3. 部署 TiKV（单节点）
+### 2. 部署 TiKV
 
 ```bash
 bash production/deploy-tikv.sh
@@ -105,20 +92,33 @@ curl http://192.168.11.12:2379/pd/api/v1/stores
 # → 1 个 store 正常注册
 ```
 
-### 3. 部署 Ceph（3 节点）
+### 3. 部署 Ceph
 
 ```bash
 bash production/deploy-ceph.sh
 ```
 
 验证：
-
 ```bash
 ssh turboai@192.168.11.11 'sudo cephadm shell -- ceph status'
 ssh turboai@192.168.11.11 'sudo cephadm shell -- ceph osd tree'
 ```
 
-### 4. 部署 JuiceFS
+### 4. 性能调优
+
+每台机器执行（部署完成后）：
+
+```bash
+# TiKV 机器
+sudo bash production/tune-servers.sh tikv
+sudo systemctl restart pd tikv   # 仅 fd limits 需要重启
+
+# Ceph 机器
+sudo bash production/tune-servers.sh ceph
+# swap/THP/sysctl/I/O scheduler 即时生效，fd limits 需重启 OSD
+```
+
+### 5. 部署 JuiceFS
 
 ```bash
 # 测试数据密集型 → 客户端在 tikv-node
@@ -155,9 +155,11 @@ production/
 │   ├── pd1.toml               # 单节点 PD（max-replicas=1）
 │   ├── tikv1.toml             # 单节点 TiKV
 │   └── topology.yaml
-├── prepare-servers.sh         # 服务器初始化（每台手动执行）
+├── prepare-servers.sh         # 服务器初始化（每台手动执行，不含调优）
+├── setup-ssh-keys.sh          # 生成密钥 + 分发到所有机器（首次运行）
 ├── deploy-tikv.sh             # 部署 1 台 TiKV
 ├── deploy-ceph.sh             # 部署 3 台 Ceph
+├── tune-servers.sh            # 性能调优（部署后执行：swap/THP/sysctl/IO/limits）
 └── deploy-juicefs.sh          # JuiceFS 客户端（format/mount/test）
 ```
 
