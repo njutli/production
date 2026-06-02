@@ -60,10 +60,11 @@ echo "========================================"
 echo ""
 echo ">>> Time synchronisation..."
 
-apt-get update -qq 2>/dev/null || true   # a stale 3rd-party source (e.g. saltstack)
-                                            # can make apt-get update fail, but the main
-                                            # Ubuntu repos are fine and our packages
-                                            # (chrony, curl, gdisk) come from them.
+# A stale 3rd-party source (e.g. saltstack) can make apt-get update
+# fail, but the main Ubuntu repos are usually fine and our packages
+# (chrony, curl, gdisk) come from them.  Errors are printed so the
+# operator can see which source is broken, but don't stop the script.
+apt-get update -qq || echo "  (apt update had errors, continuing)"
 
 DEBIAN_FRONTEND=noninteractive apt-get install -y chrony >/dev/null 2>&1 || \
     DEBIAN_FRONTEND=noninteractive apt-get install -y ntp >/dev/null 2>&1 || {
