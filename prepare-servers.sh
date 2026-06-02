@@ -60,7 +60,10 @@ echo "========================================"
 echo ""
 echo ">>> Time synchronisation..."
 
-apt-get update -qq 2>/dev/null || true   # tolerate broken 3rd-party repos
+apt-get update -qq 2>/dev/null || true   # a stale 3rd-party source (e.g. saltstack)
+                                            # can make apt-get update fail, but the main
+                                            # Ubuntu repos are fine and our packages
+                                            # (chrony, curl, gdisk) come from them.
 
 DEBIAN_FRONTEND=noninteractive apt-get install -y chrony >/dev/null 2>&1 || \
     DEBIAN_FRONTEND=noninteractive apt-get install -y ntp >/dev/null 2>&1 || {
