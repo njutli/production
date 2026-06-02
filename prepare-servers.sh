@@ -4,13 +4,12 @@ set -euo pipefail
 # ============================================================
 # Server Preparation (4-Machine Topology: 1 TiKV + 3 Ceph)
 #
-# Prepares a physical server for its role:
-#   tikv  – single-node TiKV/PD metadata engine
-#   ceph  – Ceph MON+MGR+OSD (3-node cluster)
+# Prepares a physical server for deployment readiness:
+#   tikv  – chrony, firewall, /data directories, NOPASSWD sudo
+#   ceph  – chrony, firewall, podman, root SSH, NOPASSWD sudo
 #
-# System tuning (all roles): swap/THP off, sysctl, fd limits, chrony.
-# TiKV-specific: /data mount, service directories.
-# Ceph-specific:  podman, root SSH, stop docker.
+# Performance tuning (swap, THP, sysctl, IO scheduler, fd limits)
+# is handled separately by tune-servers.sh — run it after deployment.
 #
 # Run on EACH server individually (NOT from remote).
 #
@@ -30,6 +29,50 @@ echo "Production Server Preparation"
 echo "Role: ${ROLE}"
 echo "========================================"
 
+# ============================================================
+# Common: Time sync (critical for Raft/Paxos consensus)
+# ============================================================
+
+echo ""
+echo ">>> Time synchronisation..."
+
+apt-get update -qq
+DEBIAN_FRONTEND=noninteractive apt-get install -y chrony >/dev/null 2>&1 || \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y ntp >/dev/null 2>&1
+systemctl enable chrony --now 2>/dev/null || systemctl enable ntp --now 2>/dev/null || true
+echo "  Time sync enabled."
+
+# ============================================================
+# Common: Grant NOPASSWD sudo to turboai
+# (required by deploy-ceph.sh for remote sudo commands)
+# ============================================================
+
+echo ""
+echo ">>> Granting passwordless sudo to turboai..."
+if ! grep -q '^turboai ALL=(ALL) NOPASSWD:ALL' /etc/sudoers.d/turboai 2>/dev/null; then
+    echo 'turboai ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/turboai
+    chmod 440 /etc/sudoers.d/turboai
+fi
+echo "  Done."
+
+# ============================================================
+# Common: Install essential packages
+# ============================================================
+
+echo ""
+echo ">>> Installing essential packages..."
+
+DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    curl wget tar gzip \
+    htop iotop iftop sysstat \
+    gdisk parted \
+    python3 python3-pip \
+    >/dev/null 2>&1
+
+echo "  Packages installed."
+
+# ============================================================
+# Common: Firewall
 # ============================================================
 # Common: System tuning
 # ============================================================
@@ -253,8 +296,8 @@ echo "========================================"
 echo "Server preparation complete!"
 echo "========================================"
 echo ""
-echo "Next from deployment host:"
-echo "  1. bash production/setup-ssh-keys.sh"
-echo "  2. bash production/deploy-tikv.sh"
-echo "  3. bash production/deploy-ceph.sh"
-echo "  4. bash production/deploy-juicefs.sh"
+echo "Next steps:"
+echo "  1. bash production/setup-ssh-keys.sh   (from deployment machine)"
+echo "  2. bash production/deploy-tikv.sh      (from deployment machine)"
+echo "  3. bash production/deploy-ceph.sh      (from deployment machine)"
+echo "  4. sudo bash production/tune-servers.sh tikv|ceph  (on each server)"
