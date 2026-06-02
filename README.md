@@ -67,8 +67,8 @@ bash production/setup-ssh-keys.sh
 每台机器上执行（setup-ssh-keys.sh 完成后即可远程执行 Ceph 节点）：
 
 ```bash
-# TiKV 服务器（本机 192.168.11.12）
-sudo bash production/prepare-servers.sh tikv
+# TiKV 服务器（本机 192.168.11.12，空闲盘 /dev/sdb 953G）
+sudo bash production/prepare-servers.sh tikv /dev/sdb
 
 # Ceph 服务器 × 3（NOPASSWD sudo 由 prepare-servers.sh 自动配置）
 for ip in 192.168.11.11 192.168.11.13 192.168.11.14; do

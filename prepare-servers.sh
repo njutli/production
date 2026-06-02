@@ -161,20 +161,56 @@ configure_firewall "${ROLE}"
 # ============================================================
 # TiKV-specific: Prepare /data mount
 # ============================================================
+#
+# TiKV and PD must write to a dedicated fast disk, not the root
+# filesystem.  Provide the device as second argument.
+#
+# Usage: sudo bash prepare-servers.sh tikv /dev/sdb
+# ============================================================
 
 if [ "${ROLE}" = "tikv" ] || [ "${ROLE}" = "all" ]; then
-    echo ""
-    echo ">>> Preparing TiKV data directory..."
+    DATA_DEV="${2:-}"
 
-    if ! mountpoint -q /data 2>/dev/null; then
-        echo "  /data is not mounted!"
-        echo "  If you have a dedicated disk, format and mount it:"
-        echo "    mkfs.xfs /dev/sdX"
-        echo "    mount /dev/sdX /data"
-        echo "    echo '/dev/sdX /data xfs defaults,noatime 0 2' >> /etc/fstab"
-        echo ""
-        echo "  Creating /data directory for now..."
+    echo ""
+    echo ">>> Preparing TiKV data disk..."
+
+    if mountpoint -q /data 2>/dev/null; then
+        echo "  /data is already mounted:"
+        df -h /data | tail -1
+    elif [ -n "${DATA_DEV}" ] && [ -b "${DATA_DEV}" ]; then
+        # Safety: refuse to format a mounted device
+        if mount | grep -q "^${DATA_DEV} "; then
+            echo "  ERROR: ${DATA_DEV} is currently mounted. Refusing."
+            exit 1
+        fi
+        # Safety: refuse to format the root device
+        root_dev=$(findmnt -n -o SOURCE / | sed 's/[0-9]*$//;s/p[0-9]*$//')
+        if [ "${root_dev}" = "${DATA_DEV}" ]; then
+            echo "  ERROR: ${DATA_DEV} is the system disk. Refusing."
+            exit 1
+        fi
+
+        echo "  Formatting ${DATA_DEV} as xfs and mounting on /data..."
+        mkfs.xfs -f "${DATA_DEV}"
         mkdir -p /data
+        mount "${DATA_DEV}" /data
+        # Persist across reboots
+        if ! grep -q "^${DATA_DEV} /data " /etc/fstab; then
+            echo "${DATA_DEV} /data xfs defaults,noatime 0 2" >> /etc/fstab
+        fi
+        echo "  /data mounted:"
+        df -h /data | tail -1
+    else
+        echo ""
+        echo "  ERROR: /data is not a mount point and no disk device was provided."
+        echo ""
+        echo "  Available unmounted disks on this machine:"
+        lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE | grep -E 'disk *$' | grep -v 'loop\|sda' || true
+        echo ""
+        echo "  Re-run with a device argument, e.g.:"
+        echo "    sudo bash prepare-servers.sh tikv /dev/sdb"
+        echo ""
+        exit 1
     fi
 
     mkdir -p /data/tikv /data/pd
