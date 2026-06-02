@@ -64,17 +64,9 @@ bash production/setup-ssh-keys.sh
 
 ### 1. 准备所有服务器
 
-每台机器上执行（setup-ssh-keys.sh 完成后即可远程执行 Ceph 节点）：
-
 ```bash
-# TiKV 服务器（本机 192.168.11.12，空闲盘 /dev/sdb 953G）
-sudo bash production/prepare-servers.sh tikv /dev/sdb
-
-# Ceph 服务器 × 3（NOPASSWD sudo 由 prepare-servers.sh 自动配置）
-for ip in 192.168.11.11 192.168.11.13 192.168.11.14; do
-    scp -i ~/.ssh/id_ed25519 production/prepare-servers.sh turboai@${ip}:/tmp/
-    ssh -i ~/.ssh/id_ed25519 turboai@${ip} 'sudo bash /tmp/prepare-servers.sh ceph'
-done
+# 一键执行：本地 TiKV + 远程 3 台 Ceph（远程 sudo 需输入密码一次）
+bash production/prepare-all-servers.sh
 ```
 
 ### 2. 部署 TiKV
@@ -155,7 +147,8 @@ production/
 │   ├── pd1.toml               # 单节点 PD（max-replicas=1）
 │   ├── tikv1.toml             # 单节点 TiKV
 │   └── topology.yaml
-├── prepare-servers.sh         # 服务器初始化（每台手动执行，不含调优）
+├── prepare-servers.sh         # 单机初始化脚本（被 prepare-all-servers.sh 调用）
+├── prepare-all-servers.sh     # 一键准备所有服务器（本地 TiKV + 远程 3 台 Ceph）
 ├── setup-ssh-keys.sh          # 生成密钥 + 分发到所有机器（首次运行）
 ├── deploy-tikv.sh             # 部署 1 台 TiKV
 ├── deploy-ceph.sh             # 部署 3 台 Ceph

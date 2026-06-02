@@ -13,6 +13,7 @@
 # Running single-replica mode (no Raft group).
 # Minimum: 4 CPU, 8GB RAM, 50GB+ fast SSD
 TIKV_SERVER="192.168.11.12"   # tikv-node (this machine)
+TIKV_DATA_DEVICE="/dev/sdb"   # dedicated disk for TiKV/PD data (/data mount)
 
 TIKV_DATA_DIR="/data/tikv"
 PD_DATA_DIR="/data/pd"
