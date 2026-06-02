@@ -97,6 +97,14 @@ echo "  Packages installed."
 
 # ============================================================
 # Common: Firewall
+#
+# Ubuntu's ufw blocks all inbound traffic by default.  In the WSL2/QEMU
+# demo all VMs shared one host on internal bridges (br0/br1), so traffic
+# never hit the physical firewall.  On physical servers every port must
+# be explicitly opened, otherwise:
+#   TiKV:  PD/TiKV can't form cluster (ports 2379/2380/20160/20180)
+#   Ceph:  MON can't reach quorum (3300/6789), RGW S3 API unreachable (8000),
+#          OSD replication blocked (6800-7300)
 # ============================================================
 
 echo ""
