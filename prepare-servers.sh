@@ -37,7 +37,12 @@ echo "========================================"
 echo ""
 echo ">>> System tuning..."
 
-# Disable swap (TiKV and Ceph need predictable latency)
+# Disable swap — both TiKV and Ceph OSD embed RocksDB which uses memory
+# heavily during compaction.  If compaction spills to swap, I/O latency
+# jumps from <1ms to tens of ms.  TiKV's Raft heartbeat (default 1s) then
+# times out → leader ejection → cluster instability.  Ceph OSD heartbeat
+# times out → MON marks OSD down → unnecessary data rebalance.
+# For distributed storage, OOM-kill is safer than swap thrashing.
 if swapon --show | grep -q '^/'; then
     echo "  Disabling swap..."
     swapoff -a
