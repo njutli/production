@@ -121,7 +121,7 @@ for i in "${!CEPH_SERVERS[@]}"; do
         echo \"  hostname set to: ${hostname}\"
 
         # Refresh package cache once (used by all subsequent apt-get calls)
-        sudo apt-get update -qq 2>/dev/null
+        sudo apt-get update -qq 2>/dev/null || true
 
         # Install podman
         if ! command -v podman &>/dev/null; then

@@ -60,7 +60,7 @@ echo "========================================"
 echo ""
 echo ">>> Time synchronisation..."
 
-apt-get update -qq
+apt-get update -qq 2>/dev/null || true
 DEBIAN_FRONTEND=noninteractive apt-get install -y chrony >/dev/null 2>&1 || \
     DEBIAN_FRONTEND=noninteractive apt-get install -y ntp >/dev/null 2>&1
 systemctl enable chrony --now 2>/dev/null || systemctl enable ntp --now 2>/dev/null || true
