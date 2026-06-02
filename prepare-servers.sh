@@ -60,9 +60,14 @@ echo "========================================"
 echo ""
 echo ">>> Time synchronisation..."
 
-apt-get update -qq 2>/dev/null || true
+apt-get update -qq 2>/dev/null || true   # tolerate broken 3rd-party repos
+
 DEBIAN_FRONTEND=noninteractive apt-get install -y chrony >/dev/null 2>&1 || \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y ntp >/dev/null 2>&1
+    DEBIAN_FRONTEND=noninteractive apt-get install -y ntp >/dev/null 2>&1 || {
+    echo "  ERROR: failed to install time sync package (chrony or ntp)."
+    echo "  Check network connectivity and apt sources."
+    exit 1
+}
 systemctl enable chrony --now 2>/dev/null || systemctl enable ntp --now 2>/dev/null || true
 echo "  Time sync enabled."
 
@@ -91,7 +96,11 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
     htop iotop iftop sysstat \
     gdisk parted \
     python3 python3-pip \
-    >/dev/null 2>&1
+    >/dev/null 2>&1 || {
+    echo "  ERROR: failed to install essential packages."
+    echo "  Check network connectivity and apt sources."
+    exit 1
+}
 
 echo "  Packages installed."
 

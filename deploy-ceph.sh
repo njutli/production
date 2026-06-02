@@ -126,14 +126,16 @@ for i in "${!CEPH_SERVERS[@]}"; do
         # Install podman
         if ! command -v podman &>/dev/null; then
             echo '  Installing podman...'
-            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y podman >/dev/null 2>&1
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y podman >/dev/null 2>&1 || {
+                echo '  ERROR: podman install failed'; exit 1; }
         else
             echo '  podman already installed'
         fi
 
         # Install system tools needed for disk partitioning
         if ! command -v sgdisk &>/dev/null; then
-            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y gdisk parted >/dev/null 2>&1
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y gdisk parted >/dev/null 2>&1 || {
+                echo '  ERROR: gdisk/parted install failed'; exit 1; }
         fi
 
         # Stop docker if present (docker and podman conflict on the
@@ -145,6 +147,8 @@ for i in "${!CEPH_SERVERS[@]}"; do
         if ! command -v cephadm &>/dev/null; then
             echo '  Installing cephadm...'
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y cephadm ceph-common >/dev/null 2>&1 || {
+                # Fallback: curl install from GitHub
+                echo '  apt failed, trying curl-based install...'
                 curl -sSL --remote-name https://github.com/ceph/ceph/raw/reef/src/cephadm/cephadm
                 chmod +x cephadm
                 sudo mv cephadm /usr/local/bin/
