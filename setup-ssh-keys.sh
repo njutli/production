@@ -43,21 +43,14 @@ cat "${KEY_FILE}.pub"
 echo ""
 
 # ============================================================
-# Step 2: Copy key to TiKV server
+# Step 2: Copy key to target servers
 # ============================================================
+# TiKV is deployed locally on this machine — deploy-tikv.sh uses sudo,
+# no SSH needed.  Only Ceph servers require key distribution.
 
-TARGETS=("${TIKV_SERVER}")
-
-# Check if TiKV is local — if so, ensure root can SSH to itself
-LOCAL_IPS=$(hostname -I 2>/dev/null || ip -4 addr show scope global | grep -oP 'inet \K[\d.]+')
-for lip in ${LOCAL_IPS}; do
-    if [ "${lip}" = "${TIKV_SERVER}" ]; then
-        echo ">>> TiKV server (${TIKV_SERVER}) is the local machine."
-        echo "    Deploy-tikv.sh uses sudo locally, no SSH needed."
-        echo ""
-        break
-    fi
-done
+echo ">>> TiKV server (${TIKV_SERVER}) is on the local machine."
+echo "    deploy-tikv.sh uses sudo, no SSH key needed for TiKV."
+echo ""
 
 # ============================================================
 # Step 3: Copy key to Ceph servers
