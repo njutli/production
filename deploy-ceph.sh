@@ -268,6 +268,15 @@ for i in "${!CEPH_SERVERS[@]}"; do
 
     ssh_srv "${ip}" "
         set -e
+        # Safety: refuse to wipe a mounted device or the root disk
+        if mount | grep -q '^${dev} '; then
+            echo \"  FATAL: ${dev} is currently mounted! Refusing to wipe.\"; exit 1
+        fi
+        root_dev=\$(findmnt -n -o SOURCE / | sed 's/[0-9]*$//;s/p[0-9]*$//')
+        if [ \"\${root_dev}\" = '${dev}' ]; then
+            echo \"  FATAL: ${dev} appears to be the system disk! Refusing to wipe.\"; exit 1
+        fi
+
         echo '  Wiping partition table...'
         sudo sgdisk -Z ${dev} 2>/dev/null || sudo wipefs -a ${dev}
         sleep 2

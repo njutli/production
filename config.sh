@@ -34,7 +34,11 @@ CEPH_SERVERS=(
 # per server).  Each disk will be split into 2 equal partitions by
 # deploy-ceph.sh → 3 servers × 2 partitions = 6 OSDs for EC 4+2.
 # Index matches CEPH_SERVERS.
-CEPH_OSD_DEVICES=( "/dev/sdb" "/dev/sdb" "/dev/sdb" )
+#   ceph-node1: sda=447G (system on sdb, reversed from other nodes)
+#   ceph-node2: sdb=953G
+#   ceph-node3: sdb=953G
+# Capacity: min OSD ~223G → EC 4+2 usable ~892G (efficiency ~38%)
+CEPH_OSD_DEVICES=( "/dev/sda" "/dev/sdb" "/dev/sdb" )
 
 # EC pool configuration
 # k=4 data chunks + m=2 parity = 6 chunks total
