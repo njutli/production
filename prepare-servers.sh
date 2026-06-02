@@ -30,8 +30,32 @@ echo "Role: ${ROLE}"
 echo "========================================"
 
 # ============================================================
-# Common: Time sync (critical for Raft/Paxos consensus)
+# Common: Time sync (critical for distributed consensus)
 # ============================================================
+#
+# NTP/chrony works by measuring the round-trip time to multiple
+# reference servers, then gradually adjusting the local clock — not
+# by jumping, but by slewing (speeding up / slowing down the system
+# tick rate).  This keeps the clock monotonic, avoiding jumps that
+# would confuse applications.
+#
+# Why it matters for TiKV and Ceph:
+#
+#   TiKV PD (Raft):
+#     Leader election and lease expiration both rely on timeouts.
+#     If node A's clock is 20s ahead of node B, A will send a
+#     heartbeat, B will respond, but A may have already declared B
+#     unreachable and started a disruptive leader election.
+#
+#   Ceph MON (Paxos):
+#     MON tracks OSD liveness via heartbeat.  Default timeout is
+#     20s — if an OSD misses 20s of heartbeats, MON marks it
+#     "down" and triggers data rebalance across the cluster.
+#     Clock skew between MON and OSD can cause false-positives,
+#     wasting I/O and network bandwidth on unnecessary recovery.
+#
+# Both chrony and ntp are standard Ubuntu packages.  We prefer
+# chrony (default since 22.04) and fall back to ntp.
 
 echo ""
 echo ">>> Time synchronisation..."
