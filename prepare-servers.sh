@@ -248,10 +248,15 @@ if [ "${ROLE}" = "ceph" ] || [ "${ROLE}" = "all" ]; then
     echo ""
     echo ">>> Ceph-specific preparation..."
 
-    # Ensure podman is installed
+    # Ensure podman is installed (cephadm requirement).
+    # deploy-ceph.sh Step 1 will also install it, so this is
+    # best-effort — if it fails, deployment still continues.
     if ! command -v podman &>/dev/null; then
         echo "  Installing podman..."
-        DEBIAN_FRONTEND=noninteractive apt-get install -y podman >/dev/null 2>&1
+        DEBIAN_FRONTEND=noninteractive apt-get install -y podman || \
+            echo "  WARNING: podman install failed (deploy-ceph.sh will retry)"
+    else
+        echo "  podman already installed."
     fi
 
     # Stop docker if present (docker and podman both listen on the
