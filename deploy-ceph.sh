@@ -157,9 +157,15 @@ for i in "${!CEPH_SERVERS[@]}"; do
             echo '  cephadm already installed'
         fi
 
-        # Fix cephadm container-engine detection bug (Ubuntu 24.04)
-        sudo sed -i 's/raise RuntimeError.*get_version.*first/return (0, 0, 0)/' \
-            /usr/lib/python3/dist-packages/cephadmlib/container_engines.py 2>/dev/null || true
+        # cephadm on Ubuntu 24.04 (Noble) ships with a bug in its podman
+        # version detection:  when podman's --version output isn't parsed as
+        # expected, it raises RuntimeError and bootstrap aborts.  This sed
+        # replaces the exception with a fallback return (0,0,0) so cephadm
+        # continues.  Harmless on 22.04 where the file doesn't exist.
+        if grep -q '24\.04\|noble' /etc/os-release 2>/dev/null; then
+            sudo sed -i 's/raise RuntimeError.*get_version.*first/return (0, 0, 0)/' \
+                /usr/lib/python3/dist-packages/cephadmlib/container_engines.py 2>/dev/null || true
+        fi
 
         # Enable root SSH
         sudo sed -i 's/^#*PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
