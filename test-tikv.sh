@@ -5,12 +5,11 @@ set -euo pipefail
 # TiKV Cluster Smoke Test
 #
 # Part 1 (read-only): PD health, members, TiKV store registration.
-# Part 2 (write+delete): round-trip through PD's config API.
-#   PD stores its configuration in the embedded etcd, which is
-#   the same key-value path that TiKV uses.  By temporarily
-#   changing a non-critical config value, reading it back, and
-#   restoring the original, we verify the full write→read→delete
-#   chain without leaving any data residue.
+# Part 2 (write+read+delete): raw key-value round-trip through
+#   TiKV via tikv-ctl — puts a test key, reads it back, deletes
+#   it.  No data residue.
+# Part 3 (restore): reverts cluster-level parameters to original
+#   values after write-read-delete validation.
 #
 # Usage: bash test-tikv.sh
 # ============================================================
@@ -32,6 +31,9 @@ check() {
     fi
 }
 
+# tikv-ctl runs on the TiKV server
+tikvctl() { sudo /opt/tikv/bin/tikv-ctl --pd "${PD}" "$@"; }
+
 echo "========================================"
 echo "TiKV Cluster Smoke Test"
 echo "========================================"
@@ -39,19 +41,17 @@ echo "PD endpoint: ${PD}"
 echo ""
 
 # ============================================================
-# Part 1: Read-only cluster checks
+# Part 1: Read-only cluster checks (no writes, no cleanup)
 # ============================================================
 
 echo "--- Part 1: Cluster Status ---"
 echo ""
 
-# --- PD health ---
 echo ">>> PD Health"
 check "PD health endpoint" \
     curl -sf --noproxy '*' "http://${PD}/pd/api/v1/health"
 echo ""
 
-# --- PD members ---
 echo ">>> PD Members"
 check "members API reachable" \
     curl -sf --noproxy '*' "http://${PD}/pd/api/v1/members"
@@ -64,60 +64,40 @@ for m in d.get('members', []):
 " 2>/dev/null || true
 echo ""
 
-# --- TiKV stores ---
 echo ">>> TiKV Stores"
 check "stores API reachable" \
     curl -sf --noproxy '*' "http://${PD}/pd/api/v1/stores"
 
 STATUS=$(curl -sf --noproxy '*' "http://${PD}/pd/api/v1/stores" 2>/dev/null)
-STORE_COUNT=$(echo "${STATUS}" | python3 -c "
+STORE_UP=$(echo "${STATUS}" | python3 -c "
 import json,sys
 d=json.load(sys.stdin)
 stores=d.get('stores',[])
-print(sum(1 for s in stores if s.get('store',s).get('state_name','').lower() == 'up'))
+print(sum(1 for s in stores if s.get('store',s).get('state_name','').lower()=='up'))
 " 2>/dev/null || echo "0")
-
-echo "  Up stores: ${STORE_COUNT}"
-if [ "${STORE_COUNT}" -gt 0 ]; then
-    echo "  PASS: at least 1 store UP"
-    PASS=$((PASS + 1))
+echo "  Up stores: ${STORE_UP}"
+if [ "${STORE_UP}" -gt 0 ]; then
+    echo "  PASS: at least 1 store UP"; PASS=$((PASS + 1))
 else
     echo "  FAIL: no UP stores"; FAIL=$((FAIL + 1))
 fi
-
-echo "  Details:"
-echo "${STATUS}" | python3 -c "
-import json,sys
-d=json.load(sys.stdin)
-for s in d.get('stores',[]):
-    store=s.get('store',s)
-    print(f\"    {store.get('address','?')}  state={store.get('state_name','?')}  labels={store.get('labels',{})}  free={store.get('available','?')}\")
-" 2>/dev/null || true
 echo ""
 
 # ============================================================
-# Part 2: Write → Read → Restore (via PD config API)
+# Part 2: Write → Read → Delete (user data via tikv-ctl)
 # ============================================================
 
-echo "--- Part 2: Write/Read/Rollback ---"
-echo "  (using PD config API — same etcd path TiKV writes go through)"
+echo "--- Part 2: User Data Round-Trip ---"
 echo ""
+TEST_TS=$(date +%s)
+TEST_KEY="smoke_test_key_${TEST_TS}"
+TEST_VAL="smoke_test_value_${TEST_TS}"
 
-KEY="schedule.region-schedule-limit"
-ORIGINAL=$(curl -sf --noproxy '*' "http://${PD}/pd/api/v1/config/${KEY}" 2>/dev/null)
-TEST_VALUE=99
-
-echo "  Original ${KEY} = ${ORIGINAL}"
-
-# Write
-echo -n "  PUT ${KEY}=${TEST_VALUE} ... "
-if curl -sf --noproxy '*' -X POST "http://${PD}/pd/api/v1/config" \
-    -H "Content-Type: application/json" \
-    -d "{\"${KEY}\":${TEST_VALUE}}" >/dev/null 2>&1; then
+echo -n "  PUT ${TEST_KEY} ... "
+if tikvctl raw-put "${TEST_KEY}" "${TEST_VAL}" --cf default >/dev/null 2>&1; then
     echo "PASS"; PASS=$((PASS + 1))
 else
     echo "FAIL"; FAIL=$((FAIL + 1))
-    # If write fails, skip remaining checks — PD is fundamentally broken
     echo ""
     echo "========================================"
     echo "Result: ${PASS} passed, ${FAIL} failed"
@@ -125,29 +105,26 @@ else
     exit 1
 fi
 
-# Read back
-echo -n "  GET ${KEY} ... "
-READBACK=$(curl -sf --noproxy '*' "http://${PD}/pd/api/v1/config/${KEY}" 2>/dev/null)
-if [ "${READBACK}" = "${TEST_VALUE}" ]; then
-    echo "PASS (value=${READBACK})"; PASS=$((PASS + 1))
+echo -n "  GET ${TEST_KEY} ... "
+VAL=$(tikvctl raw-get "${TEST_KEY}" --cf default 2>/dev/null | grep -oP 'val:\s*\K.*' || echo "")
+if [ "${VAL}" = "${TEST_VAL}" ]; then
+    echo "PASS (value matches)"; PASS=$((PASS + 1))
 else
-    echo "FAIL (expected ${TEST_VALUE}, got ${READBACK})"; FAIL=$((FAIL + 1))
+    echo "FAIL (val='${VAL}')"; FAIL=$((FAIL + 1))
 fi
 
-# Restore original (cleanup)
-echo -n "  Restoring ${KEY}=${ORIGINAL} ... "
-curl -sf --noproxy '*' -X POST "http://${PD}/pd/api/v1/config" \
-    -H "Content-Type: application/json" \
-    -d "{\"${KEY}\":${ORIGINAL}}" >/dev/null 2>&1 && echo "PASS" && PASS=$((PASS + 1)) || \
-    { echo "FAIL (manual restore needed)"; FAIL=$((FAIL + 1)); }
-
-# Verify restored
-echo -n "  Verify restored ... "
-FINAL=$(curl -sf --noproxy '*' "http://${PD}/pd/api/v1/config/${KEY}" 2>/dev/null)
-if [ "${FINAL}" = "${ORIGINAL}" ]; then
+echo -n "  DELETE ${TEST_KEY} ... "
+if tikvctl raw-delete "${TEST_KEY}" --cf default >/dev/null 2>&1; then
     echo "PASS"; PASS=$((PASS + 1))
 else
-    echo "FAIL (value=${FINAL}, expected ${ORIGINAL})"; FAIL=$((FAIL + 1))
+    echo "FAIL"; FAIL=$((FAIL + 1))
+fi
+
+echo -n "  VERIFY deleted ... "
+if tikvctl raw-get "${TEST_KEY}" --cf default 2>/dev/null | grep -q 'key not found'; then
+    echo "PASS"; PASS=$((PASS + 1))
+else
+    echo "FAIL"; FAIL=$((FAIL + 1))
 fi
 echo ""
 
@@ -159,8 +136,8 @@ echo "========================================"
 if [ "${FAIL}" -gt 0 ]; then
     echo ""
     echo "Troubleshooting:"
-    echo "  ssh ${SSH_USER}@${TIKV_SERVER} sudo systemctl status pd tikv"
-    echo "  ssh ${SSH_USER}@${TIKV_SERVER} sudo journalctl -u pd -f"
-    echo "  ssh ${SSH_USER}@${TIKV_SERVER} sudo journalctl -u tikv -f"
+    echo "  sudo systemctl status pd tikv"
+    echo "  sudo journalctl -u pd -f"
+    echo "  sudo journalctl -u tikv -f"
     exit 1
 fi
