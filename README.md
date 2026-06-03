@@ -74,7 +74,7 @@ bash production/prepare-all-servers.sh
 ```bash
 bash production/deploy-tikv.sh
 bash production/test-tikv.sh
-# → 输出 PASS/FAIL 汇总，包括写-读-回滚验证
+# → PD 状态 + Go+tikv/client-go 真实数据读写删测试
 ```
 
 ### 3. 部署 Ceph
@@ -142,9 +142,12 @@ production/
 ├── setup-ssh-keys.sh          # 生成密钥 + 分发到所有机器（首次运行）
 ├── deploy-tikv.sh             # 部署 1 台 TiKV
 ├── deploy-ceph.sh             # 部署 3 台 Ceph
-├── test-tikv.sh               # TiKV 冒烟测试（部署后立即运行）
-├── test-ceph.sh               # Ceph 冒烟测试（部署后立即运行）
+├── test-tikv.sh               # TiKV 冒烟测试（Go RawKV 真实数据读写删）
+├── test-ceph.sh               # Ceph 冒烟测试（RGW S3 读写删）
 ├── tune-servers.sh            # 性能调优（JuiceFS 基线测试后执行）
+├── tests/                     # 测试代码
+│   ├── tikv-test.go           #   TiKV RawKV Go 测试程序
+│   └── go.mod                 #   Go 依赖定义
 └── deploy-juicefs.sh          # JuiceFS 客户端（format/mount/test）
 ```
 
