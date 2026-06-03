@@ -211,8 +211,6 @@ do_destroy() {
     echo "  ${METADATA_URL}"
     echo "========================================"
     echo ""
-    echo "This will delete ALL metadata in TiKV and ALL data in Ceph RGW."
-    echo ""
 
     do_unmount 2>/dev/null || true
 
@@ -222,8 +220,30 @@ do_destroy() {
         exit 0
     fi
 
+    echo ""
+    echo "Choose what to delete:"
+    echo "  1) Metadata only (TiKV) — S3 data in Ceph RGW is kept"
+    echo "  2) Everything (TiKV + Ceph RGW S3 data)"
+    read -rp "> [1/2]: " choice
+
     install_juicefs
-    juicefs destroy --delete-all "${METADATA_URL}" || echo "Destroy command completed."
+
+    case "${choice}" in
+        1)
+            echo ">>> Deleting metadata only..."
+            juicefs destroy "${METADATA_URL}" --yes
+            echo "  Metadata deleted. S3 data in Ceph RGW is untouched."
+            ;;
+        2)
+            echo ">>> Deleting metadata + S3 data..."
+            juicefs destroy --delete-all "${METADATA_URL}" --yes
+            echo "  Metadata and S3 data deleted."
+            ;;
+        *)
+            echo "Invalid choice. Aborted."
+            exit 1
+            ;;
+    esac
 }
 
 do_test() {
