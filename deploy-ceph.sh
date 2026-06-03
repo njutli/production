@@ -364,6 +364,14 @@ for ip in "${CEPH_SERVERS[@]}"; do
     ssh_srv "${ip}" "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq lvm2 2>/dev/null || true"
 done
 
+# Ensure bootstrap-osd keyring exists (ceph-volume needs it to register OSDs)
+if ! ssh_srv "${PRIMARY}" "sudo test -f /var/lib/ceph/bootstrap-osd/ceph.keyring" 2>/dev/null; then
+    echo "  Creating bootstrap-osd keyring..."
+    ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph auth get-or-create client.bootstrap-osd mon 'allow profile bootstrap-osd' -o /var/lib/ceph/bootstrap-osd/ceph.keyring 2>/dev/null" || {
+        echo "  WARNING: could not create bootstrap-osd keyring. OSD deployment may fail."
+    }
+fi
+
 OSD_EXPECTED=0
 
 for i in "${!CEPH_SERVERS[@]}"; do
