@@ -153,7 +153,7 @@ for i in "${!CEPH_SERVERS[@]}"; do
         # Install cephadm
         if ! command -v cephadm &>/dev/null; then
             echo '  Installing cephadm...'
-            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y cephadm ceph-common >/dev/null 2>&1 || {
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y cephadm ceph-common radosgw >/dev/null 2>&1 || {
                 # Fallback: curl install from GitHub
                 echo '  apt failed, trying curl-based install...'
                 curl -sSL --remote-name https://github.com/ceph/ceph/raw/reef/src/cephadm/cephadm
@@ -162,6 +162,15 @@ for i in "${!CEPH_SERVERS[@]}"; do
             }
         else
             echo '  cephadm already installed'
+        fi
+
+        # radosgw-admin is needed to create S3 users (Step 7).
+        # It may not be pulled in by cephadm/ceph-common alone.
+        if ! command -v radosgw-admin &>/dev/null; then
+            echo '  Installing radosgw (radosgw-admin)...'
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y radosgw >/dev/null 2>&1 || {
+                echo '  WARNING: radosgw-admin not available (user creation may fail)'
+            }
         fi
 
         # cephadm on Ubuntu 24.04 (Noble) ships with a bug in its podman
