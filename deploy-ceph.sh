@@ -239,30 +239,85 @@ ssh_srv "${PRIMARY}" "sudo cat /etc/ceph/ceph.pub" > /tmp/ceph.pub
 echo "   /tmp/ceph.conf, /tmp/ceph.client.admin.keyring, /tmp/ceph.pub saved."
 
 # ============================================================
-# Step 3: Add secondary nodes
+# Step 3: Set up root SSH + add secondary nodes
+# ============================================================
+#
+# cephadm stores the SSH key pair inside the cluster's config-key
+# store, not in /root/.ssh/.  When bootstrap ran while the root
+# account was locked, the standard path setup was skipped.  We
+# extract the keys and deploy them to the standard locations so
+# that ceph orch commands (device zap, daemon add osd) work.
 # ============================================================
 
 echo ""
-echo ">>> Step 3: Adding secondary nodes..."
+echo ">>> Step 3: Setting up root SSH between Ceph nodes..."
+
+# Extract cephadm's SSH private key from the cluster config
+if ! ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph config-key get mgr/cephadm/ssh_identity_key 2>/dev/null" > /tmp/ceph_priv_key 2>/dev/null; then
+    echo "  WARNING: could not extract cephadm private key. Trying fallback."
+    rm -f /tmp/ceph_priv_key
+fi
+
+# Deploy keys to all 3 Ceph nodes (including primary itself)
+for ip in "${CEPH_SERVERS[@]}"; do
+    echo "  Setting up root SSH on ${ip}..."
+
+    # Public key → authorized_keys
+    scp_srv "${ip}" /tmp/ceph.pub /tmp/ceph.pub
+    ssh_srv "${ip}" "
+        sudo mkdir -p /root/.ssh
+        sudo cp /tmp/ceph.pub /root/.ssh/authorized_keys
+        sudo chmod 600 /root/.ssh/authorized_keys
+        sudo chown -R root:root /root/.ssh /root
+    "
+
+    # Private key → id_rsa (if we extracted one)
+    if [ -s /tmp/ceph_priv_key ]; then
+        scp_srv "${ip}" /tmp/ceph_priv_key /tmp/ceph_priv_key
+        ssh_srv "${ip}" "
+            sudo cp /tmp/ceph_priv_key /root/.ssh/id_rsa
+            sudo chmod 600 /root/.ssh/id_rsa
+            sudo chown root:root /root/.ssh/id_rsa
+        "
+    fi
+done
+echo "  Keys deployed."
+
+# Verify root SSH works on each node
+echo "  Verifying root SSH..."
+all_root_ok=true
+for ip in "${CEPH_SERVERS[@]}"; do
+    if ssh_srv "${ip}" "sudo ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 root@localhost echo OK" 2>/dev/null; then
+        echo "    ${ip}: root SSH OK"
+    else
+        echo "    ${ip}: root SSH FAILED"
+        all_root_ok=false
+    fi
+done
+
+if ! ${all_root_ok}; then
+    echo ""
+    echo "  ERROR: root SSH not working.  Check:"
+    echo "    ssh turboai@192.168.11.11 'sudo cat /etc/ceph/ceph.pub'"
+    echo "    ssh turboai@192.168.11.11 'sudo cat /root/.ssh/authorized_keys'"
+    echo "    Both must be identical RSA keys."
+    echo "    Also verify: sudo passwd -S root  (must NOT show 'L')"
+    exit 1
+fi
+
+# Clean up temp keys
+rm -f /tmp/ceph_priv_key
+
+echo ""
+echo ">>> Step 3b: Adding secondary nodes..."
 
 for i in 1 2; do
     ip="${CEPH_SERVERS[$i]}"
     hostname="ceph-node$((i + 1))"
     echo ">>> Adding ${hostname} (${ip})..."
 
-    # Distribute ceph.pub to root on secondary node
-    scp_srv "${ip}" /tmp/ceph.pub /tmp/ceph.pub
-    ssh_srv "${ip}" "
-        sudo mkdir -p /root/.ssh
-        sudo cp /tmp/ceph.pub /root/.ssh/authorized_keys
-        sudo chmod 600 /root/.ssh/authorized_keys
-        sudo chown root:root /root/.ssh /root/.ssh/authorized_keys /root
-    "
-
-    # Add host to orchestrator
     if ! ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph orch host add ${hostname} ${ip} 2>&1" 2>/dev/null; then
-        echo "  ERROR: failed to add ${hostname}. Check root SSH between Ceph nodes."
-        echo "         ssh turboai@${ip} 'sudo ssh -o StrictHostKeyChecking=no root@localhost echo OK'"
+        echo "  ERROR: failed to add ${hostname}."
         exit 1
     fi
     ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph orch host label add ${hostname} _admin 2>/dev/null || true"
