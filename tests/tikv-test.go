@@ -6,13 +6,14 @@ import (
 	"os"
 	"time"
 
+	"github.com/tikv/client-go/v2/config"
 	"github.com/tikv/client-go/v2/rawkv"
 )
 
 func main() {
 	pdAddrs := []string{"192.168.11.12:2379"}
 
-	client, err := rawkv.NewClient(context.Background(), pdAddrs)
+	client, err := rawkv.NewClient(context.Background(), pdAddrs, config.Security{})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: cannot connect to TiKV: %v\n", err)
 		os.Exit(1)
