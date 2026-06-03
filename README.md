@@ -96,9 +96,22 @@ ssh turboai@192.168.11.11 'sudo cephadm shell -- ceph status'
 ssh turboai@192.168.11.11 'sudo cephadm shell -- ceph osd tree'
 ```
 
-### 4. 性能调优
+### 4. 部署 JuiceFS（获取调优前基线）
 
-每台机器执行（部署完成后）：
+```bash
+# 测试数据密集型 → 客户端在 tikv-node
+# 修改 config.sh: JUICEFS_CLIENT="${TIKV_SERVER}"
+bash production/deploy-juicefs.sh format
+bash production/deploy-juicefs.sh mount
+bash production/deploy-juicefs.sh test
+# ← 记录此时的性能数据，作为调优前基线
+
+bash production/deploy-juicefs.sh unmount
+```
+
+### 5. 性能调优
+
+在 JuiceFS 完成一次完整测试并记录基线数据后，再执行调优（调优后可对比性能变化）：
 
 ```bash
 # TiKV 机器
@@ -110,19 +123,7 @@ sudo bash production/tune-servers.sh ceph
 # swap/THP/sysctl/I/O scheduler 即时生效，fd limits 需重启 OSD
 ```
 
-### 5. 部署 JuiceFS
-
-```bash
-# 测试数据密集型 → 客户端在 tikv-node
-# 修改 config.sh: JUICEFS_CLIENT="${TIKV_SERVER}"
-bash production/deploy-juicefs.sh format
-bash production/deploy-juicefs.sh mount
-bash production/deploy-juicefs.sh test
-
-# 测试元数据密集型 → 客户端切换到 ceph-node1
-# 修改 config.sh: JUICEFS_CLIENT="${CEPH_SERVERS[0]}"
-# 再将 deploy-juicefs.sh 复制到 ceph-node1 执行
-```
+调优后重新挂载 JuiceFS 复测，对比调优前后的性能差异。
 
 ## 与 WSL2 Demo 的关键差异
 
