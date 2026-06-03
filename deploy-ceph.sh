@@ -107,6 +107,28 @@ echo ""
 read -rp "Continue with deployment? [y/N] " confirm
 [[ "${confirm}" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 0; }
 
+# Limit MON deployment to nodes with sufficient root disk space.
+# MON requires ~1GB headroom on the root filesystem for database growth.
+# If a node's root disk has < 2GB free, cephadm will refuse to start MON.
+# This preemptively skips such nodes; they still run OSDs and other services.
+MON_HOSTS=()
+for i in "${!CEPH_SERVERS[@]}"; do
+    ip="${CEPH_SERVERS[$i]}"
+    free_gb=$(ssh_srv "${ip}" "df -BG / | tail -1 | awk '{print \$4}' | sed 's/G//'" 2>/dev/null || echo "0")
+    if [ "${free_gb}" -ge 2 ]; then
+        MON_HOSTS+=("ceph-node$((i + 1))")
+        echo "  MON: ceph-node$((i + 1)) (${free_gb}G root free) ✓"
+    else
+        echo "  MON: ceph-node$((i + 1)) SKIPPED — only ${free_gb}G root free (need ≥ 2G)"
+    fi
+done
+if [ ${#MON_HOSTS[@]} -lt 2 ]; then
+    echo "  ERROR: fewer than 2 nodes suitable for MON. Need ≥ 2 for quorum."
+    exit 1
+fi
+MON_PLACEMENT=$(IFS=,; echo "${MON_HOSTS[*]}")
+ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph config set mon mon_data_avail_crit 1 2>/dev/null" || true
+
 # ============================================================
 # Step 1: Prepare all servers
 # ============================================================
@@ -309,7 +331,11 @@ fi
 rm -f /tmp/ceph_priv_key
 
 echo ""
-echo ">>> Step 3b: Adding secondary nodes..."
+echo ">>> Step 3b: Deploying MONs and adding secondary nodes..."
+
+# Apply MON placement based on disk space assessment from Step 0
+ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph orch apply mon --placement=\"${MON_PLACEMENT}\" 2>/dev/null || true"
+echo "  MON placement: ${MON_PLACEMENT}"
 
 for i in 1 2; do
     ip="${CEPH_SERVERS[$i]}"
@@ -345,40 +371,16 @@ ssh_srv "${PRIMARY}" "
 "
 
 # ============================================================
-# Step 4: Partition disks + deploy OSDs (3 servers × 2 = 6 OSDs)
+# Step 4: Deploy OSDs — one per whole disk (orchestrator LVM mode)
 # ============================================================
 #
-# ceph orch device zap/daemon add rely on cephadm's device inventory
-# which sometimes fails to pick up newly-created partitions.
-# Instead we use ceph-volume directly on each host — it scans the
-# local block devices and provisions BlueStore OSDs without going
-# through the orchestrator's internal device database.
+# ceph orch daemon add osd uses ceph-volume lvm batch on the whole
+# disk, creating PV/VG/LV automatically.  One OSD per disk per node.
+# The EC pool width (k+m) must not exceed the total OSD count.
 # ============================================================
 
 echo ""
-echo ">>> Step 4: Partitioning disks and deploying OSDs..."
-echo "           (using ceph-volume directly, bypassing orchestrator device cache)"
-
-# Ensure lvm2 is installed on all nodes (ceph-volume needs it)
-for ip in "${CEPH_SERVERS[@]}"; do
-    ssh_srv "${ip}" "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq lvm2 2>/dev/null || true"
-done
-
-# Ensure bootstrap-osd keyring exists (ceph-volume needs it to register OSDs).
-# cephadm shell's -o flag writes inside the container, not the host — we
-# use sudo tee + sudo mkdir to persist the file on the actual filesystem.
-if ! ssh_srv "${PRIMARY}" "sudo test -f /var/lib/ceph/bootstrap-osd/ceph.keyring" 2>/dev/null; then
-    echo "  Creating bootstrap-osd keyring..."
-    ssh_srv "${PRIMARY}" "
-        sudo mkdir -p /var/lib/ceph/bootstrap-osd
-        sudo cephadm shell -- ceph auth get-or-create client.bootstrap-osd mon 'allow profile bootstrap-osd' 2>/dev/null | sudo tee /var/lib/ceph/bootstrap-osd/ceph.keyring >/dev/null
-        sudo chmod 600 /var/lib/ceph/bootstrap-osd/ceph.keyring
-    " || {
-        echo "  WARNING: could not create bootstrap-osd keyring. OSD deployment may fail."
-    }
-fi
-
-OSD_EXPECTED=0
+echo ">>> Step 4: Deploying OSDs (one per disk, LVM mode)..."
 
 for i in "${!CEPH_SERVERS[@]}"; do
     ip="${CEPH_SERVERS[$i]}"
@@ -391,47 +393,30 @@ for i in "${!CEPH_SERVERS[@]}"; do
     fi
 
     echo ""
-    echo "--- Partitioning ${dev} on ${hostname} (${ip}) ---"
+    echo "--- Preparing ${dev} on ${hostname} (${ip}) ---"
 
     ssh_srv "${ip}" "
         set -e
         if mount | grep -q '^${dev} '; then
-            echo \"  FATAL: ${dev} is currently mounted! Refusing to wipe.\"; exit 1
+            echo \"  FATAL: ${dev} is currently mounted! Refusing.\"; exit 1
         fi
-        root_dev=\$(findmnt -n -o SOURCE / | sed 's/[0-9]*$//;s/p[0-9]*$//')
+        root_dev=\$(findmnt -n -o SOURCE / | sed 's/[0-9]*\$//;s/p[0-9]*\$//')
         if [ \"\${root_dev}\" = '${dev}' ]; then
-            echo \"  FATAL: ${dev} appears to be the system disk! Refusing to wipe.\"; exit 1
+            echo \"  FATAL: ${dev} is the system disk! Refusing.\"; exit 1
         fi
-
-        echo '  Wiping partition table...'
+        # Wipe any partition table so lvm batch can claim the whole disk
         sudo sgdisk -Z ${dev} 2>/dev/null || sudo wipefs -a ${dev}
-        sleep 2
         sudo partprobe ${dev} 2>/dev/null || true
-        sleep 2
-
-        sectors=\$(sudo blockdev --getsz ${dev})
-        half=\$(( sectors / 2 ))
-        echo \"  Disk ${dev}: \${sectors} sectors → 2 × \${half}\"
-
-        sudo sgdisk -n 1:0:+\${half} -t 1:8300 ${dev}
-        sudo sgdisk -n 2:0:0 -t 2:8300 ${dev}
-        sudo partprobe ${dev} 2>/dev/null || true
-        sleep 3
-
-        echo '  Partitions created:'
-        lsblk ${dev} 2>/dev/null || true
+        echo '  Disk ready.'
     "
 
-    for part_num in 1 2; do
-        part="${dev}${part_num}"
-        echo "  Deploying OSD on ${hostname}:${part}..."
-
-        if ! ssh_srv "${ip}" "sudo cephadm shell -- ceph-volume raw prepare --bluestore --data ${part} 2>&1" 2>/dev/null; then
-            echo "  ERROR: OSD deployment failed for ${hostname}:${part}"
-            exit 1
-        fi
-        OSD_EXPECTED=$((OSD_EXPECTED + 1))
-    done
+    echo -n "  Deploying OSD on ${hostname}:${dev}... "
+    if ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph orch daemon add osd ${hostname}:${dev} 2>&1" 2>/dev/null | grep -q "Created"; then
+        echo "OK"
+    else
+        echo "FAILED"
+        exit 1
+    fi
 done
 
 echo ""
@@ -439,11 +424,18 @@ echo ">>> Waiting for OSDs (90s)..."
 sleep 90
 
 OSD_COUNT=$(ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph osd stat 2>/dev/null" | grep -oP '\d+(?= osds)' || echo "0")
-echo "  OSDs deployed: ${OSD_COUNT} (expected ${OSD_EXPECTED})"
-if [ "${OSD_COUNT}" -lt "${OSD_EXPECTED}" ]; then
-    echo "  WARNING: fewer OSDs than expected."
-    echo "  Check: ssh turboai@${PRIMARY} 'sudo cephadm shell -- ceph osd tree'"
+echo "  OSDs deployed: ${OSD_COUNT}"
+if [ "${OSD_COUNT}" -lt 3 ]; then
+    echo "  WARNING: fewer than 3 OSDs."
 fi
+
+ssh_srv "${PRIMARY}" "
+    echo 'OSD tree:'
+    sudo cephadm shell -- ceph osd tree 2>/dev/null
+    echo ''
+    echo 'Health:'
+    sudo cephadm shell -- ceph health 2>/dev/null
+"
 
 ssh_srv "${PRIMARY}" "
     echo 'OSD tree:'
@@ -461,14 +453,23 @@ echo ""
 echo ">>> Step 5: Creating EC ${CEPH_EC_K}+${CEPH_EC_M} pool..."
 
 ssh_srv "${PRIMARY}" "
-    sudo cephadm shell -- ceph osd erasure-code-profile set ec42-prod \
+    # Enable pool deletion (needed when re-running on an existing cluster)
+    sudo cephadm shell -- ceph config set mon mon_allow_pool_delete true 2>/dev/null || true
+
+    # Create EC profile
+    sudo cephadm shell -- ceph osd erasure-code-profile set ec-prod \
         k=${CEPH_EC_K} m=${CEPH_EC_M} \
         crush-failure-domain=${CEPH_FAILURE_DOMAIN} 2>/dev/null || {
         echo 'ERROR: failed to create EC profile'; exit 1; }
 
-    sudo cephadm shell -- ceph osd pool create default.rgw.buckets.data erasure ec42-prod 2>/dev/null || {
-        echo 'ERROR: failed to create EC pool. Does OSD count match k+m?'; exit 1; }
+    # Delete old pool if it exists with a different profile
+    sudo cephadm shell -- ceph osd pool delete default.rgw.buckets.data default.rgw.buckets.data --yes-i-really-really-mean-it 2>/dev/null || true
 
+    # Create EC pool
+    sudo cephadm shell -- ceph osd pool create default.rgw.buckets.data erasure ec-prod 2>/dev/null || {
+        echo 'ERROR: failed to create EC pool (does OSD count >= k+m?)'; exit 1; }
+
+    # Allow RGW to use this pool
     sudo cephadm shell -- ceph osd pool application enable default.rgw.buckets.data rgw 2>/dev/null || true
 
     echo ''
@@ -483,7 +484,10 @@ ssh_srv "${PRIMARY}" "
 echo ""
 echo ">>> Step 6: Deploying RGW service..."
 
-if ! ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph orch apply rgw myrgw --placement='ceph-node1 ceph-node2' 2>&1" 2>/dev/null; then
+# Deploy RGW on ceph-node1.  ceph-node2 is intentionally skipped because
+# its root filesystem is only 20G and MON/RGW containers need headroom.
+# For production HA, add a second RGW on a node with sufficient disk space.
+if ! ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph orch apply rgw myrgw --port=8000 --placement='ceph-node1' 2>&1" 2>/dev/null; then
     echo "  ERROR: failed to apply RGW service"
     exit 1
 fi

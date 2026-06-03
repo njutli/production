@@ -42,10 +42,12 @@ CEPH_SERVERS=(
 CEPH_OSD_DEVICES=( "/dev/sda" "/dev/sdb" "/dev/sdb" )
 
 # EC pool configuration
-# k=4 data chunks + m=2 parity = 6 chunks total
-# failure-domain=osd: 2 OSD failures tolerated (not 1 host)
-CEPH_EC_K=4
-CEPH_EC_M=2
+# k=2 data chunks + m=1 parity = 3 chunks total
+# With 1 OSD per node = 3 OSDs, this is the maximum EC width available.
+# For EC 4+2 (6 chunks), each node needs multiple OSDs/disks.
+# failure-domain=osd: 1 OSD failure tolerated
+CEPH_EC_K=2
+CEPH_EC_M=1
 CEPH_FAILURE_DOMAIN="osd"
 
 # --- JuiceFS Client ---
