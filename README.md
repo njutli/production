@@ -73,27 +73,16 @@ bash production/prepare-all-servers.sh
 
 ```bash
 bash production/deploy-tikv.sh
-```
-
-验证：
-```bash
-curl http://192.168.11.12:2379/pd/api/v1/health
-# → {"health": true}
-
-curl http://192.168.11.12:2379/pd/api/v1/stores
-# → 1 个 store 正常注册
+bash production/test-tikv.sh
+# → 输出 PASS/FAIL 汇总，包括写-读-回滚验证
 ```
 
 ### 3. 部署 Ceph
 
 ```bash
 bash production/deploy-ceph.sh
-```
-
-验证：
-```bash
-ssh turboai@192.168.11.11 'sudo cephadm shell -- ceph status'
-ssh turboai@192.168.11.11 'sudo cephadm shell -- ceph osd tree'
+bash production/test-ceph.sh
+# → 验证 MON quorum、OSD 树、RGW S3 读写删
 ```
 
 ### 4. 部署 JuiceFS（获取调优前基线）
@@ -153,7 +142,9 @@ production/
 ├── setup-ssh-keys.sh          # 生成密钥 + 分发到所有机器（首次运行）
 ├── deploy-tikv.sh             # 部署 1 台 TiKV
 ├── deploy-ceph.sh             # 部署 3 台 Ceph
-├── tune-servers.sh            # 性能调优（部署后执行：swap/THP/sysctl/IO/limits）
+├── test-tikv.sh               # TiKV 冒烟测试（部署后立即运行）
+├── test-ceph.sh               # Ceph 冒烟测试（部署后立即运行）
+├── tune-servers.sh            # 性能调优（JuiceFS 基线测试后执行）
 └── deploy-juicefs.sh          # JuiceFS 客户端（format/mount/test）
 ```
 
