@@ -4,15 +4,14 @@ set -euo pipefail
 # ============================================================
 # TiKV Cluster Smoke Test
 #
-# Part 1 (read-only): PD health, members, TiKV store registration.
+# Part 1 (read-only): PD health, members, TiKV store status.
+# Part 2 (real write/read/delete): compiles and runs a Go
+#   program that uses tikv/client-go to do Put, Get, BatchPut,
+#   BatchGet, Scan, Delete, BatchDelete — all with real user
+#   data through TiKV's RawKV API.  All test keys are deleted
+#   before the program exits.
 #
-# Part 2 (write+read+rollback): round-trip through PD's config API.
-#   TiKV v7.1.5 no longer bundles tikv-ctl with raw-put/raw-get,
-#   but PD's config API writes go through the same embedded etcd
-#   that backs all PD metadata.  The etcd layer uses the same
-#   Raft replication and RocksDB storage as TiKV itself, so a
-#   successful config put→get→restore cycle verifies that the
-#   full write path (API → etcd → Raft → RocksDB) is healthy.
+# Requires: Go 1.20+ (auto-installs if missing)
 #
 # Usage: bash test-tikv.sh
 # ============================================================
@@ -41,7 +40,7 @@ echo "PD endpoint: ${PD}"
 echo ""
 
 # ============================================================
-# Part 1: Read-only cluster checks (no writes, no cleanup)
+# Part 1: Read-only cluster checks
 # ============================================================
 
 echo "--- Part 1: Cluster Status ---"
@@ -84,60 +83,42 @@ fi
 echo ""
 
 # ============================================================
-# Part 2: Write → Read → Rollback (via PD config → etcd)
+# Part 2: Real user data round-trip (Go + tikv/client-go)
 # ============================================================
 
-echo "--- Part 2: Write / Read / Rollback ---"
-echo "  (PD config → etcd → Raft → RocksDB — same path TiKV data uses)"
+echo "--- Part 2: RawKV Data Test (Go) ---"
 echo ""
 
-# Use a non-critical schedule parameter — temporarily changing it
-# won't affect cluster health in an idle test environment.
-KEY="schedule.hot-region-schedule-limit"
-ORIGINAL=$(curl -sf --noproxy '*' "${PD}/pd/api/v1/config/${KEY}" 2>/dev/null)
-TEST_VALUE=99
+# Ensure Go is available
+if ! command -v go &>/dev/null; then
+    echo ">>> Installing Go..."
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq golang-go 2>/dev/null || {
+        echo "  ERROR: failed to install Go"
+        exit 1
+    }
+fi
+echo "Go: $(go version 2>&1)"
 
-echo "  Original ${KEY} = ${ORIGINAL}"
+# Build test program
+echo ">>> Building test..."
+cd "${SCRIPT_DIR}/tests"
+go mod tidy 2>&1 | tail -3 || { echo "  ERROR: go mod tidy failed (network issue?)"; exit 1; }
 
-# Write
-echo -n "  PUT ${KEY}=${TEST_VALUE} ... "
-if curl -sf --noproxy '*' -X POST "${PD}/pd/api/v1/config" \
-    -H "Content-Type: application/json" \
-    -d "{\"${KEY}\":${TEST_VALUE}}" >/dev/null 2>&1; then
-    echo "PASS"; PASS=$((PASS + 1))
+BIN="/tmp/tikv-smoke-test-$$"
+go build -o "${BIN}" tikv-test.go || { echo "  ERROR: build failed"; exit 1; }
+echo "  Binary: ${BIN}"
+
+# Run test — unset proxy so gRPC connects directly to PD
+echo ""
+unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
+if "${BIN}"; then
+    PASS=$((PASS + 4))  # the 4 internal tests in Go: Put/Get, Batch, Scan, Delete
 else
-    echo "FAIL"; FAIL=$((FAIL + 1))
-    echo ""
-    echo "========================================"
-    echo "Result: ${PASS} passed, ${FAIL} failed"
-    echo "========================================"
-    exit 1
+    FAIL=$((FAIL + 4))
 fi
 
-# Read back
-echo -n "  GET ${KEY} ... "
-READBACK=$(curl -sf --noproxy '*' "${PD}/pd/api/v1/config/${KEY}" 2>/dev/null)
-if [ "${READBACK}" = "${TEST_VALUE}" ]; then
-    echo "PASS (value=${READBACK})"; PASS=$((PASS + 1))
-else
-    echo "FAIL (expected ${TEST_VALUE}, got ${READBACK})"; FAIL=$((FAIL + 1))
-fi
-
-# Restore original (cleanup)
-echo -n "  Restoring ${KEY}=${ORIGINAL} ... "
-curl -sf --noproxy '*' -X POST "${PD}/pd/api/v1/config" \
-    -H "Content-Type: application/json" \
-    -d "{\"${KEY}\":${ORIGINAL}}" >/dev/null 2>&1 && echo "PASS" && PASS=$((PASS + 1)) || \
-    { echo "FAIL (manual restore needed)"; FAIL=$((FAIL + 1)); }
-
-# Verify restored
-echo -n "  Verify restored ... "
-FINAL=$(curl -sf --noproxy '*' "${PD}/pd/api/v1/config/${KEY}" 2>/dev/null)
-if [ "${FINAL}" = "${ORIGINAL}" ]; then
-    echo "PASS"; PASS=$((PASS + 1))
-else
-    echo "FAIL (value=${FINAL}, expected ${ORIGINAL})"; FAIL=$((FAIL + 1))
-fi
+# Cleanup binary
+rm -f "${BIN}"
 echo ""
 
 # --- Summary ---
