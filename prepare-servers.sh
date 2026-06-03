@@ -263,8 +263,11 @@ if [ "${ROLE}" = "ceph" ] || [ "${ROLE}" = "all" ]; then
     # best-effort — if it fails, deployment still continues.
     if ! command -v podman &>/dev/null; then
         echo "  Installing podman..."
-        DEBIAN_FRONTEND=noninteractive apt-get install -y podman || \
-            echo "  WARNING: podman install failed (deploy-ceph.sh will retry)"
+        DEBIAN_FRONTEND=noninteractive apt-get install -y podman 2>/dev/null || {
+            sudo apt-get --fix-broken install -y 2>/dev/null || true
+            DEBIAN_FRONTEND=noninteractive apt-get install -y podman 2>/dev/null || \
+                echo "  WARNING: podman install failed (deploy-ceph.sh will retry)"
+        }
     else
         echo "  podman already installed."
     fi

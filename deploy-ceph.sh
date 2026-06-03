@@ -126,8 +126,15 @@ for i in "${!CEPH_SERVERS[@]}"; do
         # Install podman
         if ! command -v podman &>/dev/null; then
             echo '  Installing podman...'
+            # A broken package (e.g. stale linux-headers) can block all
+            # apt operations.  Run fix-broken first, then retry install.
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y podman >/dev/null 2>&1 || {
-                echo '  ERROR: podman install failed'; exit 1; }
+                sudo apt-get --fix-broken install -y >/dev/null 2>&1 || true
+                sudo DEBIAN_FRONTEND=noninteractive apt-get install -y podman >/dev/null 2>&1 || {
+                    echo '  ERROR: podman install failed (try: sudo apt --fix-broken install)'
+                    exit 1
+                }
+            }
         else
             echo '  podman already installed'
         fi
