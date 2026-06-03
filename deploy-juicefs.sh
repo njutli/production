@@ -211,7 +211,7 @@ do_destroy() {
     echo "  ${METADATA_URL}"
     echo "========================================"
     echo ""
-    echo "This will delete ALL metadata. Data in Ceph RGW remains."
+    echo "This will delete ALL metadata in TiKV and ALL data in Ceph RGW."
     echo ""
 
     do_unmount 2>/dev/null || true
@@ -223,7 +223,7 @@ do_destroy() {
     fi
 
     install_juicefs
-    juicefs destroy "${METADATA_URL}" || echo "Destroy command completed."
+    juicefs destroy --delete-all "${METADATA_URL}" || echo "Destroy command completed."
 }
 
 do_test() {
