@@ -347,9 +347,24 @@ ssh_srv "${PRIMARY}" "
 # ============================================================
 # Step 4: Partition disks + deploy OSDs (3 servers × 2 = 6 OSDs)
 # ============================================================
+#
+# ceph orch device zap/daemon add rely on cephadm's device inventory
+# which sometimes fails to pick up newly-created partitions.
+# Instead we use ceph-volume directly on each host — it scans the
+# local block devices and provisions BlueStore OSDs without going
+# through the orchestrator's internal device database.
+# ============================================================
 
 echo ""
 echo ">>> Step 4: Partitioning disks and deploying OSDs..."
+echo "           (using ceph-volume directly, bypassing orchestrator device cache)"
+
+# Ensure lvm2 is installed on all nodes (ceph-volume needs it)
+for ip in "${CEPH_SERVERS[@]}"; do
+    ssh_srv "${ip}" "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq lvm2 2>/dev/null || true"
+done
+
+OSD_EXPECTED=0
 
 for i in "${!CEPH_SERVERS[@]}"; do
     ip="${CEPH_SERVERS[$i]}"
@@ -366,7 +381,6 @@ for i in "${!CEPH_SERVERS[@]}"; do
 
     ssh_srv "${ip}" "
         set -e
-        # Safety: refuse to wipe a mounted device or the root disk
         if mount | grep -q '^${dev} '; then
             echo \"  FATAL: ${dev} is currently mounted! Refusing to wipe.\"; exit 1
         fi
@@ -398,26 +412,22 @@ for i in "${!CEPH_SERVERS[@]}"; do
         part="${dev}${part_num}"
         echo "  Deploying OSD on ${hostname}:${part}..."
 
-        if ! ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph orch device zap ${hostname} ${part} --force 2>&1" 2>/dev/null; then
-            echo "  ERROR: device zap failed for ${hostname}:${part}"
-            echo "  Check: ssh turboai@${PRIMARY} 'sudo cephadm shell -- ceph orch device ls'"
-            exit 1
-        fi
-        sleep 3
-        if ! ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph orch daemon add osd ${hostname}:${part} 2>&1" 2>/dev/null; then
+        if ! ssh_srv "${ip}" "sudo cephadm shell -- ceph-volume raw prepare --bluestore --data ${part} 2>&1" 2>/dev/null; then
             echo "  ERROR: OSD deployment failed for ${hostname}:${part}"
             exit 1
         fi
+        OSD_EXPECTED=$((OSD_EXPECTED + 1))
     done
 done
 
+echo ""
 echo ">>> Waiting for OSDs (90s)..."
 sleep 90
 
 OSD_COUNT=$(ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph osd stat 2>/dev/null" | grep -oP '\d+(?= osds)' || echo "0")
-echo "  OSDs deployed: ${OSD_COUNT} (expected 6)"
-if [ "${OSD_COUNT}" -lt 6 ]; then
-    echo "  WARNING: fewer than 6 OSDs. EC 4+2 needs 6."
+echo "  OSDs deployed: ${OSD_COUNT} (expected ${OSD_EXPECTED})"
+if [ "${OSD_COUNT}" -lt "${OSD_EXPECTED}" ]; then
+    echo "  WARNING: fewer OSDs than expected."
     echo "  Check: ssh turboai@${PRIMARY} 'sudo cephadm shell -- ceph osd tree'"
 fi
 
