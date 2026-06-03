@@ -76,7 +76,7 @@ fi
 echo ">>> All 3 servers reachable."
 echo ""
 
-# Pre-flight: check disk, root SSH, port conflicts
+# Pre-flight: check disk, root SSH, root account unlocked
 for i in "${!CEPH_SERVERS[@]}"; do
     ip="${CEPH_SERVERS[$i]}"
     echo ">>> Checking ${ip}..."
@@ -91,10 +91,15 @@ for i in "${!CEPH_SERVERS[@]}"; do
         elif [ -n \"\${dev}\" ]; then
             echo \"  WARNING: OSD device \${dev} NOT FOUND!\"
         fi
-        # Ensure root SSH is enabled (cephadm requirement)
+        # Ensure root SSH is enabled and root account is unlocked
         sudo sed -i 's/^#*PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
         sudo systemctl restart sshd 2>/dev/null || sudo systemctl restart ssh || true
-        echo '  Root SSH: enabled'
+        # cephadm SSHs as root between nodes; root account must be unlocked
+        if sudo passwd -S root | grep -q ' L '; then
+            echo '  Root account was locked — unlocking...'
+            sudo passwd -u root
+        fi
+        echo '  Root SSH: enabled + unlocked'
     "
 done
 
@@ -255,15 +260,26 @@ for i in 1 2; do
     "
 
     # Add host to orchestrator
-    ssh_srv "${PRIMARY}" "
-        sudo cephadm shell -- ceph orch host add ${hostname} ${ip} 2>/dev/null || true
-        sudo cephadm shell -- ceph orch host label add ${hostname} _admin 2>/dev/null || true
-    "
+    if ! ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph orch host add ${hostname} ${ip} 2>&1" 2>/dev/null; then
+        echo "  ERROR: failed to add ${hostname}. Check root SSH between Ceph nodes."
+        echo "         ssh turboai@${ip} 'sudo ssh -o StrictHostKeyChecking=no root@localhost echo OK'"
+        exit 1
+    fi
+    ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph orch host label add ${hostname} _admin 2>/dev/null || true"
     echo "  ${hostname} added."
 done
 
 echo ">>> Waiting for MON+MGR on secondary nodes (60s)..."
 sleep 60
+
+# Verify all 3 hosts are online
+HOST_COUNT=$(ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph orch host ls --format json 2>/dev/null" | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d))" 2>/dev/null || echo "0")
+if [ "${HOST_COUNT}" -lt 3 ]; then
+    echo "  ERROR: expected 3 hosts, got ${HOST_COUNT}"
+    ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph orch host ls 2>/dev/null"
+    exit 1
+fi
+echo "  ${HOST_COUNT} hosts online."
 
 ssh_srv "${PRIMARY}" "
     echo 'Host status:'
@@ -327,18 +343,28 @@ for i in "${!CEPH_SERVERS[@]}"; do
         part="${dev}${part_num}"
         echo "  Deploying OSD on ${hostname}:${part}..."
 
-        ssh_srv "${PRIMARY}" "
-            sudo cephadm shell -- ceph orch device zap ${hostname} ${part} --force 2>/dev/null || true
-        "
+        if ! ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph orch device zap ${hostname} ${part} --force 2>&1" 2>/dev/null; then
+            echo "  ERROR: device zap failed for ${hostname}:${part}"
+            echo "  Check: ssh turboai@${PRIMARY} 'sudo cephadm shell -- ceph orch device ls'"
+            exit 1
+        fi
         sleep 3
-        ssh_srv "${PRIMARY}" "
-            sudo cephadm shell -- ceph orch daemon add osd ${hostname}:${part} 2>/dev/null || true
-        "
+        if ! ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph orch daemon add osd ${hostname}:${part} 2>&1" 2>/dev/null; then
+            echo "  ERROR: OSD deployment failed for ${hostname}:${part}"
+            exit 1
+        fi
     done
 done
 
 echo ">>> Waiting for OSDs (90s)..."
 sleep 90
+
+OSD_COUNT=$(ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph osd stat 2>/dev/null" | grep -oP '\d+(?= osds)' || echo "0")
+echo "  OSDs deployed: ${OSD_COUNT} (expected 6)"
+if [ "${OSD_COUNT}" -lt 6 ]; then
+    echo "  WARNING: fewer than 6 OSDs. EC 4+2 needs 6."
+    echo "  Check: ssh turboai@${PRIMARY} 'sudo cephadm shell -- ceph osd tree'"
+fi
 
 ssh_srv "${PRIMARY}" "
     echo 'OSD tree:'
@@ -358,9 +384,12 @@ echo ">>> Step 5: Creating EC ${CEPH_EC_K}+${CEPH_EC_M} pool..."
 ssh_srv "${PRIMARY}" "
     sudo cephadm shell -- ceph osd erasure-code-profile set ec42-prod \
         k=${CEPH_EC_K} m=${CEPH_EC_M} \
-        crush-failure-domain=${CEPH_FAILURE_DOMAIN} 2>/dev/null || true
+        crush-failure-domain=${CEPH_FAILURE_DOMAIN} 2>/dev/null || {
+        echo 'ERROR: failed to create EC profile'; exit 1; }
 
-    sudo cephadm shell -- ceph osd pool create default.rgw.buckets.data erasure ec42-prod 2>/dev/null || true
+    sudo cephadm shell -- ceph osd pool create default.rgw.buckets.data erasure ec42-prod 2>/dev/null || {
+        echo 'ERROR: failed to create EC pool. Does OSD count match k+m?'; exit 1; }
+
     sudo cephadm shell -- ceph osd pool application enable default.rgw.buckets.data rgw 2>/dev/null || true
 
     echo ''
@@ -375,9 +404,10 @@ ssh_srv "${PRIMARY}" "
 echo ""
 echo ">>> Step 6: Deploying RGW service..."
 
-ssh_srv "${PRIMARY}" "
-    sudo cephadm shell -- ceph orch apply rgw myrgw --placement='ceph-node1 ceph-node2' 2>/dev/null || true
-"
+if ! ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph orch apply rgw myrgw --placement='ceph-node1 ceph-node2' 2>&1" 2>/dev/null; then
+    echo "  ERROR: failed to apply RGW service"
+    exit 1
+fi
 
 echo ">>> Waiting for RGW (30s)..."
 sleep 30
@@ -394,10 +424,17 @@ ssh_srv "${PRIMARY}" "
 echo ""
 echo ">>> Step 7: Creating RGW user for JuiceFS..."
 
+# timeout — radosgw-admin may hang if it can't reach the Ceph cluster
 USER_INFO=$(ssh_srv "${PRIMARY}" "
-    sudo radosgw-admin user create --uid=juicefs --display-name='JuiceFS-Production' 2>/dev/null || \
-    sudo radosgw-admin user info --uid=juicefs 2>/dev/null
+    timeout 30 sudo radosgw-admin user create --uid=juicefs --display-name='JuiceFS-Production' 2>/dev/null || \
+    timeout 30 sudo radosgw-admin user info --uid=juicefs 2>/dev/null
 " 2>/dev/null)
+
+if [ -z "${USER_INFO:-}" ]; then
+    echo "  ERROR: radosgw-admin timed out or failed. Check:"
+    echo "    ssh ${SSH_USER}@${PRIMARY} 'sudo cephadm shell -- ceph status'"
+    exit 1
+fi
 
 ACCESS_KEY=$(echo "${USER_INFO}" | grep -o '"access_key": *"[^"]*"' | cut -d'"' -f4 || echo "")
 SECRET_KEY=$(echo "${USER_INFO}" | grep -o '"secret_key": *"[^"]*"' | cut -d'"' -f4 || echo "")
