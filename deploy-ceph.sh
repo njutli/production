@@ -364,10 +364,16 @@ for ip in "${CEPH_SERVERS[@]}"; do
     ssh_srv "${ip}" "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq lvm2 2>/dev/null || true"
 done
 
-# Ensure bootstrap-osd keyring exists (ceph-volume needs it to register OSDs)
+# Ensure bootstrap-osd keyring exists (ceph-volume needs it to register OSDs).
+# cephadm shell's -o flag writes inside the container, not the host — we
+# use sudo tee + sudo mkdir to persist the file on the actual filesystem.
 if ! ssh_srv "${PRIMARY}" "sudo test -f /var/lib/ceph/bootstrap-osd/ceph.keyring" 2>/dev/null; then
     echo "  Creating bootstrap-osd keyring..."
-    ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph auth get-or-create client.bootstrap-osd mon 'allow profile bootstrap-osd' -o /var/lib/ceph/bootstrap-osd/ceph.keyring 2>/dev/null" || {
+    ssh_srv "${PRIMARY}" "
+        sudo mkdir -p /var/lib/ceph/bootstrap-osd
+        sudo cephadm shell -- ceph auth get-or-create client.bootstrap-osd mon 'allow profile bootstrap-osd' 2>/dev/null | sudo tee /var/lib/ceph/bootstrap-osd/ceph.keyring >/dev/null
+        sudo chmod 600 /var/lib/ceph/bootstrap-osd/ceph.keyring
+    " || {
         echo "  WARNING: could not create bootstrap-osd keyring. OSD deployment may fail."
     }
 fi
