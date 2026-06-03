@@ -177,6 +177,8 @@ run_srv "
     cd /tmp
     tar xzf ${TIKV_TAR}
     mv -f tikv-server /opt/tikv/bin/
+    # tikv-ctl is now a sub-mode of tikv-server; symlink so both work
+    ln -sf /opt/tikv/bin/tikv-server /opt/tikv/bin/tikv-ctl
     rm -f ${TIKV_TAR}
     chown -R root:root /opt/tikv ${TIKV_DATA_DIR} /var/log/tikv
 "

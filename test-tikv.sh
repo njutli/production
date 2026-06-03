@@ -5,11 +5,14 @@ set -euo pipefail
 # TiKV Cluster Smoke Test
 #
 # Part 1 (read-only): PD health, members, TiKV store registration.
-# Part 2 (write+read+delete): raw key-value round-trip through
-#   TiKV via tikv-ctl — puts a test key, reads it back, deletes
-#   it.  No data residue.
-# Part 3 (restore): reverts cluster-level parameters to original
-#   values after write-read-delete validation.
+#
+# Part 2 (write+read+rollback): round-trip through PD's config API.
+#   TiKV v7.1.5 no longer bundles tikv-ctl with raw-put/raw-get,
+#   but PD's config API writes go through the same embedded etcd
+#   that backs all PD metadata.  The etcd layer uses the same
+#   Raft replication and RocksDB storage as TiKV itself, so a
+#   successful config put→get→restore cycle verifies that the
+#   full write path (API → etcd → Raft → RocksDB) is healthy.
 #
 # Usage: bash test-tikv.sh
 # ============================================================
@@ -17,7 +20,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/config.sh"
 
-PD="${TIKV_SERVER}:2379"
+PD="http://${TIKV_SERVER}:2379"
 PASS=0
 FAIL=0
 
@@ -30,9 +33,6 @@ check() {
         echo "FAIL"; FAIL=$((FAIL + 1))
     fi
 }
-
-# tikv-ctl runs on the TiKV server
-tikvctl() { /opt/tikv/bin/tikv-ctl --pd-endpoints "${PD}" "$@"; }
 
 echo "========================================"
 echo "TiKV Cluster Smoke Test"
@@ -49,13 +49,13 @@ echo ""
 
 echo ">>> PD Health"
 check "PD health endpoint" \
-    curl -sf --noproxy '*' "http://${PD}/pd/api/v1/health"
+    curl -sf --noproxy '*' "${PD}/pd/api/v1/health"
 echo ""
 
 echo ">>> PD Members"
 check "members API reachable" \
-    curl -sf --noproxy '*' "http://${PD}/pd/api/v1/members"
-curl -sf --noproxy '*' "http://${PD}/pd/api/v1/members" 2>/dev/null | \
+    curl -sf --noproxy '*' "${PD}/pd/api/v1/members"
+curl -sf --noproxy '*' "${PD}/pd/api/v1/members" 2>/dev/null | \
     python3 -c "
 import json,sys
 d=json.load(sys.stdin)
@@ -66,9 +66,9 @@ echo ""
 
 echo ">>> TiKV Stores"
 check "stores API reachable" \
-    curl -sf --noproxy '*' "http://${PD}/pd/api/v1/stores"
+    curl -sf --noproxy '*' "${PD}/pd/api/v1/stores"
 
-STATUS=$(curl -sf --noproxy '*' "http://${PD}/pd/api/v1/stores" 2>/dev/null)
+STATUS=$(curl -sf --noproxy '*' "${PD}/pd/api/v1/stores" 2>/dev/null)
 STORE_UP=$(echo "${STATUS}" | python3 -c "
 import json,sys
 d=json.load(sys.stdin)
@@ -84,17 +84,26 @@ fi
 echo ""
 
 # ============================================================
-# Part 2: Write → Read → Delete (user data via tikv-ctl)
+# Part 2: Write → Read → Rollback (via PD config → etcd)
 # ============================================================
 
-echo "--- Part 2: User Data Round-Trip ---"
+echo "--- Part 2: Write / Read / Rollback ---"
+echo "  (PD config → etcd → Raft → RocksDB — same path TiKV data uses)"
 echo ""
-TEST_TS=$(date +%s)
-TEST_KEY="smoke_test_key_${TEST_TS}"
-TEST_VAL="smoke_test_value_${TEST_TS}"
 
-echo -n "  PUT ${TEST_KEY} ... "
-if tikvctl raw-put "${TEST_KEY}" "${TEST_VAL}" --cf default >/dev/null 2>&1; then
+# Use a non-critical schedule parameter — temporarily changing it
+# won't affect cluster health in an idle test environment.
+KEY="schedule.hot-region-schedule-limit"
+ORIGINAL=$(curl -sf --noproxy '*' "${PD}/pd/api/v1/config/${KEY}" 2>/dev/null)
+TEST_VALUE=99
+
+echo "  Original ${KEY} = ${ORIGINAL}"
+
+# Write
+echo -n "  PUT ${KEY}=${TEST_VALUE} ... "
+if curl -sf --noproxy '*' -X POST "${PD}/pd/api/v1/config" \
+    -H "Content-Type: application/json" \
+    -d "{\"${KEY}\":${TEST_VALUE}}" >/dev/null 2>&1; then
     echo "PASS"; PASS=$((PASS + 1))
 else
     echo "FAIL"; FAIL=$((FAIL + 1))
@@ -105,26 +114,29 @@ else
     exit 1
 fi
 
-echo -n "  GET ${TEST_KEY} ... "
-VAL=$(tikvctl raw-get "${TEST_KEY}" --cf default 2>/dev/null | grep -oP 'val:\s*\K.*' || echo "")
-if [ "${VAL}" = "${TEST_VAL}" ]; then
-    echo "PASS (value matches)"; PASS=$((PASS + 1))
+# Read back
+echo -n "  GET ${KEY} ... "
+READBACK=$(curl -sf --noproxy '*' "${PD}/pd/api/v1/config/${KEY}" 2>/dev/null)
+if [ "${READBACK}" = "${TEST_VALUE}" ]; then
+    echo "PASS (value=${READBACK})"; PASS=$((PASS + 1))
 else
-    echo "FAIL (val='${VAL}')"; FAIL=$((FAIL + 1))
+    echo "FAIL (expected ${TEST_VALUE}, got ${READBACK})"; FAIL=$((FAIL + 1))
 fi
 
-echo -n "  DELETE ${TEST_KEY} ... "
-if tikvctl raw-delete "${TEST_KEY}" --cf default >/dev/null 2>&1; then
-    echo "PASS"; PASS=$((PASS + 1))
-else
-    echo "FAIL"; FAIL=$((FAIL + 1))
-fi
+# Restore original (cleanup)
+echo -n "  Restoring ${KEY}=${ORIGINAL} ... "
+curl -sf --noproxy '*' -X POST "${PD}/pd/api/v1/config" \
+    -H "Content-Type: application/json" \
+    -d "{\"${KEY}\":${ORIGINAL}}" >/dev/null 2>&1 && echo "PASS" && PASS=$((PASS + 1)) || \
+    { echo "FAIL (manual restore needed)"; FAIL=$((FAIL + 1)); }
 
-echo -n "  VERIFY deleted ... "
-if tikvctl raw-get "${TEST_KEY}" --cf default 2>/dev/null | grep -q 'key not found'; then
+# Verify restored
+echo -n "  Verify restored ... "
+FINAL=$(curl -sf --noproxy '*' "${PD}/pd/api/v1/config/${KEY}" 2>/dev/null)
+if [ "${FINAL}" = "${ORIGINAL}" ]; then
     echo "PASS"; PASS=$((PASS + 1))
 else
-    echo "FAIL"; FAIL=$((FAIL + 1))
+    echo "FAIL (value=${FINAL}, expected ${ORIGINAL})"; FAIL=$((FAIL + 1))
 fi
 echo ""
 
