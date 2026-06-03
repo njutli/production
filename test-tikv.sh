@@ -32,7 +32,7 @@ check() {
 }
 
 # tikv-ctl runs on the TiKV server
-tikvctl() { /opt/tikv/bin/tikv-ctl --pd "${PD}" "$@"; }
+tikvctl() { /opt/tikv/bin/tikv-ctl --pd-endpoints "${PD}" "$@"; }
 
 echo "========================================"
 echo "TiKV Cluster Smoke Test"
