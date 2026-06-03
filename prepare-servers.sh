@@ -66,13 +66,22 @@ echo ">>> Time synchronisation..."
 # operator can see which source is broken, but don't stop the script.
 apt-get update -qq || echo "  (apt update had errors, continuing)"
 
-DEBIAN_FRONTEND=noninteractive apt-get install -y chrony >/dev/null 2>&1 || \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y ntp >/dev/null 2>&1 || {
-    echo "  ERROR: failed to install time sync package (chrony or ntp)."
-    echo "  Check network connectivity and apt sources."
-    exit 1
-}
-systemctl enable chrony --now 2>/dev/null || systemctl enable ntp --now 2>/dev/null || true
+# Check for systemd-timesyncd first (default on Ubuntu 22.04).
+# It provides the same SNTP-based time sync as chrony/ntp and
+# is mutually exclusive with them (all declare Conflicts: time-daemon).
+if systemctl is-active systemd-timesyncd &>/dev/null; then
+    echo "  systemd-timesyncd already active."
+elif ! command -v chronyd &>/dev/null && ! command -v ntpd &>/dev/null; then
+    # Try chrony first, fall back to ntp
+    DEBIAN_FRONTEND=noninteractive apt-get install -y chrony >/dev/null 2>&1 || \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y ntp >/dev/null 2>&1 || {
+        echo "  ERROR: failed to install time sync package."
+        echo "  Try: sudo apt --fix-broken install"
+        echo "  Or ensure systemd-timesyncd is running: sudo systemctl enable --now systemd-timesyncd"
+        exit 1
+    }
+    systemctl enable chrony --now 2>/dev/null || systemctl enable ntp --now 2>/dev/null || true
+fi
 echo "  Time sync enabled."
 
 # ============================================================
