@@ -283,6 +283,11 @@ do_test() {
     echo ""
     echo ">>> Directory listing:"
     ls -lh "${JUICEFS_MOUNT_POINT}/"
+
+    echo ""
+    echo ">>> Cleanup test files..."
+    rm -f "${JUICEFS_MOUNT_POINT}/hello.txt" "${JUICEFS_MOUNT_POINT}/random.bin"
+    echo "  Test files removed."
 }
 
 # ============================================================
