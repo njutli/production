@@ -184,11 +184,18 @@ for i in "${!CEPH_SERVERS[@]}"; do
         if ! command -v cephadm &>/dev/null; then
             echo '  Installing cephadm...'
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y cephadm ceph-common radosgw >/dev/null 2>&1 || {
-                # Fallback: curl install from GitHub
-                echo '  apt failed, trying curl-based install...'
-                curl -sSL --remote-name https://github.com/ceph/ceph/raw/reef/src/cephadm/cephadm
-                chmod +x cephadm
-                sudo mv cephadm /usr/local/bin/
+                # apt failed — try direct download.  Verify the result is a
+                # Python script (cephadm's shebang), not an HTML error page.
+                echo '  apt failed, downloading cephadm from GitHub...'
+                curl -sSL -o /tmp/cephadm "https://github.com/ceph/ceph/raw/reef/src/cephadm/cephadm"
+                if head -1 /tmp/cephadm 2>/dev/null | grep -q 'python'; then
+                    chmod +x /tmp/cephadm
+                    sudo mv /tmp/cephadm /usr/local/bin/cephadm
+                    echo '  cephadm installed from GitHub.'
+                else
+                    echo '  ERROR: downloaded cephadm is not a Python script (check network/proxy)'
+                    exit 1
+                fi
             }
         else
             echo '  cephadm already installed'
@@ -452,8 +459,8 @@ for i in "${!CEPH_SERVERS[@]}"; do
 
         # Remove any stale LVs then create 2 new ones (50% each)
         sudo lvremove -f ${vg_name} 2>/dev/null || true
-        sudo lvcreate -L 50%FREE -n osd0 ${vg_name}
-        sudo lvcreate -L 100%FREE -n osd1 ${vg_name}
+        sudo lvcreate -l 50%FREE -n osd0 ${vg_name}
+        sudo lvcreate -l 100%FREE -n osd1 ${vg_name}
 
         echo '  LVs created:'
         sudo lvs ${vg_name} 2>/dev/null
