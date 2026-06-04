@@ -241,6 +241,30 @@ ssh_srv "${PRIMARY}" "
     if [ -d /etc/ceph ] && [ -f /etc/ceph/ceph.conf ]; then
         echo '  Ceph already bootstrapped, skipping.'
     else
+        # --mon-ip ${PRIMARY}
+        #   The IP address that the first MON binds to.  Must be a local
+        #   IP on the bootstrap host.  Other nodes in the cluster will
+        #   contact this MON to join the quorum.
+        #
+        # --allow-fqdn-hostname
+        #   Accept fully-qualified hostnames (e.g. ceph-node1.example.com)
+        #   when registering hosts.  Without this, cephadm may reject
+        #   nodes whose 'hostname' returns a FQDN.
+        #
+        # --skip-prepare-host
+        #   Do NOT install podman/lvm2/systemd-resolved on the bootstrap
+        #   host.  We already installed these in Step 1, so we skip the
+        #   automatic preparation to avoid re-apt-get'ing.
+        #
+        # --skip-dashboard
+        #   Do not deploy the Ceph Dashboard web UI.  One less container,
+        #   one less port (default 8443).  Not needed for a backend
+        #   storage cluster accessed via JuiceFS RGW.
+        #
+        # --skip-monitoring-stack
+        #   Do not deploy Prometheus + Grafana + Alertmanager.  Saves
+        #   3-4 containers and hundreds of MB of memory.  Not needed
+        #   for a test/deployment focused on RGW S3 throughput.
         echo '  Running cephadm bootstrap...'
         sudo cephadm bootstrap \
             --mon-ip ${PRIMARY} \
