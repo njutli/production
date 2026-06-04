@@ -1,0 +1,279 @@
+turboai@tikv-node:~$ bash production/deploy-ceph.sh
+========================================
+Ceph RGW Production Deployment
+========================================
+Nodes: 192.168.11.11, 192.168.11.13, 192.168.11.14
+EC pool: 4+2 (failure-domain=osd)
+User:   turboai (sudo for privileged ops)
+========================================
+
+>>> Waiting for SSH on 192.168.11.11...ok
+ ready!
+>>> Waiting for SSH on 192.168.11.13...ok
+ ready!
+>>> Waiting for SSH on 192.168.11.14...ok
+ ready!
+>>> Checking sudo access on all servers...
+  192.168.11.11: passwordless sudo OK
+  192.168.11.13: passwordless sudo OK
+  192.168.11.14: passwordless sudo OK
+>>> All 3 servers reachable.
+
+>>> Checking 192.168.11.11...
+  OS: Ubuntu 22.04.5 LTS
+  Memory: 251Gi
+  Disk: 937G free: 873G
+  OSD device /dev/sda: 446.6G
+  Root account was locked — unlocking...
+passwd: password expiry information changed.
+  Root SSH: enabled + unlocked
+>>> Checking 192.168.11.13...
+  OS: Ubuntu 22.04.3 LTS
+  Memory: 220Gi
+  Disk: 20G free: 1.5G
+  OSD device /dev/sdb: 953.3G
+  Root account was locked — unlocking...
+passwd: password expiry information changed.
+  Root SSH: enabled + unlocked
+>>> Checking 192.168.11.14...
+  OS: Ubuntu 22.04.3 LTS
+  Memory: 251Gi
+  Disk: 147G free: 113G
+  OSD device /dev/sdb: 953.3G
+  Root SSH: enabled + unlocked
+
+Continue with deployment? [y/N] y
+  MON: ceph-node1 (873G root free) ✓
+  MON: ceph-node2 (2G root free) ✓
+  MON: ceph-node3 (113G root free) ✓
+
+>>> Step 1: Preparing all servers (hostname, podman, cephadm, root SSH)...
+>>> Preparing ceph-node1 (192.168.11.11)...
+  hostname set to: ceph-node1
+  podman already installed
+  cephadm already installed
+  Ceph container image already cached.
+  Done.
+>>> Preparing ceph-node2 (192.168.11.13)...
+  hostname set to: ceph-node2
+  podman already installed
+  cephadm already installed
+  Ceph container image already cached.
+  Done.
+>>> Preparing ceph-node3 (192.168.11.14)...
+  hostname set to: ceph-node3
+W: Failed to fetch https://repo.saltproject.io/salt/py3/ubuntu/22.04/amd64/latest/dists/jammy/InRelease  Could not resolve 're
+po.saltproject.io'
+W: Some index files failed to download. They have been ignored, or old ones used instead.
+  podman already installed
+  cephadm already installed
+  Ceph container image already cached.
+  Done.
+
+>>> Step 2: Bootstrapping Ceph on ceph-node1 (192.168.11.11)...
+  Ceph already bootstrapped, skipping.
+>>> Copying Ceph admin artefacts...
+   /tmp/ceph.conf, /tmp/ceph.client.admin.keyring, /tmp/ceph.pub saved.
+
+>>> Step 3: Setting up root SSH between Ceph nodes...
+  Setting up root SSH on 192.168.11.11...
+ceph.pub                                                                                    100%  595   472.4KB/s   00:00
+ceph_priv_key                                                                               100% 2635     1.9MB/s   00:00
+  Setting up root SSH on 192.168.11.13...
+ceph.pub                                                                                    100%  595   493.5KB/s   00:00
+ceph_priv_key                                                                               100% 2635     2.0MB/s   00:00
+  Setting up root SSH on 192.168.11.14...
+ceph.pub                                                                                    100%  595   326.0KB/s   00:00
+ceph_priv_key                                                                               100% 2635     3.3MB/s   00:00
+  Keys deployed.
+  Verifying root SSH...
+OK
+    192.168.11.11: root SSH OK
+OK
+    192.168.11.13: root SSH OK
+OK
+    192.168.11.14: root SSH OK
+
+>>> Step 3b: Deploying MONs and adding secondary nodes...
+Scheduled mon update...
+  MON placement: ceph-node1,ceph-node2,ceph-node3
+>>> Adding ceph-node2 (192.168.11.13)...
+Inferring fsid 073f28e0-5fe0-11f1-8ce6-7369ee2be5a1
+Inferring config /var/lib/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1/mon.ceph-node1/config
+Using ceph image with id '259b35566514' and tag 'v17' created on 2024-11-26 00:45:38 +0000 UTC
+quay.io/ceph/ceph@sha256:a0f373aaaf5a5ca5c4379c09da24c771b8266a09dc9e2181f90eacf423d7326f
+Added host 'ceph-node2' with addr '192.168.11.13'
+Added label _admin to host ceph-node2
+  ceph-node2 added.
+>>> Adding ceph-node3 (192.168.11.14)...
+Inferring fsid 073f28e0-5fe0-11f1-8ce6-7369ee2be5a1
+Inferring config /var/lib/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1/mon.ceph-node1/config
+Using ceph image with id '259b35566514' and tag 'v17' created on 2024-11-26 00:45:38 +0000 UTC
+quay.io/ceph/ceph@sha256:a0f373aaaf5a5ca5c4379c09da24c771b8266a09dc9e2181f90eacf423d7326f
+Added host 'ceph-node3' with addr '192.168.11.14'
+Added label _admin to host ceph-node3
+  ceph-node3 added.
+>>> Waiting for MON+MGR on secondary nodes (60s)...
+  3 hosts online.
+Host status:
+HOST        ADDR           LABELS  STATUS
+ceph-node1  192.168.11.11  _admin
+ceph-node2  192.168.11.13  _admin
+ceph-node3  192.168.11.14  _admin
+3 hosts in cluster
+
+Daemon status:
+NAME                   HOST        PORTS        STATUS        REFRESHED  AGE  MEM USE  MEM LIM  VERSION  IMAGE ID      CONTAIN
+ER ID
+crash.ceph-node1       ceph-node1               running (8m)     8m ago   8m    7532k        -  17.2.8   259b35566514  e052497
+fc97b
+crash.ceph-node2       ceph-node2               running (8m)     7m ago   8m    7578k        -  17.2.8   259b35566514  1128e79
+cb29e
+crash.ceph-node3       ceph-node3               running (7m)     7m ago   7m    7608k        -  17.2.8   259b35566514  266ecfb
+67f1c
+mgr.ceph-node1.pwhrqu  ceph-node1  *:9283,8765  running (9m)     8m ago   9m     422M        -  17.2.8   259b35566514  cfaec2b
+a1650
+mgr.ceph-node2.gfddiq  ceph-node2               running (7m)     7m ago   7m     401M        -  17.2.8   259b35566514  c3794ee
+8326a
+mon.ceph-node1         ceph-node1               running (9m)     8m ago   9m    25.4M    2048M  17.2.8   259b35566514  8aed27c
+74536
+mon.ceph-node2         ceph-node2               running (7m)     7m ago   7m    26.3M    2048M  17.2.8   259b35566514  ded593d
+491fa
+mon.ceph-node3         ceph-node3               running (7m)     7m ago   7m    24.8M    2048M  17.2.8   259b35566514  6a1f4e6
+d3a5e
+
+>>> Step 4: Creating LVM LVs (2 per disk) and deploying OSDs...
+           3 nodes × 2 LVs = 6 OSDs for EC 4+2
+
+--- Preparing /dev/sda on ceph-node1 (192.168.11.11) ---
+Creating new GPT entries in memory.
+GPT data structures destroyed! You may now partition the disk using fdisk or
+other utilities.
+  Creating PV + VG...
+  Physical volume "/dev/sda" successfully created.
+  Volume group "ceph-vg-ceph-node1" successfully created
+WARNING: ceph_bluestore signature detected on /dev/ceph-vg-ceph-node1/osd0 at offset 0. Wipe it? [y/n]: y
+  Wiping ceph_bluestore signature on /dev/ceph-vg-ceph-node1/osd0.
+  Logical volume "osd0" created.                                                                                      [94/527]
+  Logical volume "osd1" created.
+  LVs created:
+  LV   VG                 Attr       LSize    Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert
+  osd0 ceph-vg-ceph-node1 -wi-a----- <223.31g
+  osd1 ceph-vg-ceph-node1 -wi-a-----  223.31g
+  Deploying OSD on ceph-node1:/dev/ceph-vg-ceph-node1/osd0...
+  OK
+  Deploying OSD on ceph-node1:/dev/ceph-vg-ceph-node1/osd1...
+  OK
+
+--- Preparing /dev/sdb on ceph-node2 (192.168.11.13) ---
+Creating new GPT entries in memory.
+GPT data structures destroyed! You may now partition the disk using fdisk or
+other utilities.
+  Creating PV + VG...
+  Physical volume "/dev/sdb" successfully created.
+  Volume group "ceph-vg-ceph-node2" successfully created
+WARNING: ceph_bluestore signature detected on /dev/ceph-vg-ceph-node2/osd0 at offset 0. Wipe it? [y/n]: y
+  Wiping ceph_bluestore signature on /dev/ceph-vg-ceph-node2/osd0.
+  Logical volume "osd0" created.
+  Logical volume "osd1" created.
+  LVs created:
+  LV   VG                 Attr       LSize   Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert
+  osd0 ceph-vg-ceph-node2 -wi-a----- 476.62g
+  osd1 ceph-vg-ceph-node2 -wi-a----- 476.62g
+  Deploying OSD on ceph-node2:/dev/ceph-vg-ceph-node2/osd0...
+  OK
+  Deploying OSD on ceph-node2:/dev/ceph-vg-ceph-node2/osd1...
+  OK
+
+--- Preparing /dev/sdb on ceph-node3 (192.168.11.14) ---
+Creating new GPT entries in memory.
+GPT data structures destroyed! You may now partition the disk using fdisk or                                          [61/527]
+other utilities.
+  Creating PV + VG...
+  Physical volume "/dev/sdb" successfully created.
+  Volume group "ceph-vg-ceph-node3" successfully created
+WARNING: ceph_bluestore signature detected on /dev/ceph-vg-ceph-node3/osd0 at offset 0. Wipe it? [y/n]: y
+  Wiping ceph_bluestore signature on /dev/ceph-vg-ceph-node3/osd0.
+  Logical volume "osd0" created.
+  Logical volume "osd1" created.
+  LVs created:
+  LV   VG                 Attr       LSize   Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert
+  osd0 ceph-vg-ceph-node3 -wi-a----- 476.62g
+  osd1 ceph-vg-ceph-node3 -wi-a----- 476.62g
+  Deploying OSD on ceph-node3:/dev/ceph-vg-ceph-node3/osd0...
+  OK
+  Deploying OSD on ceph-node3:/dev/ceph-vg-ceph-node3/osd1...
+  OK
+
+>>> Waiting for OSDs (90s)...
+  OSDs: 6 (expected 6)
+OSD tree:
+ID  CLASS  WEIGHT   TYPE NAME            STATUS  REWEIGHT  PRI-AFF
+-1         2.29819  root default
+-3         0.43619      host ceph-node1
+ 0    hdd  0.21809          osd.0            up   1.00000  1.00000
+ 1    hdd  0.21809          osd.1            up   1.00000  1.00000
+-5         0.93100      host ceph-node2
+ 2    hdd  0.46550          osd.2            up   1.00000  1.00000
+ 3    hdd  0.46550          osd.3            up   1.00000  1.00000
+-7         0.93100      host ceph-node3
+ 4    hdd  0.46550          osd.4            up   1.00000  1.00000
+ 5    hdd  0.46550          osd.5            up   1.00000  1.00000
+
+Health:
+HEALTH_WARN mon ceph-node2 is low on available space
+OSD tree:
+ID  CLASS  WEIGHT   TYPE NAME            STATUS  REWEIGHT  PRI-AFF
+-1         2.29819  root default
+-3         0.43619      host ceph-node1
+ 0    hdd  0.21809          osd.0            up   1.00000  1.00000
+ 1    hdd  0.21809          osd.1            up   1.00000  1.00000
+-5         0.93100      host ceph-node2
+ 2    hdd  0.46550          osd.2            up   1.00000  1.00000
+ 3    hdd  0.46550          osd.3            up   1.00000  1.00000
+-7         0.93100      host ceph-node3
+ 4    hdd  0.46550          osd.4            up   1.00000  1.00000
+ 5    hdd  0.46550          osd.5            up   1.00000  1.00000
+
+OSD stat:
+6 osds: 6 up (since 106s), 6 in (since 2m); epoch: e37
+
+>>> Step 5: Creating EC 4+2 pool...
+
+Pool details:
+pool 1 '.mgr' replicated size 3 min_size 2 crush_rule 0 object_hash rjenkins pg_num 1 pgp_num 1 autoscale_mode on last_change
+19 flags hashpspool stripe_width 0 pg_num_max 32 pg_num_min 1 application mgr
+pool 2 'default.rgw.buckets.data' erasure profile ec-prod size 6 min_size 5 crush_rule 1 object_hash rjenkins pg_num 1 pgp_num
+ 1 autoscale_mode on last_change 43 flags hashpspool stripe_width 16384 application rgw
+
+
+>>> Step 6: Deploying RGW service...
+Inferring fsid 073f28e0-5fe0-11f1-8ce6-7369ee2be5a1
+Inferring config /var/lib/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1/mon.ceph-node1/config
+Using ceph image with id '259b35566514' and tag 'v17' created on 2024-11-26 00:45:38 +0000 UTC
+quay.io/ceph/ceph@sha256:a0f373aaaf5a5ca5c4379c09da24c771b8266a09dc9e2181f90eacf423d7326f
+Scheduled rgw.myrgw update...
+>>> Waiting for RGW (30s)...
+RGW daemons:
+NAME                         HOST        PORTS   STATUS         REFRESHED  AGE  MEM USE  MEM LIM  VERSION  IMAGE ID      CONTAINER ID
+rgw.myrgw.ceph-node1.ofqfwa  ceph-node1  *:8000  running (29s)    24s ago  29s    12.1M        -  17.2.8   259b35566514  b7b25f784f33
+
+>>> Step 7: Creating RGW user for JuiceFS...
+
+========================================
+Ceph RGW Deployment Complete!
+========================================
+
+RGW Endpoints:
+  http://192.168.11.11:8000
+  http://192.168.11.13:8000
+
+Credentials saved: /home/turboai/production/.credentials/rgw-juicefs.env
+  Access Key: N1H9Y3IV2OZXUI0YEAW0
+  Secret Key: TiGN69CUYD3yUn9AmekODhX3R2slEPt22OEyHTe9
+
+Cluster status:
+  ssh turboai@192.168.11.11 'sudo cephadm shell -- ceph status'
+
+Firewall ports: TCP 3300,6789 (MON) / TCP 8000 (RGW) / TCP 6800-7300 (OSD)
+
