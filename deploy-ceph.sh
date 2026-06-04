@@ -371,21 +371,25 @@ ssh_srv "${PRIMARY}" "
 "
 
 # ============================================================
-# Step 4: Deploy OSDs — one per whole disk (orchestrator LVM mode)
+# Step 4: Create LVM VG + 2 LVs per disk, deploy 6 OSDs via orch
 # ============================================================
 #
-# ceph orch daemon add osd uses ceph-volume lvm batch on the whole
-# disk, creating PV/VG/LV automatically.  One OSD per disk per node.
-# The EC pool width (k+m) must not exceed the total OSD count.
+# cephadm's orchestrator device scanner (ceph-volume inventory)
+# marks partitions as unavailable, but it DOES recognise LVM
+# logical volumes.  So we manually create a PV→VG→2 LVs on each
+# data disk, then let the orchestrator deploy OSDs onto the LVs.
+# 3 nodes × 2 LVs = 6 OSDs = enough for EC 4+2.
 # ============================================================
 
 echo ""
-echo ">>> Step 4: Deploying OSDs (one per disk, LVM mode)..."
+echo ">>> Step 4: Creating LVM LVs (2 per disk) and deploying OSDs..."
+echo "           3 nodes × 2 LVs = 6 OSDs for EC 4+2"
 
 for i in "${!CEPH_SERVERS[@]}"; do
     ip="${CEPH_SERVERS[$i]}"
     hostname="ceph-node$((i + 1))"
     dev="${CEPH_OSD_DEVICES[$i]:-}"
+    vg_name="ceph-vg-${hostname}"
 
     if [ -z "${dev}" ]; then
         echo "  WARNING: No OSD device configured for ${hostname}, skipping."
@@ -395,28 +399,47 @@ for i in "${!CEPH_SERVERS[@]}"; do
     echo ""
     echo "--- Preparing ${dev} on ${hostname} (${ip}) ---"
 
+    # 1) Wipe, create PV + VG + 2 LVs on the data disk
     ssh_srv "${ip}" "
         set -e
         if mount | grep -q '^${dev} '; then
-            echo \"  FATAL: ${dev} is currently mounted! Refusing.\"; exit 1
+            echo \"  FATAL: ${dev} is mounted!\"; exit 1
         fi
         root_dev=\$(findmnt -n -o SOURCE / | sed 's/[0-9]*\$//;s/p[0-9]*\$//')
         if [ \"\${root_dev}\" = '${dev}' ]; then
-            echo \"  FATAL: ${dev} is the system disk! Refusing.\"; exit 1
+            echo \"  FATAL: ${dev} is the system disk!\"; exit 1
         fi
-        # Wipe any partition table so lvm batch can claim the whole disk
-        sudo sgdisk -Z ${dev} 2>/dev/null || sudo wipefs -a ${dev}
+
+        # Wipe existing partition table and LVM signatures
+        sudo sgdisk -Z ${dev} 2>/dev/null || true
+        sudo wipefs -af ${dev} 2>/dev/null || true
         sudo partprobe ${dev} 2>/dev/null || true
-        echo '  Disk ready.'
+        sleep 2
+
+        # Create PV + VG
+        echo '  Creating PV + VG...'
+        sudo pvcreate -ff -y ${dev} 2>/dev/null || sudo pvcreate -y ${dev}
+        sudo vgcreate ${vg_name} ${dev} 2>/dev/null || true  # ok if already exists
+
+        # Remove any stale LVs then create 2 new ones (50% each)
+        sudo lvremove -f ${vg_name} 2>/dev/null || true
+        sudo lvcreate -L 50%FREE -n osd0 ${vg_name}
+        sudo lvcreate -L 100%FREE -n osd1 ${vg_name}
+
+        echo '  LVs created:'
+        sudo lvs ${vg_name} 2>/dev/null
     "
 
-    echo -n "  Deploying OSD on ${hostname}:${dev}... "
-    if ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph orch daemon add osd ${hostname}:${dev} 2>&1" 2>/dev/null | grep -q "Created"; then
-        echo "OK"
-    else
-        echo "FAILED"
-        exit 1
-    fi
+    # 2) Deploy OSDs on the LVs via orchestrator
+    for lv in osd0 osd1; do
+        lv_path="/dev/${vg_name}/${lv}"
+        echo "  Deploying OSD on ${hostname}:${lv_path}..."
+        if ! ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph orch daemon add osd ${hostname}:${lv_path} 2>&1" 2>/dev/null | grep -q "Created"; then
+            echo "  FAILED"
+            exit 1
+        fi
+        echo "  OK"
+    done
 done
 
 echo ""
@@ -424,9 +447,9 @@ echo ">>> Waiting for OSDs (90s)..."
 sleep 90
 
 OSD_COUNT=$(ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph osd stat 2>/dev/null" | grep -oP '\d+(?= osds)' || echo "0")
-echo "  OSDs deployed: ${OSD_COUNT}"
-if [ "${OSD_COUNT}" -lt 3 ]; then
-    echo "  WARNING: fewer than 3 OSDs."
+echo "  OSDs: ${OSD_COUNT} (expected 6)"
+if [ "${OSD_COUNT}" -lt 6 ]; then
+    echo "  WARNING: EC 4+2 needs 6 OSDs"
 fi
 
 ssh_srv "${PRIMARY}" "
