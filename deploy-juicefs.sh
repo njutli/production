@@ -178,7 +178,10 @@ do_mount() {
     # Unset proxy (JuiceFS Go client connects directly to TiKV PD)
     unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
 
-    mkdir -p "${JUICEFS_MOUNT_POINT}"
+    sudo mkdir -p "${JUICEFS_MOUNT_POINT}"
+    if ! mountpoint -q "${JUICEFS_MOUNT_POINT}" 2>/dev/null; then
+        sudo chown $(whoami):$(whoami) "${JUICEFS_MOUNT_POINT}"
+    fi
 
     echo "Mounting ${METADATA_URL} -> ${JUICEFS_MOUNT_POINT}..."
     juicefs mount -d "${METADATA_URL}" "${JUICEFS_MOUNT_POINT}"
