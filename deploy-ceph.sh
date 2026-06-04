@@ -107,6 +107,9 @@ echo ""
 read -rp "Continue with deployment? [y/N] " confirm
 [[ "${confirm}" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 0; }
 
+# PRIMARY is the bootstrap node; used by MON config and subsequent steps.
+PRIMARY="${CEPH_SERVERS[0]}"
+
 # Limit MON deployment to nodes with sufficient root disk space.
 # MON requires ~1GB headroom on the root filesystem for database growth.
 # If a node's root disk has < 2GB free, cephadm will refuse to start MON.
@@ -232,9 +235,7 @@ done
 # ============================================================
 
 echo ""
-echo ">>> Step 2: Bootstrapping Ceph on ceph-node1 (${CEPH_SERVERS[0]})..."
-
-PRIMARY="${CEPH_SERVERS[0]}"
+echo ">>> Step 2: Bootstrapping Ceph on ceph-node1 (${PRIMARY})..."
 
 ssh_srv "${PRIMARY}" "
     set -e
