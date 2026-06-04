@@ -214,11 +214,15 @@ for i in "${!CEPH_SERVERS[@]}"; do
         sudo sed -i 's/^#*PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
         sudo systemctl restart sshd 2>/dev/null || sudo systemctl restart ssh || true
 
-        # Pre-pull Ceph container image
-        echo '  Pulling Ceph container image...'
-        sudo podman pull quay.io/ceph/ceph:v19 2>&1 | tail -1 || {
-            echo '  WARNING: pull failed (bootstrap will retry)'
-        }
+        # Pre-pull Ceph container image (skip if already cached)
+        if sudo podman image exists quay.io/ceph/ceph:v19 2>/dev/null; then
+            echo '  Ceph container image already cached.'
+        else
+            echo '  Pulling Ceph container image...'
+            sudo podman pull quay.io/ceph/ceph:v19 2>&1 | tail -1 || {
+                echo '  WARNING: pull failed (bootstrap will retry)'
+            }
+        fi
         echo '  Done.'
     "
 done
