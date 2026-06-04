@@ -281,7 +281,7 @@ do_test() {
 
     echo ""
     echo ">>> Filesystem info:"
-    juicefs info "${METADATA_URL}" 2>&1 | head -15
+    juicefs info "${JUICEFS_MOUNT_POINT}" 2>&1 | head -15
 
     echo ""
     echo ">>> Directory listing:"
