@@ -154,38 +154,176 @@ bash production/deploy-tikv.sh restart
 
 ### 第三级：Ceph 调优
 
+在任意 ceph-node 上执行：
+
 ```bash
-# 调高 OSD 操作优先级，减少延迟
+# OSD 线程优化
 sudo ceph config set osd osd_op_num_threads_per_shard 2
 sudo ceph config set osd osd_op_num_shards 8
+sudo ceph config set osd osd_memory_target 4294967296    # 4GB per OSD
+sudo ceph config set osd bluestore_cache_size_hdd 1073741824  # 1GB BlueStore cache
+sudo ceph config set osd bluestore_cache_size_ssd 1073741824  # 1GB (如果有 SSD)
 
-# 增大 RGW 线程数
+# PG 日志
+sudo ceph config set osd osd_pg_log_trim_min 10
+sudo ceph config set osd osd_max_pg_log_entries 1000
+
+# RGW (在 ceph-node1 执行)
+sudo ceph config set client.rgw rgw_frontends "beast port=8000"
+sudo ceph config set client.rgw rgw_max_concurrent_requests 1024
 sudo ceph config set client.rgw rgw_thread_pool_size 512
 ```
 
-### 第四级：多 RGW 部署（后续优化方向）
+> 注意：Ceph config set 是集群级别设置，在任意一台 ceph-node 用 sudo 执行即可。
+
+### 第四级：JuiceFS 客户端调优
+
+重新挂载 JuiceFS 时添加参数：
+
+```bash
+juicefs mount -d tikv://127.0.0.1:2379/juicefs-prod /mnt/juicefs \
+    --cache-dir /var/jfsCache \
+    --cache-size 102400 \          # 100GB 本地缓存
+    --prefetch 1 \                 # 启用顺序预读
+    --max-uploads 20 \             # 最大并发上传数
+    --writeback \                  # 启用写回缓存
+    --open-cache 10 \              # 元数据打开文件缓存时间（s）
+    --attr-cache 10                # 属性缓存时间（s）
+```
+
+| 参数 | 作用 | 建议值 |
+|------|------|--------|
+| `--cache-size` | 本地数据缓存（MiB），减少 S3 读取 | 100GB 以上 |
+| `--prefetch` | 顺序预读，提升大文件读性能 | 1 |
+| `--max-uploads` | 并发上传 S3 的线程数 | 20 |
+| `--writeback` | 写回缓存，先写到本地再异步上传 S3 | 适合有磁盘空间时启用 |
+| `--open-cache` | 缓存已打开文件元数据（秒） | 10 |
+| `--attr-cache` | 缓存文件属性（秒） | 10 |
+
+### 第五级：网络调优
+
+在 tikv-node 和 3 台 ceph-node 上分别执行：
+
+```bash
+# 确认网卡名
+ip link show | grep -E "^[0-9]+:" | awk -F': ' '{print $2}'
+
+# 增大网卡接收/发送缓冲区（假设网卡 eth0）
+sudo ethtool -G eth0 rx 4096 tx 4096
+
+# 禁用不必要的网卡卸载功能（减少延迟）
+sudo ethtool -K eth0 tso off gso off gro off lro off
+
+# 如果交换机支持，开启巨帧（MTU 9000）
+sudo ip link set dev eth0 mtu 9000
+```
+
+> 注意：MTU 9000 需要所有节点 + 交换机都支持，否则会导致分片和丢包。不确定是否支持时可以跳过此项。
+
+### 第六级：多 RGW 部署（后续优化方向）
 
 当前仅 ceph-node1 运行 RGW。在 3 台 Ceph 节点上各部署一个 RGW 实例，前置 HAProxy 负载均衡，JuiceFS 连接 LB 地址。
 
-## 预期提升
+## 瓶颈分析方法
 
-| 调优级别 | 顺序写 | 顺序读 |
-|---------|--------|--------|
-| 未调优（当前） | ~8 MiB/s | ~8 MiB/s |
-| 第一级后（系统调优） | 15-30 MiB/s | 20-40 MiB/s |
-| 第一+二级后（TiKV 调优） | 50-150 MiB/s | 80-200 MiB/s |
-| 第一+二+三级后（Ceph 调优） | 100-250 MiB/s | 150-300 MiB/s |
-| 全部（含多 RGW） | 150-350 MiB/s | 200-400 MiB/s |
+如果所有调优手段都试过仍未达预期，按以下步骤逐层排查瓶颈。
 
-## 瓶颈定位命令
+### 1. 延迟分解
+
+单次 4M 写入的 ~500ms 延迟，分解到各层：
+
+```
+fio write (500ms)
+ ├── JuiceFS FUSE 层           — fuse_dispatch 耗时
+ ├── TiKV 元数据写入            — grpc 往返 + RocksDB write
+ │   ├── PD get_timestamp       — 当前 30-200ms (PD 日志 "get timestamp too slow")
+ │   ├── TiKV prewrite+commit   — 2PC 事务
+ │   └── RocksDB fsync          — 磁盘同步
+ ├── S3 对象上传                — HTTP PUT to RGW
+ │   ├── 网络传输（tikv-node → ceph-node1）
+ │   ├── RGW 处理（HTTP → RADOS）
+ │   ├── EC 编码（4+2）
+ │   └── OSD 写入 + fsync      — 6 个 OSD 并行
+ └── fio fsync (end_fsync=1)    — 等待 S3 确认
+```
+
+### 2. 各层监控命令
 
 ```bash
-# 测试期间查看 TiKV 指标
-curl -s http://127.0.0.1:2379/metrics | grep -E "grpc_server_handling|tikv_raftstore"
+# === TiKV 层 ===
+# PD 时间戳延迟
+curl -s http://127.0.0.1:2379/metrics | grep "pd_request.*duration"
 
-# Ceph OSD 延迟
+# TiKV gRPC 延迟
+curl -s http://127.0.0.1:20160/metrics | grep "tikv_storage_engine_async_request_duration_seconds"
+
+# RocksDB 写延迟
+curl -s http://127.0.0.1:20160/metrics | grep "rocksdb_write_duration_seconds"
+
+# TiKV CPU 和内存
+top -b -n 1 -p $(pgrep tikv-server) | tail -1
+
+
+# === 网络层 ===
+# 测试到 RGW 的延迟和带宽
+ping -c 100 192.168.11.11 | tail -1
+iperf3 -c 192.168.11.11 -t 30
+
+# 实时查看网络流量
+sar -n DEV 1 10 | grep -E "eth|ens"
+
+
+# === Ceph 层 ===
+# OSD 延迟分布
 ssh 192.168.11.11 "sudo ceph osd perf"
 
-# 网络吞吐
-sar -n DEV 1 10
+# RGW 请求统计
+ssh 192.168.11.11 "sudo ceph daemon /var/run/ceph/*/ceph-client.rgw.*.asok perf dump 2>/dev/null | grep -A5 '\"get_obj\"\|\"put_obj\"'"
+
+# 各 pool 的读写速率
+ssh 192.168.11.11 "sudo ceph pg stat"
+
+
+# === 系统层 ===
+# 磁盘 I/O 延迟
+iostat -x 1 10 | grep -E "sd[ab]"
+
+# CPU 和上下文切换
+vmstat 1 10
+
+# 内存使用
+free -h
+```
+
+### 3. 常见瓶颈定位
+
+| 症状 | 可能原因 | 定位命令 |
+|------|---------|---------|
+| PD 时间戳延迟 >50ms | 单核 CPU 瓶颈，PD 与 TiKV 抢 CPU | `top -H -p $(pgrep pd-server)` |
+| TiKV gRPC 延迟 >100ms | RocksDB write stall | `grep "write stall" /data/tikv/data/rocksdb.info` |
+| S3 put 延迟 >200ms | RGW 单线程瓶颈 | `curl http://192.168.11.11:8000` 测 HTTP 延迟 |
+| OSD apply latency >50ms | HDD 寻道延迟（EC 小块随机写） | `ceph osd perf` 的 apply_latency_ms |
+| 网络带宽打满 (>80% 线速) | 单 1G 网口瓶颈 | `sar -n DEV 1` 查看 rx/tx Mbps |
+| CPU iowait >10% | 磁盘 I/O 瓶颈 | `iostat -x 1` 查看 %iowait 和 await |
+| JuiceFS FUSE 慢 | FUSE 内核模块单线程 | `/sys/fs/fuse/connections/*/waiting` 中的等待数 |
+
+### 4. 快速诊断脚本
+
+```bash
+#!/bin/bash
+# 保存为 diag-perf.sh，fio 测试期间在 tikv-node 运行
+echo "=== PD Timestamp Latency ==="
+curl -s http://127.0.0.1:2379/metrics | grep "pd_request_duration_seconds" | grep -v "#"
+
+echo "=== TiKV Write Duration ==="
+curl -s http://127.0.0.1:20160/metrics | grep "tikv_storage_engine_async_request_duration_seconds_bucket" | grep -v "#" | tail -5
+
+echo "=== Network to RGW ==="
+ping -c 5 192.168.11.11 | tail -1
+
+echo "=== CPU ==="
+top -b -n 1 | head -5
+
+echo "=== Disk IO ==="
+iostat -x 1 2 | tail -n+7
 ```
