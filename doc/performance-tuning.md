@@ -34,20 +34,94 @@ fio --name=sequential-write --directory=/mnt/juicefs/test_dir/ \
 
 ### 第一级：系统环境调优
 
+以下操作在 tikv-node 和 3 台 ceph-node 上分别执行。
+
+#### 1. 禁用 swap
+
 ```bash
-bash production/tune-servers.sh tikv    # tikv-node 机器
-bash production/tune-servers.sh ceph    # 3 台 ceph-node
+sudo swapoff -a                              # 立即生效
+sudo sed -i '/\sswap\s/d' /etc/fstab         # 永久生效（防止重启恢复）
 ```
 
-应用内容：
-- 禁用 swap（防止内存页换出导致延迟抖动）
-- 禁用透明大页 THP（减少内存碎片）
-- 提高文件描述符上限（TiKV/Ceph 高并发场景需要）
-- 网络 sysctl 调优（tcp 缓冲区、backlog 等）
-- I/O 调度器优化
+> 原因：TiKV 和 Ceph OSD 内置 RocksDB，compaction 时内存使用激增。若内存页被 swap 换出，I/O 延迟从 <1ms 飙升到几十 ms，导致 Raft 心跳超时、MON 误判 OSD 下线、集群抖动。
 
-> TiKV: fd limits 需要 `systemctl restart pd tikv` 生效  
-> Ceph: swap/THP/sysctl/I/O 调度器即时生效，fd limits 需重启 OSD
+#### 2. 禁用透明大页（THP）
+
+```bash
+# 创建 systemd 服务，确保重启后仍生效
+sudo tee /etc/systemd/system/disable-thp.service <<'EOF'
+[Unit]
+Description=Disable Transparent Huge Pages
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c "echo never > /sys/kernel/mm/transparent_hugepage/enabled && echo never > /sys/kernel/mm/transparent_hugepage/defrag"
+RemainAfterExit=yes
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable disable-thp
+sudo systemctl start disable-thp
+```
+
+> 原因：内核定期整理内存碎片生成 2MB 大页，此过程会阻塞用户态进程数百毫秒，对 Raft/Paxos 心跳驱动的分布式系统是致命的。
+
+#### 3. 网络和内核参数调优
+
+```bash
+sudo tee /etc/sysctl.d/99-performance.conf <<'EOF'
+# 网络 — 增大连接队列、减少 TIME_WAIT 堆积
+net.core.somaxconn = 32768
+net.ipv4.tcp_syncookies = 0
+net.ipv4.tcp_tw_reuse = 1
+net.ipv4.tcp_fin_timeout = 10
+net.ipv4.tcp_max_syn_backlog = 16384
+
+# 虚拟机内存 — 降低 swap 倾向、控制脏页比例
+vm.swappiness = 0
+vm.dirty_ratio = 10
+vm.dirty_background_ratio = 5
+vm.min_free_kbytes = 65536
+
+# 文件描述符上限
+fs.file-max = 1000000
+EOF
+
+sudo sysctl --system
+```
+
+#### 4. I/O 调度器
+
+```bash
+# 对所有数据盘设置 none 调度器（NVMe/SSD 最佳选择，不做内核级调度）
+for disk in /sys/block/sd*/queue/scheduler; do
+    [ -f "$disk" ] && echo "none" | sudo tee "$disk" 2>/dev/null || true
+done
+```
+
+#### 5. 文件描述符上限（需重启服务）
+
+```bash
+sudo tee /etc/security/limits.d/99-performance.conf <<'EOF'
+root    soft    nofile  1000000
+root    hard    nofile  1000000
+*       soft    nofile  1000000
+*       hard    nofile  1000000
+EOF
+```
+
+> 注意：swap、THP、sysctl、I/O 调度器即时生效。fd limits 只对新进程生效，已运行的服务需要重启。
+
+使 fd limits 生效：
+
+```bash
+# tikv-node
+sudo systemctl restart pd tikv
+
+# ceph-node（逐 OSD 重启，或直接重启机器）
+sudo ceph orch daemon restart osd.<id>
+```
 
 ### 第二级：TiKV 调优（需重启 TiKV）
 
