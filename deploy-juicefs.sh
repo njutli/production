@@ -148,13 +148,13 @@ do_format() {
 
     echo ""
     echo ">>> Running juicefs format..."
-    # Use --trash-days 1 for auto-cleanup; production may want 7 or 30
+    # --trash-days 0 for test env (trash disabled)
     juicefs format \
         --storage s3 \
         --bucket "${BUCKET_URL}" \
         --access-key "${AWS_ACCESS_KEY_ID}" \
         --secret-key "${AWS_SECRET_ACCESS_KEY}" \
-        --trash-days 1 \
+        --trash-days 0 \
         "${METADATA_URL}" \
         "${JUICEFS_FS_NAME}"
 
@@ -217,6 +217,15 @@ do_destroy() {
 
     do_unmount 2>/dev/null || true
 
+    install_juicefs
+
+    # Get UUID for destroy command
+    UUID=$(juicefs status "${METADATA_URL}" 2>/dev/null | grep -o '"UUID": "[^"]*"' | cut -d'"' -f4)
+    if [ -z "${UUID}" ]; then
+        echo "ERROR: Could not determine volume UUID. Is the filesystem formatted?"
+        exit 1
+    fi
+
     read -rp "Type 'DESTROY' to confirm: " confirm
     if [ "${confirm}" != "DESTROY" ]; then
         echo "Aborted."
@@ -224,29 +233,9 @@ do_destroy() {
     fi
 
     echo ""
-    echo "Choose what to delete:"
-    echo "  1) Metadata only (TiKV) — S3 data in Ceph RGW is kept"
-    echo "  2) Everything (TiKV + Ceph RGW S3 data)"
-    read -rp "> [1/2]: " choice
-
-    install_juicefs
-
-    case "${choice}" in
-        1)
-            echo ">>> Deleting metadata only..."
-            juicefs destroy "${METADATA_URL}" --yes
-            echo "  Metadata deleted. S3 data in Ceph RGW is untouched."
-            ;;
-        2)
-            echo ">>> Deleting metadata + S3 data..."
-            juicefs destroy --delete-all "${METADATA_URL}" --yes
-            echo "  Metadata and S3 data deleted."
-            ;;
-        *)
-            echo "Invalid choice. Aborted."
-            exit 1
-            ;;
-    esac
+    echo ">>> Deleting metadata + S3 data..."
+    juicefs destroy "${METADATA_URL}" "${UUID}" --yes
+    echo "  Metadata and S3 data deleted."
 }
 
 do_test() {
