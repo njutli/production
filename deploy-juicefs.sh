@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+# JuiceFS/TiKV uses Go net/http which respects proxy env vars.
+# Local proxy (e.g. localhost:7890) would break PD and S3 connections.
+unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY all_proxy ALL_PROXY no_proxy NO_PROXY 2>/dev/null
+
 # ============================================================
 # JuiceFS Client Deployment (4-Machine Topology)
 #
