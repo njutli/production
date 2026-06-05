@@ -205,7 +205,10 @@ do_mount() {
 do_unmount() {
     echo ">>> Unmounting ${JUICEFS_MOUNT_POINT}..."
     if mountpoint -q "${JUICEFS_MOUNT_POINT}" 2>/dev/null; then
-        fusermount -u "${JUICEFS_MOUNT_POINT}" 2>/dev/null || umount "${JUICEFS_MOUNT_POINT}"
+        # Try normal unmount first, then force lazy unmount
+        fusermount -u "${JUICEFS_MOUNT_POINT}" 2>/dev/null || \
+        fusermount -uz "${JUICEFS_MOUNT_POINT}" 2>/dev/null || \
+        umount -l "${JUICEFS_MOUNT_POINT}"
         echo "Unmounted."
     else
         echo "Not mounted."
