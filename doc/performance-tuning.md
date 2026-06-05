@@ -1,54 +1,58 @@
-# JuiceFS Performance Tuning Guide
+# JuiceFS 性能调优指南
 
-## Current Bottleneck Analysis
+## 当前瓶颈分析
 
-Your sequential read/write results (~8 MiB/s) vs official (~300+ MiB/s):
+当前顺序读写约 8 MiB/s，距离官方参考值（300+ MiB/s）差距较大：
 
-| Factor | Your Setup | Impact |
-|--------|-----------|--------|
-| **fio engine** | psync (sync, iodepth=1) | One I/O at a time, no pipeline |
-| **I/O depth** | 1 | Each 4M I/O waits for full round-trip |
-| **Write path latency** | ~350ms median per 4M I/O | TiKV PD "get timestamp too slow" + S3 put |
-| **Metadata engine** | Single-node TiKV | PD warnings show 30-200ms timestamp latency |
-| **RGW gateways** | 1 instance on ceph-node1 | All S3 traffic through single node |
-| **System tuning** | None | Swap, THP, limits at defaults |
+| 因素 | 当前状态 | 影响 |
+|------|---------|------|
+| **fio 引擎** | psync（同步，iodepth=1） | 一次只发一个 I/O，无流水线 |
+| **I/O 深度** | 1 | 每个 4M I/O 必须等完整往返 |
+| **写路径延迟** | 中位 ~350ms/4M I/O | TiKV PD 时间戳获取慢 + S3 写入 |
+| **元数据引擎** | 单节点 TiKV | PD 日志持续报 "get timestamp too slow"（30-200ms） |
+| **RGW 网关** | 仅 ceph-node1 一个实例 | 所有 S3 流量走单一节点 |
+| **系统调优** | 未做 | swap、THP、fd limits 均为默认值 |
 
-Root cause: `psync, iodepth=1` = one I/O at a time. Each 4M write takes ~500ms round-trip (TiKV metadata + RGW S3 put). 4 MiB / 0.5s = 8 MiB/s. With iodepth=32, pipeline 32 I/Os simultaneously → 32x throughput.
+根本原因：`psync, iodepth=1` 串行执行 I/O。每个 4M 写入需约 500ms 往返（TiKV 元数据 + RGW S3 写入），4 MiB / 0.5s ≈ 8 MiB/s。改用 `iodepth=32` 可同时流水线 32 个 I/O，理论提升 32 倍。
 
-## Tier 1: fio Parameters (immediate, no redeploy)
+## 第一级：fio 参数优化（立即生效，无需重新部署）
 
 ```bash
-# Sequential write (libaio + pipeline)
+# 顺序写（libaio + 流水线）
 fio --name=seq-write --directory=/mnt/juicefs/test_dir/ \
     --rw=write --bs=4M --size=4G \
     --ioengine=libaio --iodepth=32 \
     --numjobs=1 --end_fsync=1 --group_reporting
 
-# Sequential read (pre-create file first)
+# 顺序读（先预创建文件，避免 fio 布局阶段卡住）
 truncate -s 4G /mnt/juicefs/test_dir/seq-read-file
 fio --name=seq-read --filename=/mnt/juicefs/test_dir/seq-read-file \
     --rw=read --bs=4M --size=4G \
     --ioengine=libaio --iodepth=32 \
     --numjobs=1 --group_reporting
 
-# Random RW (small block, multi-job)
+# 随机读写（小块、多任务）
 fio --name=rnd-rw --directory=/mnt/juicefs/test_dir/ \
     --rw=randrw --bs=256k --size=1G \
     --ioengine=libaio --iodepth=32 \
     --numjobs=4 --group_reporting --runtime=60 --time_based
 ```
 
-## Tier 2: System Tuning
+## 第二级：系统调优
 
 ```bash
-bash production/tune-servers.sh
+bash production/tune-servers.sh tikv    # tikv-node 机器
+bash production/tune-servers.sh ceph    # 3 台 ceph-node
 ```
 
-Applies: disable swap, disable THP, increase fd limits, network sysctl tuning.
+应用内容：禁用 swap、禁用透明大页（THP）、提高文件描述符上限、网络 sysctl 调优、I/O 调度器优化。
 
-## Tier 3: TiKV Tuning (requires TiKV restart)
+> TiKV: fd limits 需要 `systemctl restart pd tikv` 生效  
+> Ceph: swap/THP/sysctl/I/O 调度器即时生效，fd limits 需重启 OSD
 
-Edit `config/tikv/tikv1.toml`:
+## 第三级：TiKV 调优（需重启 TiKV）
+
+编辑 `config/tikv/tikv1.toml`：
 
 ```toml
 [rocksdb.defaultcf]
@@ -68,33 +72,33 @@ scheduler-worker-pool-size = 8
 grpc-concurrency = 8
 ```
 
-Then restart:
+然后重启：
 ```bash
 bash production/deploy-tikv.sh restart
 ```
 
-## Tier 4: Multi-RGW (future)
+## 第四级：多 RGW 部署（后续优化方向）
 
-Deploy RGW on all 3 nodes, add HAProxy LB in front, point JuiceFS at LB.
+在 3 台 Ceph 节点上各部署一个 RGW 实例，前置 HAProxy 负载均衡，JuiceFS 连接 LB 地址。当前仅 ceph-node1 运行 RGW。
 
-## Expected Performance Improvement
+## 预期性能提升
 
-| Tier Applied | Seq Write (1 job) | Seq Read (1 job) |
-|-------------|-------------------|------------------|
-| None (current) | ~8 MiB/s | ~8 MiB/s |
-| Tier 1 (libaio+iodepth) | **50-150 MiB/s** | **100-250 MiB/s** |
-| Tier 1+2 (system tuning) | 80-200 MiB/s | 150-300 MiB/s |
-| Tier 1+2+3 (TiKV tuning) | 100-250 MiB/s | 200-400 MiB/s |
+| 调优级别 | 顺序写（1 任务） | 顺序读（1 任务） |
+|---------|----------------|----------------|
+| 未调优（当前） | ~8 MiB/s | ~8 MiB/s |
+| 一级（libaio+iodepth） | 50-150 MiB/s | 100-250 MiB/s |
+| 一级+二级（系统调优） | 80-200 MiB/s | 150-300 MiB/s |
+| 一级+二级+三级（TiKV 调优） | 100-250 MiB/s | 200-400 MiB/s |
 
-## Bottleneck Isolation Commands
+## 瓶颈定位命令
 
 ```bash
-# TiKV metrics during test
+# 测试期间查看 TiKV 指标
 curl -s http://127.0.0.1:2379/metrics | grep -E "grpc_server_handling|tikv_raftstore"
 
-# Ceph OSD latency
+# Ceph OSD 延迟
 ssh 192.168.11.11 "sudo ceph osd perf"
 
-# Network throughput
+# 网络吞吐
 sar -n DEV 1 10
 ```
