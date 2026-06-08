@@ -67,6 +67,15 @@ OSD 树（3 host × 2 OSD = 6 OSD，符合 EC 4+2）：
 
 ## 排查 2：网络带宽 —— node1/node2 仅 100Mb/s（关键！）
 
+采集命令（每个节点执行）：
+
+```bash
+# 取默认路由网卡名，查协商速率
+sudo ethtool $(ip -o -4 route show to default | awk '{print $5}') | grep -i speed
+```
+
+输出：
+
 ```
 ceph-node1:  Speed: 100Mb/s     ← 严重瓶颈
 ceph-node2:  Speed: 100Mb/s     ← 严重瓶颈
