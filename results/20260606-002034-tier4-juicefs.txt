@@ -1,0 +1,117 @@
+========================================
+JuiceFS Benchmark — tier4-juicefs
+Date: Sat Jun  6 12:20:34 AM CST 2026
+Config: tikv://192.168.11.12:2379/juicefs-prod
+Extra mount opts: --cache-dir /var/jfsCache --cache-size 10240 --writeback --max-uploads 20 --prefetch 1 --open-cache 10 --attr-cache 10
+========================================
+
+>>> Destroying any previous volume...
+>>> Cleaning up...
+Waiting for session to expire...
+
+>>> Formatting JuiceFS...
+2026/06/06 00:21:43.109547 juicefs[1870464] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/06/06 00:21:43.109718 juicefs[1870464] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/06/06 00:21:43.122033 juicefs[1870464] <INFO>: Data use s3://192.168.11.11:8000/juicefs-prod/juicefs-prod/ [format@format.go:527]
+2026/06/06 00:21:43.277623 juicefs[1870464] <INFO>: Volume is formatted as {
+  "Name": "juicefs-prod",
+  "UUID": "4e22eac0-2e01-4556-805c-d70ea0728ab4",
+  "Storage": "s3",
+  "Bucket": "http://192.168.11.11:8000/juicefs-prod",
+  "AccessKey": "N1H9Y3IV2OZXUI0YEAW0",
+  "SecretKey": "removed",
+  "BlockSize": 4096,
+  "Compression": "none",
+  "EncryptAlgo": "aes256gcm-rsa",
+  "KeyEncrypted": true,
+  "TrashDays": 0,
+  "MetaVersion": 1,
+  "MinClientVersion": "1.1.0-A",
+  "DirStats": true,
+  "EnableACL": false
+} [format@format.go:564]
+Format OK.
+
+>>> Mounting JuiceFS...
+2026/06/06 00:21:43.395271 juicefs[1870509] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/06/06 00:21:43.395458 juicefs[1870509] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/06/06 00:21:43.412550 juicefs[1870509] <INFO>: Data use s3://192.168.11.11:8000/juicefs-prod/juicefs-prod/ [mount@mount.go:588]
+2026/06/06 00:21:43.916187 juicefs[1870509] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+Mount OK.
+
+========================================
+Sequential Read Test
+========================================
+sequential-read: (g=0): rw=read, bs=(R) 4096KiB-4096KiB, (W) 4096KiB-4096KiB, (T) 4096KiB-4096KiB, ioengine=psync, iodepth=1
+fio-3.28
+Starting 1 process
+sequential-read: Laying out IO file (1 file / 4096MiB)
+
+sequential-read: (groupid=0, jobs=1): err= 0: pid=1870840: Sat Jun  6 00:22:01 2026
+  read: IOPS=341, BW=1367MiB/s (1433MB/s)(4096MiB/2997msec)
+    clat (usec): min=2447, max=12094, avg=2924.08, stdev=402.11
+     lat (usec): min=2447, max=12095, avg=2924.20, stdev=402.15
+    clat percentiles (usec):
+     |  1.00th=[ 2573],  5.00th=[ 2638], 10.00th=[ 2671], 20.00th=[ 2737],
+     | 30.00th=[ 2769], 40.00th=[ 2835], 50.00th=[ 2868], 60.00th=[ 2900],
+     | 70.00th=[ 2966], 80.00th=[ 2999], 90.00th=[ 3130], 95.00th=[ 3294],
+     | 99.00th=[ 4293], 99.50th=[ 4424], 99.90th=[ 4883], 99.95th=[12125],
+     | 99.99th=[12125]
+   bw (  MiB/s): min= 1224, max= 1424, per=99.98%, avg=1366.40, stdev=80.68, samples=5
+   iops        : min=  306, max=  356, avg=341.60, stdev=20.17, samples=5
+  lat (msec)   : 4=97.36%, 10=2.54%, 20=0.10%
+  cpu          : usr=0.10%, sys=93.26%, ctx=5496, majf=0, minf=1036
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=1024,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+   READ: bw=1367MiB/s (1433MB/s), 1367MiB/s-1367MiB/s (1433MB/s-1433MB/s), io=4096MiB (4295MB), run=2997-2997msec
+
+========================================
+Sequential Write Test
+========================================
+sequential-write: (g=0): rw=write, bs=(R) 4096KiB-4096KiB, (W) 4096KiB-4096KiB, (T) 4096KiB-4096KiB, ioengine=psync, iodepth=1
+fio-3.28
+Starting 1 process
+sequential-write: Laying out IO file (1 file / 4096MiB)
+
+sequential-write: (groupid=0, jobs=1): err= 0: pid=1870977: Sat Jun  6 00:22:13 2026
+  write: IOPS=93, BW=372MiB/s (390MB/s)(4096MiB/11002msec); 0 zone resets
+    clat (usec): min=6933, max=19577, avg=9068.16, stdev=1151.94
+     lat (usec): min=6934, max=19577, avg=9068.69, stdev=1151.95
+    clat percentiles (usec):
+     |  1.00th=[ 7635],  5.00th=[ 7701], 10.00th=[ 7898], 20.00th=[ 8225],
+     | 30.00th=[ 8586], 40.00th=[ 8848], 50.00th=[ 8979], 60.00th=[ 9110],
+     | 70.00th=[ 9372], 80.00th=[ 9503], 90.00th=[ 9634], 95.00th=[10945],
+     | 99.00th=[14091], 99.50th=[15270], 99.90th=[16057], 99.95th=[19530],
+     | 99.99th=[19530]
+   bw (  KiB/s): min=352256, max=417792, per=100.00%, avg=381474.95, stdev=21571.30, samples=21
+   iops        : min=   86, max=  102, avg=93.10, stdev= 5.23, samples=21
+  lat (msec)   : 10=92.77%, 20=7.23%
+  cpu          : usr=15.63%, sys=32.06%, ctx=32784, majf=0, minf=10
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=0,1024,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+  WRITE: bw=372MiB/s (390MB/s), 372MiB/s-372MiB/s (390MB/s-390MB/s), io=4096MiB (4295MB), run=11002-11002msec
+
+========================================
+Test Complete — Destroying Volume
+========================================
+>>> Cleaning up...
+Waiting for session to expire...
+Destroying JuiceFS volume...
+[1;33mWARNING[0m: The target volume will be permanently destroyed, including:
+[1;33mWARNING[0m: 1. ALL objects in the data storage: s3://192.168.11.11:8000/juicefs-prod/juicefs-prod/
+[1;33mWARNING[0m: 2. ALL entries in the metadata engine: tikv://192.168.11.12:2379/juicefs-prod
+2026/06/06 00:23:19.409144 juicefs[1871553] <INFO>: Deleted 32 objects [destroy@destroy.go:206]
+2026/06/06 00:23:19.417663 juicefs[1871553] <INFO>: The volume has been destroyed! You may need to delete cache directory manually. [destroy@destroy.go:216]
+
+Results saved to: /home/turboai/production/results/20260606-002034-tier4-juicefs.txt
+Done.
