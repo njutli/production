@@ -127,10 +127,44 @@ ssh turboai@192.168.11.11 '
   #     sshd 不允许 root 登录的话 mgr 照样连不上，host 仍是 Offline。
   sudo sed -i "s/^#*PermitRootLogin.*/PermitRootLogin yes/" /etc/ssh/sshd_config
   sudo systemctl restart sshd 2>/dev/null || sudo systemctl restart ssh
-
-  # (h) 预拉 Ceph 容器镜像（否则首次起 MON/OSD 容器会卡在拉镜像）
-  sudo podman image exists quay.io/ceph/ceph:v19 || sudo podman pull quay.io/ceph/ceph:v19
 '
+```
+
+> (h) 预拉 Ceph 容器镜像单独拿出来做，见下方「步骤 1.5」——
+> **不要写死 `:v19`**，必须用集群当前实际镜像，否则版本不一致。
+
+#### 步骤 1.5：预拉与集群一致的 Ceph 容器镜像
+
+> ⚠️ 常见坑：写死 `quay.io/ceph/ceph:v19` 是**错的**——本集群跑的是
+> **17.2.8 (Quincy)**，拉 v19(Reef/Squid) 既慢又用不上。
+> cephadm 默认用 `@sha256:` 摘要锁定镜像，**用摘要拉最保险**（版本号无所谓）。
+> 这步可选：即便跳过，cephadm 在 node1 起容器时也会自动拉；预拉只是
+> 避免首次起容器卡在下载。
+
+```bash
+# 1) 在存活节点查出集群当前镜像摘要 + 确认版本
+ssh turboai@<surv> "sudo ceph version && sudo ceph versions"   # 看版本是否统一
+IMG=$(ssh turboai@<surv> "sudo ceph config get mgr container_image")
+echo "cluster image: ${IMG}"   # 形如 quay.io/ceph/ceph@sha256:a0f373...
+```
+
+```bash
+# 2a) 网络好：直接在 node1 按摘要拉（和集群 100% 一致），失败就重试
+#     podman 拉取不续传，但已下完的层会缓存复用，多试几次通常能成
+ssh turboai@192.168.11.11 "
+  for i in 1 2 3 4 5; do sudo podman pull '${IMG}' && break; echo retry \$i; sleep 5; done
+"
+```
+
+```bash
+# 2b) 外网不稳（如拉到一半 unexpected EOF）：从 node2/node3 内网离线传，
+#     完全不碰外网，走千兆内网最稳
+ssh turboai@<surv>           "sudo podman save '${IMG}' -o /tmp/ceph-img.tar"
+scp turboai@<surv>:/tmp/ceph-img.tar /tmp/ceph-img.tar
+scp /tmp/ceph-img.tar        turboai@192.168.11.11:/tmp/ceph-img.tar
+ssh turboai@192.168.11.11    "sudo podman load -i /tmp/ceph-img.tar"
+# 若 save 用摘要报错，先在 <surv> 上 `sudo podman images | grep ceph`
+# 看本地实际的 REPOSITORY:TAG/<none>，用本地引用来 save。
 ```
 
 #### 步骤 2：把现役集群的 cephadm 公钥装到 node1 的 root
@@ -148,13 +182,34 @@ ssh turboai@192.168.11.11 '
 
 #### 步骤 3：清除已不存在的旧 OSD（osd.0 / osd.1）
 
+> `purge` 会一并清掉 auth、crush 条目，不必再单独 auth del / crush remove。
+>
+> ⚠️ 转义坑：下面**经控制机 SSH 远程执行**的写法里 `\$id` 的反斜杠是给外层
+> shell 用的，传到远端正好是 `$id`。**若你已登录到节点本地直接执行，
+> 必须去掉反斜杠**（用 `$id`），否则 Ceph 会收到字面字符串 `$id` 而报
+> `Expected option value to be integer, got '$id'`。
+
 ```bash
-# purge 会一并清掉 auth、crush 条目，不必再单独 auth del / crush remove
+# (A) 在控制机经 SSH 远程执行（注意 \$id）
 ssh turboai@<surv> "sudo cephadm shell -- bash -c '
   for id in 0 1; do
     ceph osd out osd.\$id || true
     ceph osd purge osd.\$id --yes-i-really-mean-it || true
   done'"
+```
+
+```bash
+# (B) 已登录到节点本地直接执行（用 $id，不要反斜杠）
+sudo cephadm shell -- bash -c '
+  for id in 0 1; do
+    ceph osd out osd.$id || true
+    ceph osd purge osd.$id --yes-i-really-mean-it || true
+  done'
+
+# 或最省心：两条写死，不用循环，本地/远程都不踩转义坑
+sudo cephadm shell -- bash -c '
+  ceph osd out osd.0; ceph osd purge osd.0 --yes-i-really-mean-it
+  ceph osd out osd.1; ceph osd purge osd.1 --yes-i-really-mean-it'
 ```
 
 #### 步骤 4：让 orchestrator 重新连上 node1
