@@ -145,6 +145,19 @@ ssh turboai@<node2> "sudo cephadm shell -- ceph -s"
 > 加 node2 凑成 3 个 RGW，**理论上限更高，但当前 node2 有部署障碍**，
 > 且能否带来实际收益取决于瓶颈是否真在 RGW 这一层——需先压测确认。
 
+### 多 RGW 与 LB 是同一个优化项（不可拆开）
+
+- LB（负载均衡器，如 HAProxy/LVS）只有在有多个 RGW 时才有意义；
+- 多 RGW 也**必须**有 LB 才能发挥作用：JuiceFS 只能配一个 S3 地址，
+  若直接指向某个 RGW，所有流量压在那一个上，其余 RGW 闲置 = 白部署。
+- 所以"部署多 RGW"和"部署 LB + 把 `RGW_ENDPOINT` 指向 LB"必须一起做。
+- **工程现状（缺口）**：
+  - `deploy-ceph.sh` 只部署 RGW，**没有任何 LB 实现**；
+  - `config.sh` 的 `RGW_ENDPOINT` 写死单点 `http://${CEPH_SERVERS[0]}:8000`。
+  - 即便 RGW 已部署到 node1+node3，JuiceFS 现在也只连 node1，第二个 RGW
+    吃不到流量。**上多 RGW 前，必须先补 LB 部署并改 `RGW_ENDPOINT`。**
+
+
 ### 3 个为什么"理论上"更快
 
 - RGW 是 S3 流量的入口与编解码点。JuiceFS 128 并发打到单个 RGW 时，
@@ -173,8 +186,11 @@ ssh turboai@<node2> "sudo cephadm shell -- ceph -s"
 
 ### 落地建议
 
-1. 先按现状部署 node1 + node3 两个 RGW + HAProxy/LVS，跑基准。
+1. 部署 node1 + node3 两个 RGW，**同时**部署 LB（HAProxy/LVS）指向这两个
+   RGW，并把 `config.sh` 的 `RGW_ENDPOINT` 改成 LB 地址，再跑基准。
+   （工程当前无 LB、`RGW_ENDPOINT` 写死单点，这两处需先补齐。）
 2. 对照 `rados bench`（后端裸能力）与 S3 端到端：
-   - 若 S3 明显低于后端裸能力 → RGW 是瓶颈 → 值得给 node2 扩盘上第 3 个 RGW。
+   - 若 S3 明显低于后端裸能力 → RGW 是瓶颈 → 值得给 node2 扩盘上第 3 个 RGW
+     （LB 后端再加一个即可）。
    - 若两者接近 → 瓶颈在 OSD/EC → 第 3 个 RGW 收益不大，优先级降低。
 

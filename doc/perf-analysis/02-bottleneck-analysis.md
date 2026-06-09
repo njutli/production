@@ -91,8 +91,19 @@ READ 1367 MiB/s / WRITE 372 MiB/s。但这是在测**本地缓存盘**：
 
 ### 第二优先级：多 RGW + 负载均衡（网络修好后）
 
-- 当前仅 node1 一个 RGW。在 3 节点各部署一个 RGW，前置 HAProxy，
-  JuiceFS 指向 LB，分摊 128 并发流量。
+> ⚠️ **"多 RGW"和"LB"是同一个优化项，不可拆开**：
+> - LB 只有在有多个 RGW 时才有意义；
+> - 多 RGW 也**必须**有 LB 才能发挥作用——否则 JuiceFS 只连一个端点，
+>   其余 RGW 吃不到流量、形同虚设。
+> 因此部署多 RGW 时**必须同时**部署 LB，并让 JuiceFS 指向 LB 地址。
+
+- 当前仅 node1 一个 RGW，且 `config.sh` 的 `RGW_ENDPOINT` 写死单点
+  （`http://${CEPH_SERVERS[0]}:8000`）。
+- 做法：部署多个 RGW（本环境为 node1 + node3，node2 受限见 03 文档），
+  前置 HAProxy/LVS，JuiceFS 的 `RGW_ENDPOINT` 改指向 **LB 地址**，
+  由 LB 把 128 并发分摊到各 RGW。
+- ⚠️ 工程现状：`deploy-ceph.sh` **只部署 RGW，没有任何 LB 实现**；
+  上多 RGW 前需补 LB 部署 + 改 `RGW_ENDPOINT`，否则多 RGW 无效。
 - 原指南把这条放在"第六级"，应提前到网络之后第一位。
 
 ### 第三优先级：EC → 3 副本（HDD 随机写优化）
