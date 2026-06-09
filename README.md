@@ -148,6 +148,11 @@ production/
 ├── tests/                     # 测试代码
 │   ├── tikv-test.go           #   TiKV RawKV Go 测试程序
 │   └── go.mod                 #   Go 依赖定义
+├── doc/                       # 文档
+│   ├── ceph-keys.md           #   Ceph 密钥详解（CephX + cephadm SSH）
+│   ├── ceph-troubleshooting.md
+│   ├── performance-tuning.md
+│   └── perf-analysis/         #   实测瓶颈分析与环境变更记录
 └── deploy-juicefs.sh          # JuiceFS 客户端（format/mount/test）
 ```
 
