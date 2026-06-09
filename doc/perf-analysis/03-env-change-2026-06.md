@@ -228,19 +228,69 @@ ssh turboai@<surv> "sudo cephadm shell -- ceph orch host ls"
 
 #### 步骤 5：在 node1 的 sdb 上重建 2 个 OSD
 
-```bash
-# 先确认 sdb 不是系统盘（重装后系统在 sda，sdb 安全），且无残留 LVM
-ssh turboai@192.168.11.11 "lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE /dev/sdb"
+> 与 `deploy-ceph.sh` Step 4 同法：抹盘 → PV → VG → 2×LV → orch 加 OSD。
+> 3 节点 × 2 LV = 6 OSD，满足 EC 4+2。`<surv>` = 存活 admin 节点(node2/node3)。
 
-# 与 deploy-ceph.sh Step 4 同法：抹盘 → PV → VG(ceph-vg-ceph-node1)
-# → 2×LV(osd0/osd1) → ceph orch daemon add osd ceph-node1:/dev/<vg>/<lv>
+**5.1 抹盘前确认 sdb 安全（系统在 sda，sdb 是数据盘）**
+
+```bash
+ssh turboai@192.168.11.11 '
+  echo "root dev:"; findmnt -n -o SOURCE /          # 应为 sda 上的 ubuntu-vg，不是 sdb
+  lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE /dev/sdb
+'
+# 确认 sdb 未挂载、不是系统盘。重装残留的 ext4 文件系统会在下一步被抹掉。
 ```
+
+**5.2 在 node1 上抹盘并建 PV/VG/2×LV**
+
+```bash
+ssh turboai@192.168.11.11 '
+  set -e
+  dev=/dev/sdb
+  vg=ceph-vg-ceph-node1
+
+  # 双保险：拒绝在已挂载盘或系统盘上操作
+  if mount | grep -q "^${dev} "; then echo "FATAL: ${dev} mounted"; exit 1; fi
+  root_dev=$(findmnt -n -o SOURCE / | sed "s/[0-9]*$//;s/p[0-9]*$//")
+  if [ "${root_dev}" = "${dev}" ]; then echo "FATAL: ${dev} is system disk"; exit 1; fi
+
+  # 抹掉旧分区表 / 文件系统 / LVM 签名（清掉重装前残留的 ext4）
+  sudo sgdisk -Z ${dev} 2>/dev/null || true
+  sudo wipefs -af ${dev} 2>/dev/null || true
+  sudo partprobe ${dev} 2>/dev/null || true
+  sleep 2
+
+  # PV + VG + 2 个 LV（各占一半）
+  sudo pvcreate -ff -y ${dev}
+  sudo vgcreate ${vg} ${dev}
+  sudo lvcreate -l 50%FREE  -n osd0 ${vg}
+  sudo lvcreate -l 100%FREE -n osd1 ${vg}
+  sudo lvs ${vg}
+'
+```
+
+**5.3 通过 orchestrator 在两个 LV 上部署 OSD**
+
+```bash
+# 从存活 admin 节点下发；LV 路径为 /dev/<vg>/<lv>
+for lv in osd0 osd1; do
+  ssh turboai@<surv> "sudo cephadm shell -- \
+    ceph orch daemon add osd ceph-node1:/dev/ceph-vg-ceph-node1/${lv}"
+done
+```
+
+> 若 `ceph orch daemon add osd` 报 "Unable to find ..."/设备不可用，多为
+> orchestrator 设备缓存未刷新：先 `ceph orch device ls --refresh ceph-node1`
+> 等几秒再重试。新 OSD 会自动获得新的 osd id（不一定还是 0/1）和 keyring。
 
 #### 步骤 6：等待回填并确认健康
 
 ```bash
+# OSD 数应回到 6，node1 下重新出现 2 个 up 的 OSD
+ssh turboai@<surv> "sudo cephadm shell -- ceph osd tree"
 ssh turboai@<surv> "sudo cephadm shell -- ceph -s"
-# 期望：6 osds: 6 up, 6 in；PG 回填完成后 HEALTH_OK
+# 期望：6 osds: 6 up, 6 in；mon 3/3 quorum；PG 回填完成后 HEALTH_OK
+# 回填(backfill)需要时间，期间 HEALTH_WARN(remapped/degraded) 属正常过渡。
 ```
 
 ### 一句话回答
