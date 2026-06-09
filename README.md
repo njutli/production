@@ -20,9 +20,9 @@
 | 机器 | IP（示例） | 角色 | 配置建议 |
 |------|-----------|------|---------|
 | tikv-node | 192.168.11.12 | PD + TiKV (单实例) | 4C/8G/50G+ SSD |
-| ceph-node1 | 192.168.11.11 | MON + MGR + RGW + OSD | 4C/8G/专用 OSD 裸盘 |
-| ceph-node2 | 192.168.11.13 | MON + MGR + RGW + OSD | 4C/8G/专用 OSD 裸盘 |
-| ceph-node3 | 192.168.11.14 | MON + MGR + OSD | 4C/8G/专用 OSD 裸盘 |
+| ceph-node1 | 192.168.11.11 | MON + MGR + RGW + OSD | 4C/8G/专用 OSD 裸盘 (sdb) |
+| ceph-node2 | 192.168.11.13 | MON + MGR + OSD | 4C/8G/专用 OSD 裸盘 (sdb)，根盘仅 20G 不放 RGW |
+| ceph-node3 | 192.168.11.14 | MON + MGR + RGW + OSD | 4C/8G/专用 OSD 裸盘 (sdb) |
 
 所有机器统一使用 **turboai** 用户，特权操作用 `sudo`。
 Ceph 内部 cephadm 通信仍需 root SSH（脚本自动配置）。

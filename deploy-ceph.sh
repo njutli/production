@@ -543,10 +543,13 @@ ssh_srv "${PRIMARY}" "
 echo ""
 echo ">>> Step 6: Deploying RGW service..."
 
-# Deploy RGW on ceph-node1.  ceph-node2 is intentionally skipped because
-# its root filesystem is only 20G and MON/RGW containers need headroom.
-# For production HA, add a second RGW on a node with sufficient disk space.
-if ! ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph orch apply rgw myrgw --port=8000 --placement='ceph-node1' 2>&1" 2>/dev/null; then
+# Deploy RGW on ceph-node1 and ceph-node3.  ceph-node2 is intentionally
+# skipped because its root filesystem is only 20G and MON/RGW containers
+# need headroom (node1 ~98G, node3 ~147G after the 2026-06 reinstall).
+# Now that all three nodes are on 1000Mb/s NICs (the old 100Mb/s bottleneck
+# is gone), spreading RGW across two nodes lets S3 traffic use both gigabit
+# links.  For full HA, front them with a load balancer (see performance docs).
+if ! ssh_srv "${PRIMARY}" "sudo cephadm shell -- ceph orch apply rgw myrgw --port=8000 --placement='ceph-node1,ceph-node3' 2>&1" 2>/dev/null; then
     echo "  ERROR: failed to apply RGW service"
     exit 1
 fi
@@ -592,7 +595,7 @@ echo "========================================"
 echo ""
 echo "RGW Endpoints:"
 echo "  http://${CEPH_SERVERS[0]}:8000"
-echo "  http://${CEPH_SERVERS[1]}:8000"
+echo "  http://${CEPH_SERVERS[2]}:8000"
 echo ""
 
 if [ -n "${ACCESS_KEY}" ] && [ -n "${SECRET_KEY}" ]; then
