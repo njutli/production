@@ -71,50 +71,122 @@ osd tree:     osd.0/osd.1 在 host ceph-node1 下，STATUS=down
 2. **原来的 OSD 盘已被抹掉**：旧 OSD 在原 sda 上，重装后系统占了 sda、
    数据盘换成 sdb，osd.0/osd.1 的 BlueStore 数据**不复存在**。
    这两个 OSD 只能**删掉重建**，无法原样拉起。
-3. node1 上没有 ceph 软件（podman/cephadm/容器镜像都随系统一起没了）。
+3. node1 上 ceph 相关软件、容器镜像都随系统一起没了，需重新准备。
 
 ### 推荐做法：纳管主机 + 重建 OSD（不动 node2/node3，不重装集群）
 
 > 关键：**复用现有集群**，只修复 node1。整套重跑 `deploy-ceph.sh`
 > 会尝试重新 bootstrap，对已有集群是危险/多余的。
+>
+> 下面 `<surv>` = 任一存活的 admin 节点（node2=192.168.11.13 或
+> node3=192.168.11.14，二者都有 `_admin` 标签）。
 
-步骤（在控制机执行，PRIMARY 指向存活的 node2 或 node3）：
+#### 步骤 0：恢复 turboai 免密（已完成）
 
 ```bash
-# 0) 已完成：重新分发 turboai SSH key 到重装后的 node1
-#    （ssh-copy-id turboai@192.168.11.11）
+# 重装后 node1 主机密钥变了，先清旧 known_hosts 再重新分发 key
+ssh-keygen -R 192.168.11.11
+ssh-copy-id -i ~/.ssh/id_ed25519.pub turboai@192.168.11.11
+```
 
-# 1) 在 node1 上装好 podman/cephadm（可复用 deploy-ceph.sh Step 1 的逻辑，
-#    或手动 apt 安装），并设置 hostname=ceph-node1
+#### 步骤 1：在 node1 上做与 deploy-ceph.sh「Step 1」等价的完整准备
 
-# 2) 把现役集群的 cephadm 公钥重新装到 node1 的 root（重装后丢了）
-ssh turboai@<node2> "sudo cephadm shell -- ceph cephadm get-pub-key" > /tmp/ceph.pub
-ssh turboai@192.168.11.11 "sudo mkdir -p /root/.ssh && \
-  sudo tee /root/.ssh/authorized_keys < /tmp/ceph.pub && \
-  sudo chmod 600 /root/.ssh/authorized_keys"
+> ⚠️ 只装 podman/cephadm **不够**。重装节点要恢复到和其他 Ceph 节点
+> 一致的状态，下面每一项都不能少（与 `deploy-ceph.sh` Step 1 对齐）。
 
-# 3) 先把旧的、已不存在的 OSD 清出 CRUSH（彻底移除 osd.0 / osd.1）
-ssh turboai@<node2> "sudo cephadm shell -- bash -c '
+```bash
+ssh turboai@192.168.11.11 '
+  set -e
+  # (a) 主机名——必须改，且要在 orch 操作之前。cephadm 用 hostname 作为
+  #     orch host 标识；不改会被注册成另一台主机，导致重复/错乱。
+  sudo hostnamectl set-hostname ceph-node1
+
+  sudo apt-get update -qq || true
+
+  # (b) podman（容器运行时，cephadm 依赖）
+  command -v podman || sudo DEBIAN_FRONTEND=noninteractive apt-get install -y podman
+
+  # (c) 磁盘分区工具（步骤 4 建 LVM/抹盘要用 sgdisk/parted）
+  command -v sgdisk || sudo DEBIAN_FRONTEND=noninteractive apt-get install -y gdisk parted
+
+  # (d) 停用 docker（与 podman 抢 socket，cephadm 要求 podman）
+  sudo systemctl disable --now docker docker.socket 2>/dev/null || true
+
+  # (e) cephadm + ceph-common + radosgw
+  #     ceph-common 提供本地 ceph 命令；node1 还要跑 RGW，必须装 radosgw。
+  command -v cephadm || sudo DEBIAN_FRONTEND=noninteractive apt-get install -y cephadm ceph-common radosgw
+
+  # (f) Ubuntu 24.04(noble) 的 cephadm podman 版本检测 bug 补丁
+  #     （若重装成 24.04，不打这个补丁后续容器操作会报 RuntimeError）
+  if grep -q "24\.04\|noble" /etc/os-release; then
+    sudo sed -i "s/raise RuntimeError.*get_version.*first/return (0, 0, 0)/" \
+      /usr/lib/python3/dist-packages/cephadmlib/container_engines.py 2>/dev/null || true
+  fi
+
+  # (g) 开启 root SSH 登录——关键！光把公钥塞进 authorized_keys 不够，
+  #     sshd 不允许 root 登录的话 mgr 照样连不上，host 仍是 Offline。
+  sudo sed -i "s/^#*PermitRootLogin.*/PermitRootLogin yes/" /etc/ssh/sshd_config
+  sudo systemctl restart sshd 2>/dev/null || sudo systemctl restart ssh
+
+  # (h) 预拉 Ceph 容器镜像（否则首次起 MON/OSD 容器会卡在拉镜像）
+  sudo podman image exists quay.io/ceph/ceph:v19 || sudo podman pull quay.io/ceph/ceph:v19
+'
+```
+
+#### 步骤 2：把现役集群的 cephadm 公钥装到 node1 的 root
+
+```bash
+ssh turboai@<surv> "sudo cephadm shell -- ceph cephadm get-pub-key" > /tmp/ceph.pub
+scp /tmp/ceph.pub turboai@192.168.11.11:/tmp/ceph.pub
+ssh turboai@192.168.11.11 '
+  sudo mkdir -p /root/.ssh && sudo chmod 700 /root/.ssh
+  sudo cp /tmp/ceph.pub /root/.ssh/authorized_keys
+  sudo chmod 600 /root/.ssh/authorized_keys
+  sudo chown -R root:root /root/.ssh
+'
+```
+
+#### 步骤 3：清除已不存在的旧 OSD（osd.0 / osd.1）
+
+```bash
+# purge 会一并清掉 auth、crush 条目，不必再单独 auth del / crush remove
+ssh turboai@<surv> "sudo cephadm shell -- bash -c '
   for id in 0 1; do
     ceph osd out osd.\$id || true
     ceph osd purge osd.\$id --yes-i-really-mean-it || true
   done'"
-
-# 4) 让 orchestrator 重新纳管 node1（host 已存在，刷新连接即可）
-ssh turboai@<node2> "sudo cephadm shell -- ceph orch host set-addr ceph-node1 192.168.11.11"
-#    确认 STATUS 不再是 Offline：
-ssh turboai@<node2> "sudo cephadm shell -- ceph orch host ls"
-
-# 5) 在 node1 的 sdb 上重建 2 个 OSD（与 deploy-ceph.sh Step 4 同法：
-#    PV→VG→2×LV，再 ceph orch daemon add osd）
-#    抹盘前务必确认 sdb 不是系统盘（重装后系统在 sda，sdb 安全）：
-ssh turboai@192.168.11.11 "lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE /dev/sdb"
-
-# 6) 等待回填(backfill)完成，健康恢复 HEALTH_OK：
-ssh turboai@<node2> "sudo cephadm shell -- ceph -s"
 ```
 
-完成后：6 个 OSD 全部 up/in、EC PG 重新补齐、node1 MON 回到 quorum。
+#### 步骤 4：让 orchestrator 重新连上 node1
+
+```bash
+# host 条目还在（只是 Offline），刷新地址触发重新连接即可，不要重复 host add
+ssh turboai@<surv> "sudo cephadm shell -- ceph orch host set-addr ceph-node1 192.168.11.11"
+
+# 等几十秒后确认 STATUS 不再是 Offline（cephadm check 通过）
+ssh turboai@<surv> "sudo cephadm shell -- ceph orch host ls"
+```
+
+> 注意：node1 带 `_admin`/在 MON placement 内，纳管成功后 cephadm 会
+> **自动在 node1 重新拉起 MON**——node1 根盘 98G 充足，没有 node2 的
+> 空间问题，MON 会自动回到 quorum，无需手动操作。
+
+#### 步骤 5：在 node1 的 sdb 上重建 2 个 OSD
+
+```bash
+# 先确认 sdb 不是系统盘（重装后系统在 sda，sdb 安全），且无残留 LVM
+ssh turboai@192.168.11.11 "lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE /dev/sdb"
+
+# 与 deploy-ceph.sh Step 4 同法：抹盘 → PV → VG(ceph-vg-ceph-node1)
+# → 2×LV(osd0/osd1) → ceph orch daemon add osd ceph-node1:/dev/<vg>/<lv>
+```
+
+#### 步骤 6：等待回填并确认健康
+
+```bash
+ssh turboai@<surv> "sudo cephadm shell -- ceph -s"
+# 期望：6 osds: 6 up, 6 in；PG 回填完成后 HEALTH_OK
+```
 
 ### 一句话回答
 
