@@ -127,7 +127,31 @@ fio --name=sequential-write --directory="${JUICEFS_MOUNT_POINT}/test_dir/" \
     --rw=write --refill_buffers --bs=4M --size=4G --end_fsync=1 2>&1 | tee -a "${RESULT_FILE}"
 
 # ============================================================
-# 6. Cleanup + Destroy
+# 6. Multi-job Sequential Read Test
+# ============================================================
+echo "" | tee -a "${RESULT_FILE}"
+echo "========================================" | tee -a "${RESULT_FILE}"
+echo "Multi-job Sequential Read Test" | tee -a "${RESULT_FILE}"
+echo "========================================" | tee -a "${RESULT_FILE}"
+rm -rf "${JUICEFS_MOUNT_POINT}/test_dir"
+mkdir -p "${JUICEFS_MOUNT_POINT}/test_dir"
+fio --name=big-file-multi-read --directory="${JUICEFS_MOUNT_POINT}/test_dir/" \
+    --rw=read --refill_buffers --bs=4M --size=4G --numjobs=16 2>&1 | tee -a "${RESULT_FILE}"
+
+# ============================================================
+# 7. Multi-job Sequential Write Test
+# ============================================================
+echo "" | tee -a "${RESULT_FILE}"
+echo "========================================" | tee -a "${RESULT_FILE}"
+echo "Multi-job Sequential Write Test" | tee -a "${RESULT_FILE}"
+echo "========================================" | tee -a "${RESULT_FILE}"
+rm -rf "${JUICEFS_MOUNT_POINT}/test_dir"
+mkdir -p "${JUICEFS_MOUNT_POINT}/test_dir"
+fio --name=big-file-multi-write --directory="${JUICEFS_MOUNT_POINT}/test_dir/" \
+    --rw=write --refill_buffers --bs=4M --size=4G --numjobs=16 --end_fsync=1 2>&1 | tee -a "${RESULT_FILE}"
+
+# ============================================================
+# 8. Cleanup + Destroy
 # ============================================================
 echo "" | tee -a "${RESULT_FILE}"
 echo "========================================" | tee -a "${RESULT_FILE}"
