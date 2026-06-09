@@ -136,6 +136,28 @@ Run status group 0 (all jobs):
   WRITE: bw=80.1MiB/s (84.0MB/s), 80.1MiB/s-80.1MiB/s (84.0MB/s-84.0MB/s), io=4096MiB (4295MB), run=51106-51106msec
 ```
 
+**多任务测试命令**
+```
+mkdir -p /mnt/juicefs/test_dir/
+fio --name=big-file-multi-read --directory="${JUICEFS_MOUNT_POINT}/test_dir/" \
+    --rw=read --refill_buffers --bs=4M --size=4G --numjobs=16
+
+mkdir -p /mnt/juicefs/test_dir/
+fio --name=big-file-multi-write --directory="${JUICEFS_MOUNT_POINT}/test_dir/" \
+    --rw=write --refill_buffers --bs=4M --size=4G --numjobs=16 --end_fsync=1
+```
+#### 默认挂载
+**读测试**
+```
+Run status group 0 (all jobs):
+   READ: bw=91.2MiB/s (95.6MB/s), 5838KiB/s-6728KiB/s (5978kB/s-6889kB/s), io=64.0GiB (68.7GB), run=623432-718489msec
+```
+**写测试**
+```
+Run status group 0 (all jobs):
+  WRITE: bw=75.7MiB/s (79.4MB/s), 4845KiB/s-4863KiB/s (4961kB/s-4980kB/s), io=64.0GiB (68.7GB), run=862423-865741msec
+```
+
 ### 使用存储规格参数测试
 **测试命令**
 ```
