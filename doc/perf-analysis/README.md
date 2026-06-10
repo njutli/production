@@ -19,7 +19,8 @@
 | `01-measured-data.md` | 4 组排查命令的原始输出与数据汇总 |
 | `02-bottleneck-analysis.md` | 决定性发现、理论上限计算、按收益排序的优化方向、正确的分析方法论 |
 | `03-env-change-2026-06.md` | 千兆升级 + node1 重装后的环境变更与 node1 重新纳管步骤 |
-| `04-multitask-finding.md` | **（最新）** 多任务并发测试：瓶颈在单 RGW/单链路而非并发度，指向加 RGW+LB |
+| `04-multitask-finding.md` | 多任务并发测试：瓶颈在单 RGW/单链路而非并发度，指向加 RGW+LB |
+| `05-progress-and-next-steps.md` | **（最新）** 调优进展总览 + 双 RGW 结果分析 + 后续瓶颈/调优方向 |
 | `diag.sh` | 可复跑的逐层排查脚本（裸盘→网络→后端→端到端） |
 
 ## 一句话结论
