@@ -16,7 +16,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/config.sh"
 
 PRIMARY="${CEPH_SERVERS[0]}"
-RGW_ENDPOINT="http://${PRIMARY}:8000"
+# 冒烟测试要直接验证某个具体 RGW（PRIMARY）的 S3 读写删，故意直连它、
+# 不走 config.sh 的 RGW_ENDPOINT（多 RGW 时那是 LB 地址）。用独立变量名，
+# 避免覆盖 config.sh 的全局 RGW_ENDPOINT 造成混淆。
+RGW_TEST_ENDPOINT="http://${PRIMARY}:8000"
 PASS=0
 FAIL=0
 TMPDIR=$(mktemp -d)
@@ -63,7 +66,7 @@ echo "========================================"
 echo "Ceph Cluster Smoke Test"
 echo "========================================"
 echo "Primary: ${PRIMARY}"
-echo "RGW:     ${RGW_ENDPOINT}"
+echo "RGW:     ${RGW_TEST_ENDPOINT}"
 echo ""
 
 # --- 1. MON quorum ---
@@ -124,7 +127,7 @@ EOF
         export AWS_DEFAULT_REGION=""
 
         TEST_BUCKET="smoke-test-bucket-$$"
-        AWS="aws --endpoint-url=${RGW_ENDPOINT} --no-verify-ssl"
+        AWS="aws --endpoint-url=${RGW_TEST_ENDPOINT} --no-verify-ssl"
 
         # Create bucket
         check "bucket creation" \

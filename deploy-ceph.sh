@@ -600,12 +600,15 @@ echo ""
 
 if [ -n "${ACCESS_KEY}" ] && [ -n "${SECRET_KEY}" ]; then
     mkdir -p "${SCRIPT_DIR}/.credentials"
+    # 只写 S3 密钥（AK/SK）。RGW_ENDPOINT 不在这里写——它由 config.sh
+    # 统一决定（单 RGW 直连 / 多 RGW 指向 LB）。否则本文件会在
+    # deploy-juicefs.sh 中 source config.sh 之后再被 source，把
+    # config.sh 的 RGW_ENDPOINT 覆盖掉，导致改了 config 却不生效。
     cat > "${SCRIPT_DIR}/.credentials/rgw-juicefs.env" <<EOF
-# JuiceFS RGW credentials
+# JuiceFS RGW credentials (仅密钥；endpoint 见 config.sh 的 RGW_ENDPOINT)
 AWS_ACCESS_KEY_ID=${ACCESS_KEY}
 AWS_SECRET_ACCESS_KEY=${SECRET_KEY}
 AWS_DEFAULT_REGION=
-RGW_ENDPOINT=http://${CEPH_SERVERS[0]}:8000
 EOF
     chmod 600 "${SCRIPT_DIR}/.credentials/rgw-juicefs.env"
     echo "Credentials saved: ${SCRIPT_DIR}/.credentials/rgw-juicefs.env"

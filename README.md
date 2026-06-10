@@ -85,6 +85,21 @@ bash production/test-ceph.sh
 # → 验证 MON quorum、OSD 树、RGW S3 读写删
 ```
 
+### 3.5 部署 RGW 负载均衡（多 RGW 时必做）
+
+`deploy-ceph.sh` 默认在 node1 + node3 各部署一个 RGW。**多 RGW 必须配 LB**，
+否则 JuiceFS 只会连其中一个端点，另一个吃不到流量。
+
+```bash
+# 在 config.sh 中确认 LB_HOST / LB_PORT / RGW_BACKENDS
+bash production/deploy-lb.sh deploy
+# 然后把 config.sh 的 RGW_ENDPOINT 改成 LB 地址：
+#   RGW_ENDPOINT="http://${LB_HOST}:${LB_PORT}"
+bash production/deploy-lb.sh status   # 查看 LB + 各后端可达性
+```
+
+> 仅单 RGW 时可跳过本步，`RGW_ENDPOINT` 直连该 RGW 即可。
+
 ### 4. 部署 JuiceFS（获取调优前基线）
 
 ```bash
@@ -142,6 +157,7 @@ production/
 ├── setup-ssh-keys.sh          # 生成密钥 + 分发到所有机器（首次运行）
 ├── deploy-tikv.sh             # 部署 1 台 TiKV
 ├── deploy-ceph.sh             # 部署 3 台 Ceph
+├── deploy-lb.sh               # RGW 负载均衡（HAProxy，多 RGW 时部署）
 ├── test-tikv.sh               # TiKV 冒烟测试（Go RawKV 真实数据读写删）
 ├── test-ceph.sh               # Ceph 冒烟测试（RGW S3 读写删）
 ├── tune-servers.sh            # 性能调优（JuiceFS 基线测试后执行）

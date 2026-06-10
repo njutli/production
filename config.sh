@@ -75,7 +75,32 @@ SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLeve
 PD_ENDPOINTS="${TIKV_SERVER}:2379"
 
 # --- Ceph RGW endpoint (for JuiceFS S3 access) ---
-RGW_ENDPOINT="http://${CEPH_SERVERS[0]}:8000"
+# With a single RGW, point JuiceFS directly at it (e.g. CEPH_SERVERS[0]:8000).
+# With multiple RGWs, deploy an LB (deploy-lb.sh) and set RGW_ENDPOINT to
+# the LB address so traffic is spread across all RGW backends — otherwise
+# JuiceFS only ever talks to one RGW.
+# NOTE: defined after the LB block below so ${LB_HOST}/${LB_PORT} are set.
+
+# --- RGW load balancer (HAProxy) ---
+# Only meaningful when there is more than one RGW.  deploy-lb.sh installs
+# HAProxy on LB_HOST and balances LB_PORT across RGW_BACKENDS (round-robin
+# with health checks).  After running it, set RGW_ENDPOINT above to
+# "http://${LB_HOST}:${LB_PORT}".
+#
+# LB_HOST: where HAProxy runs.  Default = TiKV node (gigabit, not an RGW
+# host, so the LB itself isn't competing with an RGW for the same NIC).
+LB_HOST="${TIKV_SERVER}"
+LB_PORT="8080"
+# RGW backends the LB fans out to (ip:port).  Must match the RGW placement
+# in deploy-ceph.sh (currently ceph-node1 + ceph-node3, both :8000).
+RGW_BACKENDS=(
+  "${CEPH_SERVERS[0]}:8000"   # ceph-node1
+  "${CEPH_SERVERS[2]}:8000"   # ceph-node3
+)
+
+# JuiceFS S3 endpoint: point at the LB so both RGWs get traffic.
+# (For single-RGW setups, set this to "http://${CEPH_SERVERS[0]}:8000".)
+RGW_ENDPOINT="http://${LB_HOST}:${LB_PORT}"
 
 # --- Binary download mirror ---
 TIKV_MIRROR="https://tiup-mirrors.pingcap.com"
