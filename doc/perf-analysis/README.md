@@ -23,11 +23,12 @@
 | `05-progress-and-next-steps.md` | 调优进展总览 + 双 RGW 结果分析 + 后续瓶颈/调优方向 |
 | `05_1-verify-ec-rmw-bottleneck.md` | 方向 D 验证步骤：用复制池对照确认随机 36MB/s 是 HDD+EC RMW 硬限制（步骤，未跑） |
 | `06-conclusions-and-roadmap.md` | **（最新）** 全部实测数据汇总 + 当前瓶颈定性(HDD+EC 延迟) + 后续优化方向路线图 |
+| `06_1-ramdisk-wal-db-test.md` | 方向 B 实施步骤：内存盘模拟 SSD 做 WAL/DB，验证迁移后吞吐提升 |
 | `results-table.md` | **各条件实测带宽总表（持续更新）**，新优化手段的测试结果追加于此 |
 | `diag.sh` | 可复跑的逐层排查脚本（裸盘→网络→后端→端到端） |
 
 ## 一句话结论
 
-软件层（TiKV/PD/RocksDB/FUSE/系统参数）全都没问题。
-瓶颈是 node1/node2 的 **100Mb/s 网卡**，导致 Ceph EC 后端只能跑出 ~10 MB/s
-（rados bench 实测 9.87 MB/s）。**先修网络，其余免谈。**
+瓶颈的本质（blktrace 实测坐实）：**Ceph 的 EC 拆片 + BlueStore 把用户的顺序大 IO
+转成了碎片化、71% 需寻道的小 IO，而 HDD 最怕寻道**。软件侧已接近榨干，顺序吞吐天花板 ~102 MB/s。
+要数量级突破，唯有让落盘 IO 不再受寻道惩罚——即 WAL/DB 上 SSD（对症、性价比高）或整盘换 SSD/NVMe（根治）。
