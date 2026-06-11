@@ -1,0 +1,304 @@
+diff --git a/config.sh b/config.sh
+index c2537de..cf7025a 100755
+--- a/config.sh
++++ b/config.sh
+@@ -3,11 +3,22 @@
+ # Production Deployment Configuration (4 Machines)
+ #   1 × TiKV  (single node, single replica)
+ #   3 × Ceph   (MON+MGR+OSD+RGW, EC 4+2)
++#   3 × MinIO  (alternative lightweight object storage)
+ #   Client: shared on TiKV or Ceph machines (see README)
+ #
++# Storage backend: set STORAGE_BACKEND to "ceph" or "minio".
++# All S3 connection variables (endpoint, keys, bucket URL) are
++# computed below based on this choice — scripts should use them
++# instead of backend-specific names.
++#
+ # Edit this file with your actual server IPs before running.
+ # ============================================================
+ 
++# --- Storage Backend Selection ---
++# "ceph"  — Ceph RGW (RADOS Gateway) S3 API
++# "minio" — MinIO distributed object storage S3 API
++STORAGE_BACKEND="${STORAGE_BACKEND:-ceph}"
++
+ # --- TiKV: Single Node (PD + TiKV co-located) ---
+ # This machine serves JuiceFS metadata.
+ # Running single-replica mode (no Raft group).
+@@ -35,7 +46,7 @@ CEPH_SERVERS=(
+ # per server).  Each disk will be split into 2 equal partitions by
+ # deploy-ceph.sh → 3 servers × 2 partitions = 6 OSDs for EC 4+2.
+ # Index matches CEPH_SERVERS.
+-#   ceph-node1: sdb=953G (reinstalled 2026-06; system now on sda, sdb freed)
++#   ceph-node1: sdb=953G
+ #   ceph-node2: sdb=953G
+ #   ceph-node3: sdb=953G
+ # Capacity: all OSD disks ~953G → EC 4+2 usable ~1.9T (efficiency ~67%)
+@@ -49,12 +60,36 @@ CEPH_EC_K=4
+ CEPH_EC_M=2
+ CEPH_FAILURE_DOMAIN="osd"
+ 
++# --- MinIO Cluster (3 servers, distributed mode) ---
++# Lightweight alternative to Ceph.  Each node runs a MinIO server
++# that uses the same data disk (sdb).  MinIO handles its own EC
++# internally; no LVM/OSD/RGW complexity.
++# 3 nodes × 2 directories-per-node = 6 "drives" → EC 4+2.
++MINIO_SERVERS=(
++  "192.168.11.11"   # minio-node1
++  "192.168.11.13"   # minio-node2
++  "192.168.11.14"   # minio-node3
++)
++
++MINIO_DATA_DEVICE="/dev/sdb"
++MINIO_MOUNT="/data/minio"
++MINIO_PORT=9000
++MINIO_CONSOLE_PORT=9001
++MINIO_ACCESS_KEY="juicefs"
++MINIO_SECRET_KEY="juicefs123"
++
++# MinIO EC parity configuration
++# k=4 data shards + m=2 parity shards = 6 total
++# Must match the total drive count.  Usable = k/(k+m) ≈ 67%.
++MINIO_EC_K=4
++MINIO_EC_M=2
++
+ # --- JuiceFS Client ---
+ # Which machine runs JuiceFS mount (FUSE process).
+ # Per our strategy:
+ #   Data-heavy tests  → ${TIKV_SERVER}
+ #   Metadata-heavy tests → one of CEPH_SERVERS
+-# Set this before each test run; scripts use PD_ENDPOINTS + RGW_ENDPOINT.
++# Set this before each test run; scripts use PD_ENDPOINTS + S3_ENDPOINT.
+ JUICEFS_CLIENT="${TIKV_SERVER}"
+ 
+ JUICEFS_FS_NAME="juicefs-prod"
+@@ -75,33 +110,55 @@ SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLeve
+ PD_ENDPOINTS="${TIKV_SERVER}:2379"
+ 
+ # --- Ceph RGW endpoint (for JuiceFS S3 access) ---
+-# With a single RGW, point JuiceFS directly at it (e.g. CEPH_SERVERS[0]:8000).
+-# With multiple RGWs, deploy an LB (deploy-lb.sh) and set RGW_ENDPOINT to
+-# the LB address so traffic is spread across all RGW backends — otherwise
+-# JuiceFS only ever talks to one RGW.
+-# NOTE: defined after the LB block below so ${LB_HOST}/${LB_PORT} are set.
++# With multiple RGWs + LB, point JuiceFS at the LB address.
++# With a single RGW, point directly at it (e.g. CEPH_SERVERS[0]:8000).
++# NOTE: defined after LB_HOST/LB_PORT below so those variables are set.
+ 
+ # --- RGW load balancer (HAProxy) ---
+ # Only meaningful when there is more than one RGW.  deploy-lb.sh installs
+ # HAProxy on LB_HOST and balances LB_PORT across RGW_BACKENDS (round-robin
+-# with health checks).  After running it, set RGW_ENDPOINT above to
+-# "http://${LB_HOST}:${LB_PORT}".
++# with health checks).
+ #
+ # LB_HOST: where HAProxy runs.  Default = TiKV node (gigabit, not an RGW
+ # host, so the LB itself isn't competing with an RGW for the same NIC).
+ LB_HOST="${TIKV_SERVER}"
+ LB_PORT="8080"
+ # RGW backends the LB fans out to (ip:port).  Must match the RGW placement
+-# in deploy-ceph.sh (currently ceph-node1 + ceph-node3, both :8000).
++# in deploy-ceph.sh (currently ceph-node1 + ceph-node2 + ceph-node3, all :8000).
+ RGW_BACKENDS=(
+   "${CEPH_SERVERS[0]}:8000"   # ceph-node1
+   "${CEPH_SERVERS[1]}:8000"   # ceph-node2
+   "${CEPH_SERVERS[2]}:8000"   # ceph-node3
+ )
+ 
+-# JuiceFS S3 endpoint: point at the LB so both RGWs get traffic.
+-# (For single-RGW setups, set this to "http://${CEPH_SERVERS[0]}:8000".)
+ RGW_ENDPOINT="http://${LB_HOST}:${LB_PORT}"
+ 
++# --- MinIO load balancer (HAProxy) ---
++# Same pattern as RGW LB: HAProxy on tikv-node balances across all MinIO
++# nodes.  Deployed by deploy-minio.sh when STORAGE_BACKEND=minio.
++MINIO_LB_PORT="8081"
++MINIO_BACKENDS=(
++  "${MINIO_SERVERS[0]}:${MINIO_PORT}"   # minio-node1
++  "${MINIO_SERVERS[1]}:${MINIO_PORT}"   # minio-node2
++  "${MINIO_SERVERS[2]}:${MINIO_PORT}"   # minio-node3
++)
++
++# --- Computed S3 connection variables ---
++# Scripts should use these instead of backend-specific names.
++case "${STORAGE_BACKEND}" in
++    ceph)
++        S3_ENDPOINT="${RGW_ENDPOINT}"
++        ;;
++    minio)
++        S3_ENDPOINT="http://${LB_HOST}:${MINIO_LB_PORT}"
++        ;;
++    *)
++        echo "ERROR: unknown STORAGE_BACKEND='${STORAGE_BACKEND}' (use 'ceph' or 'minio')"
++        exit 1
++        ;;
++esac
++
++BUCKET_URL="${S3_ENDPOINT}/${JUICEFS_FS_NAME}"
++
+ # --- Binary download mirror ---
+ TIKV_MIRROR="https://tiup-mirrors.pingcap.com"
+diff --git a/deploy-juicefs.sh b/deploy-juicefs.sh
+index 973c795..871858c 100755
+--- a/deploy-juicefs.sh
++++ b/deploy-juicefs.sh
+@@ -9,7 +9,9 @@ unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY all_proxy ALL_PROXY no_proxy
+ # JuiceFS Client Deployment (4-Machine Topology)
+ #
+ # Installs JuiceFS client and formats/mounts a filesystem
+-# backed by TiKV single-node (metadata) + Ceph 3-node RGW (data).
++# backed by TiKV single-node (metadata) + S3 storage (data).
++# Supports both Ceph RGW and MinIO backends — switch via
++# STORAGE_BACKEND in config.sh.
+ #
+ # Client placement strategy:
+ #   Data-heavy tests   → run on ${TIKV_SERVER} (set JUICEFS_CLIENT in config.sh)
+@@ -19,8 +21,8 @@ unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY all_proxy ALL_PROXY no_proxy
+ #
+ # Prerequisites:
+ #   1. deploy-tikv.sh completed
+-#   2. deploy-ceph.sh completed
+-#   3. RGW credentials available from .credentials/rgw-juicefs.env
++#   2. Storage backend deployed (deploy-ceph.sh or deploy-minio.sh)
++#   3. Credentials available (source .credentials/ accordingly)
+ #
+ # Usage: bash deploy-juicefs.sh [status|format|mount|unmount|destroy|test]
+ # ============================================================
+@@ -29,8 +31,22 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ 
+ source "${SCRIPT_DIR}/config.sh"
+ 
+-# Load RGW credentials if available
+-CREDS_FILE="${SCRIPT_DIR}/.credentials/rgw-juicefs.env"
++# Load S3 credentials — choose file based on storage backend
++case "${STORAGE_BACKEND}" in
++    ceph)
++        CREDS_FILE="${SCRIPT_DIR}/.credentials/rgw-juicefs.env"
++        BACKEND_LABEL="Ceph RGW"
++        ;;
++    minio)
++        CREDS_FILE="${SCRIPT_DIR}/.credentials/minio-juicefs.env"
++        BACKEND_LABEL="MinIO"
++        ;;
++    *)
++        echo "ERROR: unknown STORAGE_BACKEND='${STORAGE_BACKEND}'"
++        exit 1
++        ;;
++esac
++
+ if [ -f "${CREDS_FILE}" ]; then
+     source "${CREDS_FILE}"
+ fi
+@@ -38,7 +54,7 @@ fi
+ ACTION="${1:-status}"
+ 
+ METADATA_URL="tikv://${PD_ENDPOINTS}/${JUICEFS_FS_NAME}"
+-BUCKET_URL="${RGW_ENDPOINT}/${JUICEFS_FS_NAME}"
++# BUCKET_URL is computed in config.sh based on STORAGE_BACKEND
+ 
+ # ============================================================
+ # Pre-flight
+@@ -54,9 +70,9 @@ check_tikv() {
+     return 1
+ }
+ 
+-check_rgw() {
+-    echo -n "Checking Ceph RGW... "
+-    if curl -s --noproxy '*' --connect-timeout 5 "${RGW_ENDPOINT}" >/dev/null 2>&1; then
++check_s3() {
++    echo -n "Checking S3 (${BACKEND_LABEL})... "
++    if curl -s --noproxy '*' --connect-timeout 5 "${S3_ENDPOINT}" >/dev/null 2>&1; then
+         echo "OK"
+         return 0
+     fi
+@@ -84,13 +100,14 @@ do_status() {
+     echo "========================================"
+     echo ""
+     echo "Configuration:"
++    echo "  Storage:       ${BACKEND_LABEL} (${STORAGE_BACKEND})"
+     echo "  Filesystem:    ${JUICEFS_FS_NAME}"
+     echo "  Metadata URL:  ${METADATA_URL}"
+     echo "  Data bucket:   ${BUCKET_URL}"
+     echo "  Mount point:   ${JUICEFS_MOUNT_POINT}"
+     echo ""
+     check_tikv
+-    check_rgw
++    check_s3
+     echo ""
+ 
+     install_juicefs
+@@ -117,7 +134,7 @@ do_format() {
+     echo ""
+ 
+     check_tikv || { echo "ERROR: TiKV PD not reachable."; exit 1; }
+-    check_rgw || { echo "ERROR: Ceph RGW not reachable."; exit 1; }
++    check_s3 || { echo "ERROR: S3 backend (${BACKEND_LABEL}) not reachable."; exit 1; }
+     install_juicefs
+ 
+     # Check if already formatted
+@@ -129,7 +146,7 @@ do_format() {
+ 
+     # Check credentials
+     if [ -z "${AWS_ACCESS_KEY_ID:-}" ] || [ -z "${AWS_SECRET_ACCESS_KEY:-}" ]; then
+-        echo "ERROR: RGW credentials not set."
++        echo "ERROR: S3 credentials not set."
+         echo "  Source them: source ${CREDS_FILE}"
+         echo "  Or set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY env vars."
+         exit 1
+@@ -141,10 +158,10 @@ do_format() {
+     # Pre-create S3 bucket (RGW may reject JuiceFS auto-create with region errors)
+     echo "Creating S3 bucket '${JUICEFS_FS_NAME}'..."
+     if command -v aws &>/dev/null; then
+-        aws --endpoint-url="${RGW_ENDPOINT}" --no-verify-ssl \
++        aws --endpoint-url="${S3_ENDPOINT}" --no-verify-ssl \
+             s3 mb "s3://${JUICEFS_FS_NAME}" 2>/dev/null || true
+     elif command -v s3cmd &>/dev/null; then
+-        s3cmd --host="${RGW_ENDPOINT}" --no-ssl mb "s3://${JUICEFS_FS_NAME}" 2>/dev/null || true
++        s3cmd --host="${S3_ENDPOINT}" --no-ssl mb "s3://${JUICEFS_FS_NAME}" 2>/dev/null || true
+     else
+         echo "WARNING: awscli or s3cmd not installed, cannot pre-create bucket."
+         echo "  JuiceFS will try to auto-create it (may fail on some RGW versions)."
+@@ -257,7 +274,7 @@ do_test() {
+ 
+     echo ""
+     echo ">>> Write test..."
+-    echo "JuiceFS + TiKV + Ceph RGW production test - $(date)" > "${JUICEFS_MOUNT_POINT}/hello.txt"
++    echo "JuiceFS + TiKV + ${BACKEND_LABEL} test - $(date)" > "${JUICEFS_MOUNT_POINT}/hello.txt"
+     dd if=/dev/urandom of="${JUICEFS_MOUNT_POINT}/random.bin" bs=1M count=10 2>&1 | tail -1
+ 
+     echo ""
+diff --git a/tests/bench-juicefs.sh b/tests/bench-juicefs.sh
+index 71478b1..6cd3cdb 100755
+--- a/tests/bench-juicefs.sh
++++ b/tests/bench-juicefs.sh
+@@ -11,13 +11,19 @@ unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY all_proxy ALL_PROXY no_proxy
+ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ PROD_DIR="$(dirname "${SCRIPT_DIR}")"
+ source "${PROD_DIR}/config.sh"
+-source "${PROD_DIR}/.credentials/rgw-juicefs.env"
++
++# Load S3 credentials based on storage backend
++case "${STORAGE_BACKEND}" in
++    ceph) source "${PROD_DIR}/.credentials/rgw-juicefs.env" ;;
++    minio) source "${PROD_DIR}/.credentials/minio-juicefs.env" ;;
++    *) echo "ERROR: unknown STORAGE_BACKEND='${STORAGE_BACKEND}'"; exit 1 ;;
++esac
+ 
+ LABEL="${1:-baseline}"
+ shift || true
+ EXTRA_MOUNT_OPTS="$@"
+ METADATA_URL="tikv://${PD_ENDPOINTS}/${JUICEFS_FS_NAME}"
+-BUCKET_URL="${RGW_ENDPOINT}/${JUICEFS_FS_NAME}"
++# BUCKET_URL computed in config.sh via STORAGE_BACKEND
+ RESULT_DIR="${PROD_DIR}/results"
+ TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+ RESULT_FILE="${RESULT_DIR}/${TIMESTAMP}-${LABEL}.txt"
+@@ -74,7 +80,7 @@ export AWS_DEFAULT_REGION=""
+ 
+ # Pre-create bucket
+ if command -v aws &>/dev/null; then
+-    aws --endpoint-url="${RGW_ENDPOINT}" --no-verify-ssl s3 mb "s3://${JUICEFS_FS_NAME}" 2>/dev/null || true
++    aws --endpoint-url="${S3_ENDPOINT}" --no-verify-ssl s3 mb "s3://${JUICEFS_FS_NAME}" 2>/dev/null || true
+ fi
+ 
+ juicefs format \
