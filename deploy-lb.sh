@@ -45,7 +45,7 @@ ssh_srv() {
 scp_srv() {
     local ip=$1 local_file=$2 remote_path=$3
     if [ "${_is_local}" -eq 1 ]; then
-        cp "${local_file}" "${remote_path}"
+        [ "${local_file}" = "${remote_path}" ] || cp "${local_file}" "${remote_path}"
     else
         scp ${SSH_OPTS} -i "${SSH_KEY}" "${local_file}" "${SSH_USER}@${ip}:${remote_path}"
     fi
@@ -135,6 +135,7 @@ do_deploy() {
         echo "    log /dev/log local0"
         echo "    maxconn 4096"
         echo "    daemon"
+        echo "    stats socket /run/haproxy/admin.sock mode 660 level admin"
         echo ""
         echo "defaults"
         echo "    mode http"

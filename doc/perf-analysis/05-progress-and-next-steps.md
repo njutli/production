@@ -134,6 +134,7 @@
 - 这是 **HDD + EC 4+2 随机小写读改写放大**导致，**和 RGW/LB 无关**。
 - 加 RGW 救不了随机性能。要提升随机负载，方向是**后端介质升级
   （SSD / NVMe）**——但受 EC 4+2 硬规格约束，且属于硬件投入，非软件调优。
+- **验证步骤**详见 [05_1-verify-ec-rmw-bottleneck.md](05_1-verify-ec-rmw-bottleneck.md)
 
 ### 明确的天花板认知
 
