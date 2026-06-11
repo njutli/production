@@ -232,18 +232,52 @@ do_remove() {
 }
 
 # ============================================================
+# clear-stats
+# ============================================================
+
+do_clear_stats() {
+    local sock="/run/haproxy/admin.sock"
+    echo ">>> Resetting HAProxy counters on ${LB_HOST} (full restart)..."
+    ssh_srv "${LB_HOST}" "
+        command -v socat >/dev/null 2>&1 || {
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y socat >/dev/null 2>&1 || {
+                echo '  ERROR: socat install failed'; exit 1; }
+        }
+    "
+    _print_stat() {
+        ssh_srv "${LB_HOST}" "echo 'show stat' | sudo socat - ${sock}" \
+            2>/dev/null | awk -F, '/rgw/{printf "  %-10s %-10s req: %-8s bytes: %s\n", $1, $2, $28, $9}'
+    }
+    echo "Before:"
+    _print_stat
+    ssh_srv "${LB_HOST}" "sudo systemctl restart haproxy"
+    sleep 2
+    echo "After restart:"
+    _print_stat
+    ssh_srv "${LB_HOST}" "systemctl is-active haproxy 2>/dev/null && echo '  HAProxy: active' || echo '  HAProxy: NOT active'"
+}
+
+do_restart_haproxy() {
+    do_clear_stats
+}
+
+# ============================================================
 # Main
 # ============================================================
 
 case "${ACTION}" in
-    deploy)  do_deploy ;;
-    status)  do_status ;;
-    remove)  do_remove ;;
+    deploy)         do_deploy ;;
+    status)         do_status ;;
+    remove)         do_remove ;;
+    clear-stats)    do_clear_stats ;;
+    restart-haproxy) do_restart_haproxy ;;
     *)
-        echo "Usage: bash deploy-lb.sh [deploy|status|remove]"
+        echo "Usage: bash deploy-lb.sh [deploy|status|remove|clear-stats|restart-haproxy]"
         echo ""
-        echo "  deploy  - Install + configure HAProxy on LB_HOST over RGW_BACKENDS"
-        echo "  status  - Show LB service + backend reachability"
-        echo "  remove  - Stop/disable HAProxy"
+        echo "  deploy          - Install + configure HAProxy on LB_HOST over RGW_BACKENDS"
+        echo "  status          - Show LB service + backend reachability"
+        echo "  remove          - Stop/disable HAProxy"
+        echo "  clear-stats     - Reset request counters via admin socket"
+        echo "  restart-haproxy - Full restart to reset all counters including byte accumulators"
         ;;
 esac

@@ -95,6 +95,7 @@ LB_PORT="8080"
 # in deploy-ceph.sh (currently ceph-node1 + ceph-node3, both :8000).
 RGW_BACKENDS=(
   "${CEPH_SERVERS[0]}:8000"   # ceph-node1
+  "${CEPH_SERVERS[1]}:8000"   # ceph-node2
   "${CEPH_SERVERS[2]}:8000"   # ceph-node3
 )
 
