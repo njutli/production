@@ -57,12 +57,12 @@ default root
 CRUSH rule 限定 `take default class ram → choose_indep type osd`，
 **完全不触及 SSD OSD**。
 
-### 预期对比
+### 预期对比 → 实测结论
 
-| 指标 | SSD（PERC H730） | 纯内存盘 | 差距含义 |
-|------|-----------------|---------|---------|
-| Ceph EC 写带宽 | 106 MB/s | 待测 | 若大幅提升 → RAID 卡是瓶颈 |
-| Ceph EC 写带宽 | 106 MB/s | ≈106 | 若持平 → 瓶颈在 Ceph/EC 协议/网络 |
+| 指标 | SSD (PERC H730) | 纯内存盘 (brd) | 结论 |
+|------|----------------|---------------|------|
+| Ceph EC 写带宽 | 106 MB/s | **106.6 MB/s**（实测） | **无提升，RAID 卡非瓶颈** |
+| Ceph EC 写带宽 | 106 MB/s | ≈106 | 瓶颈在 Ceph/EC 协议/网络/软件栈 |
 
 ---
 
@@ -140,11 +140,35 @@ sudo cephadm shell -- ceph osd pool set test-ram-ec pgp_num 64
 sudo cephadm shell -- ceph osd pool application enable test-ram-ec rados
 ```
 
-### 六、跑 rados bench
+### 六、实测结果（2026-06-12）
 
-```bash
-sudo cephadm shell -- rados bench -p test-ram-ec 60 write -t 64 --no-cleanup
 ```
+Total time run:         60.8044
+Total writes made:      1621
+Write size:             4194304
+Object size:            4194304
+Bandwidth (MB/sec):     106.637
+Stddev Bandwidth:       26.6909
+Max bandwidth (MB/sec): 256
+Min bandwidth (MB/sec): 0
+Average IOPS:           26
+Stddev IOPS:            6.67274
+Max IOPS:               64
+Min IOPS:               0
+Average Latency(s):     2.35461
+Stddev Latency(s):      0.918166
+Max latency(s):         5.99939
+Min latency(s):         0.0899462
+```
+
+| 指标 | SSD (PERC H730) | 纯内存盘 (brd) | 变化 |
+|------|----------------|---------------|------|
+| 带宽 | 106.4 MB/s | **106.6 MB/s** | +0.2% |
+| 平均延迟 | 2.35s | **2.35s** | 持平 |
+| IOPS | 26 | **26** | 持平 |
+
+> **结论：RAID 卡和 SSD 都不是瓶颈。** 用比 SSD 快数量级的内存盘替换后，
+> 吞吐完全不变。瓶颈在 Ceph/EC 协议/网络/软件栈。
 
 ### 七、清理
 
