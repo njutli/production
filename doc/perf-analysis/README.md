@@ -22,8 +22,11 @@
 | `04-multitask-finding.md` | 多任务并发测试：瓶颈在单 RGW/单链路而非并发度，指向加 RGW+LB |
 | `05-progress-and-next-steps.md` | 调优进展总览 + 双 RGW 结果分析 + 后续瓶颈/调优方向 |
 | `05_1-verify-ec-rmw-bottleneck.md` | 方向 D 验证步骤：用复制池对照确认随机 36MB/s 是 HDD+EC RMW 硬限制（步骤，未跑） |
-| `06-conclusions-and-roadmap.md` | **（最新）** 全部实测数据汇总 + 当前瓶颈定性(HDD+EC 延迟) + 后续优化方向路线图 |
-| `06_1-ramdisk-wal-db-test.md` | 方向 B 实施步骤：内存盘模拟 SSD 做 WAL/DB，验证迁移后吞吐提升 |
+| `06-conclusions-and-roadmap.md` | 阶段性结论汇总 + 瓶颈定性（已修正：磁盘是 SSD，瓶颈在 Ceph/EC 软件栈） + 路线图 |
+| `06_1-ramdisk-wal-db-test.md` | WAL/DB 放内存盘验证（+4.8% 无效）；并确认磁盘实为 SSD |
+| `06_2-ramdisk-cluster-test.md` | 全内存盘集群验证（106.6 MB/s 无提升）→ RAID 卡/SSD 均非瓶颈 |
+| `06_3-cephfs-test.md` | CephFS vs JuiceFS 随机读写对比（CephFS 读 3.6×，无 FUSE 税） |
+| `07-random-rw-optimization.md` | **（最新）** 随机读写专项：目标 59MB/s、随机读 3.8 瓶颈定位、框架内+换方案调优方向 |
 | `results-table.md` | **各条件实测带宽总表（持续更新）**，新优化手段的测试结果追加于此 |
 | `diag.sh` | 可复跑的逐层排查脚本（裸盘→网络→后端→端到端） |
 
