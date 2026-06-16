@@ -27,7 +27,8 @@
 | `06_2-ramdisk-cluster-test.md` | 全内存盘集群验证（106.6 MB/s 无提升）→ RAID 卡/SSD 均非瓶颈 |
 | `06_3-cephfs-test.md` | CephFS vs JuiceFS 随机读写对比（CephFS 读 3.6×，无 FUSE 税） |
 | `07-random-rw-optimization.md` | 随机读写专项：诊断（瓶颈在 RGW GET 延迟，非网络/介质）+ 框架内优化结果 |
-| `08-next-steps-comparison.md` | **（最新）** 下一步三方向规划：JuiceFS 官方调优 / 去 RGW 直连 RADOS / EC vs 副本随机对比 |
+| `08-next-steps-comparison.md` | 下一步多方向规划：JuiceFS 官方调优 / 去 RGW 直连 RADOS / EC vs 副本随机对比 / BlueStore 调参 |
+| `08_1-direction3-result-direct-rados.md` | **（最新）** 方向三实测结论：去 RGW 直连 RADOS（写 +71%、读 −42%）→ RGW 非随机读根因，瓶颈锁定 JuiceFS 单客户端 FUSE/并发，附下一步定位方法 |
 | `results-table.md` | **各条件实测带宽总表（持续更新）**，新优化手段的测试结果追加于此 |
 | `diag.sh` | 可复跑的逐层排查脚本（裸盘→网络→后端→端到端） |
 

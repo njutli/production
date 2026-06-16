@@ -14,6 +14,9 @@ set -euo pipefail
 #   CEPH_POOL=<pool>      STORAGE=ceph 时的 Ceph 数据池（默认 default.rgw.buckets.data）
 #   EXTRA_FORMAT_OPTS=".."  透传给 `juicefs format` 的额外参数（如 --max-uploads 40 --compress none）
 #   WARMUP=1              在 randread/randrw 前执行 `juicefs warmup` 预热且不清缓存（热态/缓存口径，1.6）
+#   LAYOUT_NUMJOBS=16     纯 randread(step10)/热态 randrw(step9) 预铺文件的 job 数（默认 16）
+#   LAYOUT_FILESIZE=1G    上述预铺每文件大小（默认 1G）→ 默认布局 16GB，避免 128GB 布局超时
+#                         注意：LAYOUT_* 仅影响文件预铺，randread/randrw fio 本身仍用 128 jobs 规格不变
 #
 # 注意：extra_mount_opts 是 *mount* 参数（--max-downloads/--buffer-size/--prefetch...）；
 #       format 期参数（--max-uploads/--compress...）请用 EXTRA_FORMAT_OPTS。
@@ -39,6 +42,11 @@ STORAGE="${STORAGE:-s3}"
 RADOS_POOL="${RADOS_POOL:-${CEPH_POOL:-default.rgw.buckets.data}}"
 EXTRA_FORMAT_OPTS="${EXTRA_FORMAT_OPTS:-}"
 WARMUP="${WARMUP:-0}"
+# Layout (pre-fill) size for pure-randread (step 10) and hot randrw (step 9, WARMUP=1).
+# Default 16 jobs × 1G = 16GB（~3min @100MB/s），避免 128GB 布局耗时 >20min 触发超时。
+# 验收 randrw（step 9，WARMUP=0）一行 verbatim 不受此影响。
+LAYOUT_NUMJOBS="${LAYOUT_NUMJOBS:-16}"
+LAYOUT_FILESIZE="${LAYOUT_FILESIZE:-1G}"
 
 METADATA_URL="tikv://${PD_ENDPOINTS}/${JUICEFS_FS_NAME}"
 if [ "${STORAGE}" = "ceph" ]; then
@@ -315,8 +323,8 @@ if [ "${WARMUP}" = "1" ]; then
     echo ">>> WARMUP=1: laying out files then warming up before randrw (hot mode)..." | tee -a "${RESULT_FILE}"
     fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
         --name=storage_test_layout \
-        --nrfiles=100 --filesize=1G --size=1G --bs=4M \
-        --rw=write --numjobs=128 --fallocate=none --create_on_open=1 \
+        --nrfiles=100 --filesize="${LAYOUT_FILESIZE}" --size="${LAYOUT_FILESIZE}" --bs=4M \
+        --rw=write --numjobs="${LAYOUT_NUMJOBS}" --fallocate=none --create_on_open=1 \
         --openfiles=100 --group_reporting --end_fsync=1 2>&1 | tail -5 | tee -a "${RESULT_FILE}"
     prime_cache_or_drop
 fi
@@ -349,11 +357,11 @@ echo "Random Read Test (pure, spec params, rw=randread)" | tee -a "${RESULT_FILE
 echo "========================================" | tee -a "${RESULT_FILE}"
 fresh_volume
 # Lay out files first so random reads hit real data (not sparse/empty).
-echo ">>> Laying out files for read test..." | tee -a "${RESULT_FILE}"
+echo ">>> Laying out files for read test (${LAYOUT_NUMJOBS} jobs × ${LAYOUT_FILESIZE})..." | tee -a "${RESULT_FILE}"
 fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
     --name=storage_test_layout \
-    --nrfiles=100 --filesize=1G --size=1G --bs=4M \
-    --rw=write --numjobs=128 --fallocate=none --create_on_open=1 \
+    --nrfiles=100 --filesize="${LAYOUT_FILESIZE}" --size="${LAYOUT_FILESIZE}" --bs=4M \
+    --rw=write --numjobs="${LAYOUT_NUMJOBS}" --fallocate=none --create_on_open=1 \
     --openfiles=100 --group_reporting --end_fsync=1 2>&1 | tail -5 | tee -a "${RESULT_FILE}"
 # Set cache state: WARMUP=1 → warmup (hot); else drop caches (cold backend真值).
 prime_cache_or_drop
