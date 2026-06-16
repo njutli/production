@@ -1,0 +1,21 @@
+========================================
+JuiceFS Benchmark — norgw
+Date: Tue Jun 16 11:13:51 CST 2026
+Config: tikv://192.168.11.12:2379/juicefs-prod
+Extra mount opts: 
+========================================
+
+>>> Destroying any previous volume...
+>>> Cleaning up...
+Waiting for session to expire...
+Destroying JuiceFS volume...
+[1;33mWARNING[0m: The target volume will be permanently destroyed, including:
+[1;33mWARNING[0m: 1. ALL objects in the data storage: s3://192.168.11.12:8080/juicefs-prod/juicefs-prod/
+[1;33mWARNING[0m: 2. ALL entries in the metadata engine: tikv://192.168.11.12:2379/juicefs-prod
+2026/06/16 11:14:57.010293 juicefs[348365] <ERROR>: Can't list s3://192.168.11.12:8080/juicefs-prod/juicefs-prod/: operation error S3: ListObjectsV2, exceeded maximum number of attempts, 1, https response error StatusCode: 503, RequestID: , HostID: , api error ServiceUnavailable: Service Unavailable [ListAll@sync.go:156]
+2026/06/16 11:14:57.010399 juicefs[348365] <FATAL>: list all objects: operation error S3: ListObjectsV2, exceeded maximum number of attempts, 1, https response error StatusCode: 503, RequestID: , HostID: , api error ServiceUnavailable: Service Unavailable [destroy@destroy.go:163]
+
+>>> Formatting JuiceFS (storage=ceph)...
+2026/06/16 11:14:59.106180 juicefs[348395] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/06/16 11:14:59.106327 juicefs[348395] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/06/16 11:14:59.128178 juicefs[348395] <FATAL>: object storage: Can't create connection to cluster N1H9Y3IV2OZXUI0YEAW0 for user TiGN69CUYD3yUn9AmekODhX3R2slEPt22OEyHTe9: rados: ret=-22, Invalid argument [format@format.go:525]

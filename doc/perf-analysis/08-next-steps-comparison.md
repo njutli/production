@@ -266,6 +266,94 @@ WARMUP=1 bash tests/bench-juicefs.sh warm-cache-writeback \
   需结合业务：是否真有"其他终端走 S3"的需求？若没有，去 RGW 是净收益；若有，
   则要么保留 RGW、要么用其他方式提供 S3（如另起 RGW 仅供外部，JuiceFS 走 RADOS）。
 
+### 具体操作步骤
+
+> 以下命令均在 tikv-node（192.168.11.12）上执行，Ceph 操作通过 `ssh 192.168.11.11 sudo cephadm shell` 调度。
+> 执行次序：① Ceph 侧建 pool + 授权 → ② 客户端部署 ceph.conf + keyring → ③ bench 脚本全量测试。
+> 测试完成后**不清理**（保留 pool 和卷供后续方向一在 RADOS 路径上验证）。
+
+#### ① Ceph 侧：创建独立 pool + cephx 授权
+
+```bash
+# 1. 创建 EC pool（与 RGW 的 pool 隔离，JuiceFS 独占）
+ssh 192.168.11.11 "sudo cephadm shell -- ceph osd erasure-code-profile set jfs-ec k=4 m=2 crush-failure-domain=osd"
+ssh 192.168.11.11 "sudo cephadm shell -- ceph osd pool create juicefs-data erasure jfs-ec"
+ssh 192.168.11.11 "sudo cephadm shell -- ceph osd pool set juicefs-data allow_ec_overwrites true"
+
+# 2. 创建 cephx 用户（不是 RGW 用户！RGW 用户用 radosgw-admin 管理，RADOS 直连用 ceph auth）
+ssh 192.168.11.11 "sudo cephadm shell -- ceph auth get-or-create client.juicefs \
+    mon 'allow r' \
+    osd 'allow rwx pool=juicefs-data' \
+    -o /etc/ceph/ceph.client.juicefs.keyring"
+```
+
+#### ② 客户端（tikv-node）：部署 ceph.conf + keyring
+
+```bash
+# librados2 应已装（编译 juicefs.ceph 时已安装 librados-dev，librados2 是其运行时依赖）
+sudo apt install -y librados2
+
+# 部署配置和密钥
+ssh 192.168.11.11 "sudo cat /etc/ceph/ceph.conf" | sudo tee /etc/ceph/ceph.conf
+ssh 192.168.11.11 "sudo cat /etc/ceph/ceph.client.juicefs.keyring" | sudo tee /etc/ceph/ceph.client.juicefs.keyring
+
+# 验证 RADOS 连通性
+rados -p juicefs-data ls --id juicefs  # 应输出为空
+```
+
+#### ③ 运行 bench 脚本
+
+```bash
+cd /home/turboai/production
+CEPH_POOL=juicefs-data STORAGE=ceph bash tests/bench-juicefs.sh norgw
+```
+
+#### ④ 不清理
+
+> 本方向测试完成后，pool `juicefs-data` 和 cephx 用户 `client.juicefs` **保留**。
+> 方向一（JuiceFS 客户端调优）将在此 RADOS 路径上继续验证 `--max-downloads`/`--buffer-size` 等参数。
+> 待全部验证完成后，统一清理：
+>
+> ```bash
+> ssh 192.168.11.11 "sudo cephadm shell -- ceph osd pool delete juicefs-data juicefs-data --yes-i-really-really-mean-it"
+> ssh 192.168.11.11 "sudo cephadm shell -- ceph auth del client.juicefs"
+> ```
+
+### 实际执行记录与结果（2026-06-16）
+
+#### 执行差异与原因
+
+步骤 ①（Ceph 侧建 pool + 授权）按文档执行，无差异。
+
+步骤 ②（客户端部署 ceph.conf + keyring）有一处差异：
+
+| 文档 | 实际 | 原因 |
+|------|------|------|
+| `ssh ... "sudo cat ...keyring" \| sudo tee ...` | 分开操作：先 `ceph auth get-key` 拿到 key，再 echo 写入 keyring 文件 | cephadm shell 内部的重定向 `-o /etc/ceph/ceph.client.juicefs.keyring` 未将文件写入宿主机，直接从 `ceph auth get-key` 输出密钥手动拼写 keyring |
+
+步骤 ③（bench 脚本）有重大差异：
+
+| 文档 | 实际 | 原因 |
+|------|------|------|
+| `STORAGE=ceph bash tests/bench-juicefs.sh norgw` | 手动 destroy → format → mount → fio，单独跑 randwrite 和 randrw | ① bench 脚本于 `do_format` 的 ceph 分支**缺少 `--access-key ceph --secret-key client.juicefs`**（初次执行报 `Invalid argument`），经多轮 debug 确认 JuiceFS Ceph 后端将 `--access-key` 映射为 Ceph 集群名、`--secret-key` 映射为 Ceph 用户名，已修复脚本并硬编码进 `do_format` ceph 分支；② bench 脚本 step 10（纯 randread）布局阶段需写入 128GB 数据（128 jobs × 1GB），耗时 >20 分钟触发多次超时；而 S3 基线的 3.8/38 口径来自 step 9（randrw），不需预布文件。为对齐口径，手动跑等价操作 |
+
+#### 测试结果（STORAGE=ceph，EC 4+2，256k iodepth=128 numjobs=128 direct=1，time_based runtime=60s）
+
+| 用例 | S3 (RGW) 基线 | Direct RADOS | 变化 |
+|------|-------------|-------------|------|
+| 顺序读 | ~100 MB/s | 100 MB/s | — |
+| 顺序写 | ~102 MB/s | 102 MB/s | — |
+| 纯随机写（randwrite） | 38 MB/s | **65.1 MB/s** | **+71%** |
+| 混合随机读写（randrw）— 读 | 3.8 MB/s | **2.2 MB/s** | **−42%** |
+| 混合随机读写（randrw）— 写 | 38 MB/s | **33.4 MB/s** | −12% |
+
+#### 结论
+
+- **随机写 +71%**：RGW 层确实是写入路径的瓶颈之一，去掉 HTTP/RGW 转发后，逐对象写入直连 RADOS 受益明显。
+- **随机读 −42%（不升反降）**：推翻了 "RGW object GET ~100ms 是随机读主因" 的假设。去掉 RGW 后读不但没提升反而更差，说明瓶颈在 **JuiceFS FUSE 处理 / 单客户端序列化**，不在 RGW HTTP 层。
+- **方向三判定**：RGW 不是随机读根因 → 按 08 文档判定逻辑，**转回方向一**（在 RADOS 路径上做 JuiceFS 客户端并发/缓冲调优，或将 CephFS 作正式备选上报）。
+- **bench 脚本已修复**：`do_format` ceph 分支已硬编码 `--access-key ceph --secret-key client.juicefs`，`STORAGE=ceph bash tests/bench-juicefs.sh` 可正常 format+挂载。
+
 ---
 
 ## 方向四（后端并行支线）：BlueStore 调参

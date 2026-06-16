@@ -99,9 +99,14 @@ do_format() {
 
     if [ "${STORAGE}" = "ceph" ]; then
         # 方向三：去 RGW，JuiceFS 直连 RADOS（librados）。无需 bucket/AK/SK。
+        # --access-key = Ceph 集群名（通常 ceph）
+        # --secret-key = Ceph 用户名（keyring 存在 /etc/ceph/ceph.client.<user>.keyring）
+        unset ACCESS_KEY SECRET_KEY AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION
         juicefs format \
             --storage ceph \
             --bucket "${BUCKET_URL}" \
+            --access-key ceph \
+            --secret-key client.juicefs \
             --trash-days 0 \
             ${EXTRA_FORMAT_OPTS} \
             "${METADATA_URL}" \
