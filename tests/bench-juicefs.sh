@@ -14,9 +14,12 @@ set -euo pipefail
 #   CEPH_POOL=<pool>      STORAGE=ceph 时的 Ceph 数据池（默认 default.rgw.buckets.data）
 #   EXTRA_FORMAT_OPTS=".."  透传给 `juicefs format` 的额外参数（如 --max-uploads 40 --compress none）
 #   WARMUP=1              在 randread/randrw 前执行 `juicefs warmup` 预热且不清缓存（热态/缓存口径，1.6）
-#   LAYOUT_NUMJOBS=16     纯 randread(step10)/热态 randrw(step9) 预铺文件的 job 数（默认 16）
-#   LAYOUT_FILESIZE=1G    上述预铺每文件大小（默认 1G）→ 默认布局 16GB，避免 128GB 布局超时
-#                         注意：LAYOUT_* 仅影响文件预铺，randread/randrw fio 本身仍用 128 jobs 规格不变
+#   LAYOUT_NUMJOBS           纯 randread(step9) 预铺文件的 job 数（默认 128，一次写入 128GB）
+#   LAYOUT_FILESIZE=1G       上述预铺每文件大小（默认 1G）
+#   SKIP_SEQ=1               跳过顺序测试（step4-7），只跑布局+随机三项（调参迭代省 ~20min）
+#
+# 注意：布局只做一次，randread 复用同一批文件（同 --name=storage_test）；
+#       randwrite/randrw 通过 fresh_volume 隔开，不共享布局数据。
 #
 # 注意：extra_mount_opts 是 *mount* 参数（--max-downloads/--buffer-size/--prefetch...）；
 #       format 期参数（--max-uploads/--compress...）请用 EXTRA_FORMAT_OPTS。
@@ -42,11 +45,13 @@ STORAGE="${STORAGE:-s3}"
 RADOS_POOL="${RADOS_POOL:-${CEPH_POOL:-default.rgw.buckets.data}}"
 EXTRA_FORMAT_OPTS="${EXTRA_FORMAT_OPTS:-}"
 WARMUP="${WARMUP:-0}"
-# Layout (pre-fill) size for pure-randread (step 10) and hot randrw (step 9, WARMUP=1).
-# Default 16 jobs × 1G = 16GB（~3min @100MB/s），避免 128GB 布局耗时 >20min 触发超时。
-# 验收 randrw（step 9，WARMUP=0）一行 verbatim 不受此影响。
-LAYOUT_NUMJOBS="${LAYOUT_NUMJOBS:-16}"
+# Layout (pre-fill) size for pure-randread (step 10).
+# Default 128 jobs × 1G = 128GB；一次写入，步骤 10 的 randread 复用这批数据。
+LAYOUT_NUMJOBS="${LAYOUT_NUMJOBS:-128}"
 LAYOUT_FILESIZE="${LAYOUT_FILESIZE:-1G}"
+# SKIP_SEQ=1 跳过顺序测试（step4-7，单/多job 顺序读写），只跑布局 + 随机三项，
+# 用于调参迭代时省掉约 20min 顺序测试时间（仅关心随机读写）。
+SKIP_SEQ="${SKIP_SEQ:-0}"
 
 METADATA_URL="tikv://${PD_ENDPOINTS}/${JUICEFS_FS_NAME}"
 if [ "${STORAGE}" = "ceph" ]; then
@@ -234,6 +239,13 @@ do_format
 do_mount
 
 # ============================================================
+# 4-7. Sequential Tests (skippable via SKIP_SEQ=1)
+# ============================================================
+if [ "${SKIP_SEQ}" = "1" ]; then
+    echo "" | tee -a "${RESULT_FILE}"
+    echo ">>> SKIP_SEQ=1: skipping sequential tests (step 4-7), jumping to layout + random." | tee -a "${RESULT_FILE}"
+else
+# ============================================================
 # 4. Sequential Read Test
 # ============================================================
 echo "" | tee -a "${RESULT_FILE}"
@@ -279,11 +291,58 @@ rm -rf "${JUICEFS_MOUNT_POINT}/test_dir"
 mkdir -p "${JUICEFS_MOUNT_POINT}/test_dir"
 fio --name=big-file-multi-write --directory="${JUICEFS_MOUNT_POINT}/test_dir/" \
     --rw=write --refill_buffers --bs=4M --size=4G --numjobs=16 --end_fsync=1 2>&1 | tee -a "${RESULT_FILE}"
+fi
 
 # ============================================================
-# 8. Random Write Test (pure, acceptance spec)
-#    纯随机写：与规格 randrw 同参数（仅 rw 改为 randwrite），
-#    排除读的干扰，作为随机写纯净基线。
+# 8. Layout (pre-fill data for randread — once)
+#    一次性写入 LAYOUT_NUMJOBS × LAYOUT_FILESIZE 的数据，
+#    步骤 10 randread 复用这批文件（同 --name=storage_test）。
+# ============================================================
+echo "" | tee -a "${RESULT_FILE}"
+echo "========================================" | tee -a "${RESULT_FILE}"
+echo "Layout (pre-fill for randread, ${LAYOUT_NUMJOBS} jobs × ${LAYOUT_FILESIZE})" | tee -a "${RESULT_FILE}"
+echo "========================================" | tee -a "${RESULT_FILE}"
+rm -rf "${JUICEFS_MOUNT_POINT}/test_dir"
+mkdir -p "${JUICEFS_MOUNT_POINT}/test_dir"
+fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
+    --name=storage_test \
+    --nrfiles=100 --filesize="${LAYOUT_FILESIZE}" --size="${LAYOUT_FILESIZE}" --bs=4M \
+    --rw=write --numjobs="${LAYOUT_NUMJOBS}" --fallocate=none --create_on_open=1 \
+    --openfiles=100 --group_reporting --end_fsync=1 2>&1 | tee -a "${RESULT_FILE}"
+
+# ============================================================
+# 9. Random Read Test (pure, acceptance spec)
+#    复用步骤 8 布局的文件（同 --name=storage_test），不需 fresh_volume。
+#    --filesize/--size/--numjobs 与步骤 8 的 LAYOUT_FILESIZE/LAYOUT_NUMJOBS 严格对齐，
+#    bs/iodepth/direct/time_based 保持验收规格。
+#    仅 drop_caches（或 WARMUP=1 时 warmup），直接跑 randread。
+# ============================================================
+echo "" | tee -a "${RESULT_FILE}"
+echo "========================================" | tee -a "${RESULT_FILE}"
+echo "Random Read Test (pure, spec params, rw=randread, ${LAYOUT_NUMJOBS} jobs × ${LAYOUT_FILESIZE})" | tee -a "${RESULT_FILE}"
+echo "========================================" | tee -a "${RESULT_FILE}"
+prime_cache_or_drop
+fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
+    --name=storage_test \
+    --nrfiles=100 \
+    --filesize="${LAYOUT_FILESIZE}" \
+    --size="${LAYOUT_FILESIZE}" \
+    --bs=256k \
+    --rw=randread \
+    --ioengine=libaio \
+    --iodepth=128 \
+    --numjobs="${LAYOUT_NUMJOBS}" \
+    --direct=1 \
+    --fallocate=none \
+    --create_on_open=1 \
+    --openfiles=100 \
+    --group_reporting \
+    --time_based \
+    --runtime=60s 2>&1 | tee -a "${RESULT_FILE}"
+
+# ============================================================
+# 10. Random Write Test (pure, acceptance spec)
+#    纯随机写：fresh_volume 建新卷，--create_on_open=1 自建文件。
 # ============================================================
 echo "" | tee -a "${RESULT_FILE}"
 echo "========================================" | tee -a "${RESULT_FILE}"
@@ -309,10 +368,9 @@ fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
     --runtime=60s 2>&1 | tee -a "${RESULT_FILE}"
 
 # ============================================================
-# 9. Random Read/Write Mixed Test (acceptance spec — verbatim)
-#    符合规格的混合随机读写：验收口径正式用例，参数与规格文档完全一致。
-#    规格用 --create_on_open=1，测试时自建文件，无需预铺设。
-#    WARMUP=1 时：为了让缓存可命中，先铺设文件并 warmup（破坏 verbatim，仅热态口径用）。
+# 11. Random Read/Write Mixed Test (acceptance spec — verbatim)
+#    符合规格的混合随机读写：fresh_volume + --create_on_open=1 自建文件。
+#    WARMUP=1 时：先在小布局上 warmup（仅热态口径用）。
 # ============================================================
 echo "" | tee -a "${RESULT_FILE}"
 echo "========================================" | tee -a "${RESULT_FILE}"
@@ -322,9 +380,9 @@ fresh_volume
 if [ "${WARMUP}" = "1" ]; then
     echo ">>> WARMUP=1: laying out files then warming up before randrw (hot mode)..." | tee -a "${RESULT_FILE}"
     fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
-        --name=storage_test_layout \
+        --name=storage_test \
         --nrfiles=100 --filesize="${LAYOUT_FILESIZE}" --size="${LAYOUT_FILESIZE}" --bs=4M \
-        --rw=write --numjobs="${LAYOUT_NUMJOBS}" --fallocate=none --create_on_open=1 \
+        --rw=write --numjobs=16 --fallocate=none --create_on_open=1 \
         --openfiles=100 --group_reporting --end_fsync=1 2>&1 | tail -5 | tee -a "${RESULT_FILE}"
     prime_cache_or_drop
 fi
@@ -347,44 +405,7 @@ fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
     --runtime=60s 2>&1 | tee -a "${RESULT_FILE}"
 
 # ============================================================
-# 10. Random Read Test (pure, acceptance spec)
-#    纯随机读：先铺设文件（同 size/nrfiles 布局），再用规格参数纯随机读，
-#    排除写的干扰，作为随机读纯净基线（三方向调优主要针对此项）。
-# ============================================================
-echo "" | tee -a "${RESULT_FILE}"
-echo "========================================" | tee -a "${RESULT_FILE}"
-echo "Random Read Test (pure, spec params, rw=randread)" | tee -a "${RESULT_FILE}"
-echo "========================================" | tee -a "${RESULT_FILE}"
-fresh_volume
-# Lay out files first so random reads hit real data (not sparse/empty).
-echo ">>> Laying out files for read test (${LAYOUT_NUMJOBS} jobs × ${LAYOUT_FILESIZE})..." | tee -a "${RESULT_FILE}"
-fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
-    --name=storage_test_layout \
-    --nrfiles=100 --filesize="${LAYOUT_FILESIZE}" --size="${LAYOUT_FILESIZE}" --bs=4M \
-    --rw=write --numjobs="${LAYOUT_NUMJOBS}" --fallocate=none --create_on_open=1 \
-    --openfiles=100 --group_reporting --end_fsync=1 2>&1 | tail -5 | tee -a "${RESULT_FILE}"
-# Set cache state: WARMUP=1 → warmup (hot); else drop caches (cold backend真值).
-prime_cache_or_drop
-fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
-    --name=storage_test \
-    --nrfiles=100 \
-    --filesize=1G \
-    --size=1G \
-    --bs=256k \
-    --rw=randread \
-    --ioengine=libaio \
-    --iodepth=128 \
-    --numjobs=128 \
-    --direct=1 \
-    --fallocate=none \
-    --create_on_open=1 \
-    --openfiles=100 \
-    --group_reporting \
-    --time_based \
-    --runtime=60s 2>&1 | tee -a "${RESULT_FILE}"
-
-# ============================================================
-# 11. Cleanup + Destroy
+# 12. Cleanup + Destroy
 # ============================================================
 echo "" | tee -a "${RESULT_FILE}"
 echo "========================================" | tee -a "${RESULT_FILE}"
