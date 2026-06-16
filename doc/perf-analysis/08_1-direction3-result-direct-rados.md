@@ -55,10 +55,10 @@ juicefs format --storage ceph --bucket ceph://juicefs-data \
 | 差异 | 原因 | 处理 |
 |------|------|------|
 | keyring 部署方式改为先 `ceph auth get-key` 再手写 | cephadm shell 内 `-o keyring` 重定向未落到宿主机 | 直接取 key 拼 keyring，结果等价 |
-| step 10（纯 randread）布局阶段需写 128GB（128 jobs × 1G），>20min 触发超时 | 布局逻辑过重 | 当时手动只跑 step8(randwrite)+step9(randrw)，**与脚本口径等价**；事后已修脚本（见六） |
+| 纯 randread 布局阶段需写 128GB（128 jobs × 1G），>20min 触发超时（当时脚本结构每个随机用例各铺一次） | 布局逻辑过重、且重复布局 | 当时手动只跑 randwrite + randrw（与脚本验收口径等价）；事后已修脚本：布局只做一次 + randread 复用 + 顺序重排（见七） |
 
-> **口径对齐说明**：验收基线 3.8/38 本就出自 **step 9（randrw, verbatim, `--create_on_open=1` 自建文件、不预铺）**，
-> 手动跑的 randwrite/randrw 与脚本 step 8/9 完全等价，结果**可直接对比，可信**。
+> **口径对齐说明**：验收基线 3.8/38 本就出自 **randrw（verbatim, `--create_on_open=1` 自建文件、不预铺）**，
+> 手动跑的 randwrite/randrw 与脚本对应用例完全等价，结果**可直接对比，可信**。
 
 ---
 
@@ -146,13 +146,38 @@ juicefs format --storage ceph --bucket ceph://juicefs-data \
 
 ## 七、脚本修复（bench-juicefs.sh，配合本方向）
 
-实测暴露的 step 10 布局 128GB 超时问题已修复：
+实测暴露的 step 布局 128GB 超时问题已修复，并重排了测试顺序：
 
-- 新增 env `LAYOUT_NUMJOBS`（默认 16）、`LAYOUT_FILESIZE`（默认 1G）
-  → 纯 randread(step10) / 热态 randrw(step9, WARMUP=1) 的**预铺文件**默认降为 16GB（~3min），不再超时。
-- **randread/randrw fio 测试本身仍用硬编码 128 jobs 规格**，`LAYOUT_*` 仅影响文件预铺阶段。
+- **测试顺序重排**：布局（pre-fill）只做**一次**（step 8），紧随其后的纯 randread（step 9）
+  **复用同一批文件**；其余顺序测试（4G 单/多 job）与 randwrite/randrw 均不写满 128GB。
+- **randread 与布局严格对齐**：step 9 randread 的 `--numjobs`/`--filesize`/`--size`
+  引用 `LAYOUT_NUMJOBS`/`LAYOUT_FILESIZE`，与 step 8 布局完全一致 —— 避免「布局调小、randread
+  仍按 128 job 跑」时 `--create_on_open=1` 现建空文件、**读到空洞导致虚高**。
+  `bs/iodepth/direct/time_based` 保持验收规格。
+- 新增 env：
+  - `LAYOUT_NUMJOBS`（**默认 128**，即 128GB 完整口径）、`LAYOUT_FILESIZE`（默认 1G）；
+  - `SKIP_SEQ=1`：跳过顺序测试（step 4-7），只跑布局 + 随机三项，调参迭代省 ~20min。
 - `do_format` ceph 分支已硬编码 `--access-key ceph --secret-key client.juicefs`，
   `STORAGE=ceph bash tests/bench-juicefs.sh` 现可一把跑完。
+
+### 工作流：调参用轻量、定稿用完整
+
+| 阶段 | 配置 | 看什么 | 说明 |
+|------|------|--------|------|
+| 调参迭代 | `SKIP_SEQ=1 LAYOUT_NUMJOBS=16`（+ 挂载 `--cache-size 0`） | `juicefs stats` 并发数 + randread **相对变化** | 快速筛参数（~10min）。⚠️ 251G 内存下 16G 工作集易被 page cache 兜住，必须关 JuiceFS 缓存，否则趋势失真 |
+| 定稿验证 | `LAYOUT_NUMJOBS=128`（verbatim 128G） | randread/randrw **绝对带宽** | 出正式结论、与 3.8 基线对比、报验收数。整轮 ~45-50min |
+
+> ⚠️ **16 ≠ 128 的口径差异**：① 16G 工作集在 251G 内存下可能命中缓存使带宽虚高；
+> ② randread 并发度 16 jobs vs 128 jobs 差 8 倍，瓶颈在客户端并发时带宽显著不同。
+> 故 **16 仅用于看相对趋势，绝对值与正式结论必须用 128 完整重跑**（可能存在 16→128 拐点，不能外推）。
+
+### 预估时长
+
+| 配置 | 时长 |
+|------|------|
+| 完整（SKIP_SEQ=0, LAYOUT=128） | ~45-50min（128G 布局 ~15-20min + 顺序多 job ~20min + 随机三项各 60s + fresh_volume × N 各含 65s 会话过期） |
+| 调参（SKIP_SEQ=1, LAYOUT=128） | ~25-30min（省顺序测试 ~20min，128G 布局仍是大头） |
+| 极速（SKIP_SEQ=1, LAYOUT=16） | ~10min（仅看趋势） |
 
 ---
 

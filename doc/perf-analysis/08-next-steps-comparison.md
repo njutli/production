@@ -337,6 +337,9 @@ CEPH_POOL=juicefs-data STORAGE=ceph bash tests/bench-juicefs.sh norgw
 |------|------|------|
 | `STORAGE=ceph bash tests/bench-juicefs.sh norgw` | 手动 destroy → format → mount → fio，单独跑 randwrite 和 randrw | ① bench 脚本于 `do_format` 的 ceph 分支**缺少 `--access-key ceph --secret-key client.juicefs`**（初次执行报 `Invalid argument`），经多轮 debug 确认 JuiceFS Ceph 后端将 `--access-key` 映射为 Ceph 集群名、`--secret-key` 映射为 Ceph 用户名，已修复脚本并硬编码进 `do_format` ceph 分支；② bench 脚本 step 10（纯 randread）布局阶段需写入 128GB 数据（128 jobs × 1GB），耗时 >20 分钟触发多次超时；而 S3 基线的 3.8/38 口径来自 step 9（randrw），不需预布文件。为对齐口径，手动跑等价操作 |
 
+> 上述两个问题均已修复（认证参数硬编码 + 布局只做一次/randread 复用对齐/`SKIP_SEQ`），
+> 详细数据、分析与脚本工作流见 **`08_1-direction3-result-direct-rados.md`**。
+
 #### 测试结果（STORAGE=ceph，EC 4+2，256k iodepth=128 numjobs=128 direct=1，time_based runtime=60s）
 
 | 用例 | S3 (RGW) 基线 | Direct RADOS | 变化 |
@@ -469,6 +472,12 @@ bash tests/bench-juicefs.sh bluestore-blob512k
 | `EXTRA_FORMAT_OPTS="..."` | 透传给 `juicefs format` 的参数（如 `--max-uploads 40 --compress none`） | **1.4** |
 | `[extra_mount_opts...]`（位置参数） | 透传给 `juicefs mount` 的参数（`--max-downloads/--buffer-size/--prefetch/--cache-*` 等） | **1.1/1.2/1.3/1.5/1.6** |
 | `WARMUP=1` | randread/randrw 前 `juicefs warmup` 预热且**不清缓存**（热态/缓存口径）；默认 `WARMUP=0` 为冷态清缓存真值口径 | **1.6**、历史命令甄别 |
+| `LAYOUT_NUMJOBS`（默认 128）/ `LAYOUT_FILESIZE`（默认 1G） | 纯 randread 的预铺规模；布局**只做一次**、randread 复用且**严格对齐**该维度（避免读空洞）。调参用 `16`（轻量趋势），定稿用 `128`（128G verbatim） | 全部随机用例 |
+| `SKIP_SEQ=1` | 跳过顺序测试（step 4-7），只跑布局 + 随机三项，调参迭代省 ~20min | 调参提速 |
+
+> **测试顺序（2026-06-16 重排）**：顺序读/写（4G）→ 布局一次 → randread（复用布局）→
+> randwrite（fresh_volume）→ randrw（fresh_volume）。其余用例不写满 128GB，仅纯 randread 的布局写 `LAYOUT_NUMJOBS×LAYOUT_FILESIZE`。
+> **调参用轻量（`SKIP_SEQ=1 LAYOUT_NUMJOBS=16` + 挂载 `--cache-size 0` 防缓存兜底），定稿/正式结论用 `LAYOUT_NUMJOBS=128`**（口径差异与拐点风险见 `08_1` 第七节）。
 
 ### 各方向/步骤的可测性对照
 
