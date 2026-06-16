@@ -5,7 +5,22 @@ set -euo pipefail
 # Full cycle: format → mount → fio(seq read/write + pure random read/write) → unmount → destroy
 # 纯随机读/写用验收口径（256k iodepth=128 numjobs=128 direct=1），各自独立，
 # 便于调优时排除互相干扰（随机读调优时不受随机写影响，反之亦然）。
-# Usage: bash tests/bench-juicefs.sh <label> [extra_mount_opts...]
+#
+# Usage:
+#   bash tests/bench-juicefs.sh <label> [extra_mount_opts...]
+#
+# Env vars (for 08 tuning directions):
+#   STORAGE=s3|ceph       后端存储类型（默认 s3，走 RGW；ceph=方向三去 RGW 直连 RADOS）
+#   CEPH_POOL=<pool>      STORAGE=ceph 时的 Ceph 数据池（默认 default.rgw.buckets.data）
+#   EXTRA_FORMAT_OPTS=".."  透传给 `juicefs format` 的额外参数（如 --max-uploads 40 --compress none）
+#   WARMUP=1              在 randread/randrw 前执行 `juicefs warmup` 预热且不清缓存（热态/缓存口径，1.6）
+#
+# 注意：extra_mount_opts 是 *mount* 参数（--max-downloads/--buffer-size/--prefetch...）；
+#       format 期参数（--max-uploads/--compress...）请用 EXTRA_FORMAT_OPTS。
+# 示例：
+#   STORAGE=ceph bash tests/bench-juicefs.sh norgw                  # 方向三：去 RGW 直连 RADOS
+#   EXTRA_FORMAT_OPTS="--compress none" bash tests/bench-juicefs.sh nocompress
+#   WARMUP=1 bash tests/bench-juicefs.sh warm --cache-size 102400   # 1.6 热态/缓存
 # ============================================================
 
 unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY all_proxy ALL_PROXY no_proxy NO_PROXY 2>/dev/null
@@ -18,8 +33,19 @@ source "${PROD_DIR}/.credentials/rgw-juicefs.env"
 LABEL="${1:-baseline}"
 shift || true
 EXTRA_MOUNT_OPTS="$@"
+
+# Tuning knobs (overridable via env)
+STORAGE="${STORAGE:-s3}"
+RADOS_POOL="${RADOS_POOL:-${CEPH_POOL:-default.rgw.buckets.data}}"
+EXTRA_FORMAT_OPTS="${EXTRA_FORMAT_OPTS:-}"
+WARMUP="${WARMUP:-0}"
+
 METADATA_URL="tikv://${PD_ENDPOINTS}/${JUICEFS_FS_NAME}"
-BUCKET_URL="${RGW_ENDPOINT}/${JUICEFS_FS_NAME}"
+if [ "${STORAGE}" = "ceph" ]; then
+    BUCKET_URL="ceph://${RADOS_POOL}"
+else
+    BUCKET_URL="${RGW_ENDPOINT}/${JUICEFS_FS_NAME}"
+fi
 RESULT_DIR="${PROD_DIR}/results"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 RESULT_FILE="${RESULT_DIR}/${TIMESTAMP}-${LABEL}.txt"
@@ -69,23 +95,34 @@ do_cleanup() {
 
 do_format() {
     echo "" | tee -a "${RESULT_FILE}"
-    echo ">>> Formatting JuiceFS..." | tee -a "${RESULT_FILE}"
-    export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
-    export AWS_DEFAULT_REGION=""
+    echo ">>> Formatting JuiceFS (storage=${STORAGE})..." | tee -a "${RESULT_FILE}"
 
-    # Pre-create bucket
-    if command -v aws &>/dev/null; then
-        aws --endpoint-url="${RGW_ENDPOINT}" --no-verify-ssl s3 mb "s3://${JUICEFS_FS_NAME}" 2>/dev/null || true
+    if [ "${STORAGE}" = "ceph" ]; then
+        # 方向三：去 RGW，JuiceFS 直连 RADOS（librados）。无需 bucket/AK/SK。
+        juicefs format \
+            --storage ceph \
+            --bucket "${BUCKET_URL}" \
+            --trash-days 0 \
+            ${EXTRA_FORMAT_OPTS} \
+            "${METADATA_URL}" \
+            "${JUICEFS_FS_NAME}" 2>&1 | tee -a "${RESULT_FILE}"
+    else
+        export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+        export AWS_DEFAULT_REGION=""
+        # Pre-create bucket
+        if command -v aws &>/dev/null; then
+            aws --endpoint-url="${RGW_ENDPOINT}" --no-verify-ssl s3 mb "s3://${JUICEFS_FS_NAME}" 2>/dev/null || true
+        fi
+        juicefs format \
+            --storage s3 \
+            --bucket "${BUCKET_URL}" \
+            --access-key "${AWS_ACCESS_KEY_ID}" \
+            --secret-key "${AWS_SECRET_ACCESS_KEY}" \
+            --trash-days 0 \
+            ${EXTRA_FORMAT_OPTS} \
+            "${METADATA_URL}" \
+            "${JUICEFS_FS_NAME}" 2>&1 | tee -a "${RESULT_FILE}"
     fi
-
-    juicefs format \
-        --storage s3 \
-        --bucket "${BUCKET_URL}" \
-        --access-key "${AWS_ACCESS_KEY_ID}" \
-        --secret-key "${AWS_SECRET_ACCESS_KEY}" \
-        --trash-days 0 \
-        "${METADATA_URL}" \
-        "${JUICEFS_FS_NAME}" 2>&1 | tee -a "${RESULT_FILE}"
     echo "Format OK." | tee -a "${RESULT_FILE}"
 }
 
@@ -108,6 +145,7 @@ do_mount() {
 # (destroy interrupted, async leftovers, etc.) force-empty it before re-format,
 # so a new volume never reuses stale objects. Aborts if it cannot be emptied.
 ensure_bucket_empty() {
+    [ "${STORAGE}" = "ceph" ] && { echo "STORAGE=ceph: no S3 bucket, skip bucket verify (destroy clears RADOS objects)." | tee -a "${RESULT_FILE}"; return 0; }
     command -v aws &>/dev/null || { echo "WARN: aws cli missing, skip bucket verify." | tee -a "${RESULT_FILE}"; return 0; }
     local n
     n=$(aws --endpoint-url="${RGW_ENDPOINT}" --no-verify-ssl \
@@ -139,6 +177,21 @@ fresh_volume() {
     do_format
     do_mount
     mkdir -p "${JUICEFS_MOUNT_POINT}/test_dir"
+}
+
+# Between layout and the random test, set the desired cache state:
+#   WARMUP=1 → hot: `juicefs warmup` preloads test_dir into local cache, caches NOT dropped
+#              (1.6 缓存/warmup 热态口径，测缓存命中上限)
+#   WARMUP=0 → cold: drop OS page cache + JuiceFS read cache so IO hits the backend
+#              (默认真值口径)
+prime_cache_or_drop() {
+    if [ "${WARMUP}" = "1" ]; then
+        echo ">>> WARMUP=1: warming up test_dir into local cache (hot mode, caches kept)..." | tee -a "${RESULT_FILE}"
+        juicefs warmup "${JUICEFS_MOUNT_POINT}/test_dir" 2>&1 | tail -5 | tee -a "${RESULT_FILE}" || true
+    else
+        echo ">>> WARMUP=0: dropping caches (cold mode, backend真值)..." | tee -a "${RESULT_FILE}"
+        drop_caches
+    fi
 }
 
 # ============================================================
@@ -246,12 +299,22 @@ fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
 # 9. Random Read/Write Mixed Test (acceptance spec — verbatim)
 #    符合规格的混合随机读写：验收口径正式用例，参数与规格文档完全一致。
 #    规格用 --create_on_open=1，测试时自建文件，无需预铺设。
+#    WARMUP=1 时：为了让缓存可命中，先铺设文件并 warmup（破坏 verbatim，仅热态口径用）。
 # ============================================================
 echo "" | tee -a "${RESULT_FILE}"
 echo "========================================" | tee -a "${RESULT_FILE}"
 echo "Random Read/Write Mixed Test (acceptance spec, verbatim)" | tee -a "${RESULT_FILE}"
 echo "========================================" | tee -a "${RESULT_FILE}"
 fresh_volume
+if [ "${WARMUP}" = "1" ]; then
+    echo ">>> WARMUP=1: laying out files then warming up before randrw (hot mode)..." | tee -a "${RESULT_FILE}"
+    fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
+        --name=storage_test_layout \
+        --nrfiles=100 --filesize=1G --size=1G --bs=4M \
+        --rw=write --numjobs=128 --fallocate=none --create_on_open=1 \
+        --openfiles=100 --group_reporting --end_fsync=1 2>&1 | tail -5 | tee -a "${RESULT_FILE}"
+    prime_cache_or_drop
+fi
 fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
     --name=storage_test \
     --nrfiles=100 \
@@ -287,8 +350,8 @@ fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
     --nrfiles=100 --filesize=1G --size=1G --bs=4M \
     --rw=write --numjobs=128 --fallocate=none --create_on_open=1 \
     --openfiles=100 --group_reporting --end_fsync=1 2>&1 | tail -5 | tee -a "${RESULT_FILE}"
-# Drop caches so random reads go to backend, not local cache.
-drop_caches
+# Set cache state: WARMUP=1 → warmup (hot); else drop caches (cold backend真值).
+prime_cache_or_drop
 fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
     --name=storage_test \
     --nrfiles=100 \

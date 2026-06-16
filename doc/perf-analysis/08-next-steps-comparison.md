@@ -122,18 +122,19 @@ bash tests/bench-juicefs.sh maxdl512-buf2g \
 bash tests/bench-juicefs.sh maxdl512-buf2g-noprefetch \
     --max-downloads 512 --buffer-size 2048 --prefetch 0
 
-# 1.4：写侧并发
-bash tests/bench-juicefs.sh maxul-tune \
-    --max-uploads 40
+# 1.4：写侧并发（format 期参数走 EXTRA_FORMAT_OPTS）
+EXTRA_FORMAT_OPTS="--max-uploads 40 --compress none" \
+    bash tests/bench-juicefs.sh maxul-tune
 
-# 1.6 旁路（缓存/warmup，三条线全测；需在 randread/randrw 前 warmup 预热测试目录）
-bash tests/bench-juicefs.sh memcache \
+# 1.6 旁路（缓存/warmup，三条线全测）：WARMUP=1 在 randread/randrw 前预热且不清缓存
+WARMUP=1 bash tests/bench-juicefs.sh memcache \
     --cache-dir /dev/shm/jfsCache --cache-size 10240 --cache-partial-only
 ```
 
 > `--max-uploads`/`--compress` 属 **format** 期参数（不是 mount 参数），
-> 需在 `do_format` 中加，验证前先确认 JuiceFS 版本对应参数名
-> （`juicefs format --help` / `juicefs mount --help`）。
+> bench 脚本已支持经 `EXTRA_FORMAT_OPTS` 透传给 `do_format`。
+> 验证前先确认 JuiceFS 版本对应参数名（`juicefs format --help` / `juicefs mount --help`）。
+> 缓存/warmup 用 `WARMUP=1`（脚本在 randread/randrw 前 `juicefs warmup` 且不清缓存）。
 
 #### 方向一收尾判定
 
@@ -182,8 +183,8 @@ juicefs mount -d tikv://127.0.0.1:2379/juicefs-prod /mnt/juicefs \
 # A. 冷态真值：全新空卷 + 清缓存，不加 writeback（fresh_volume + drop_caches 已内置）
 bash tests/bench-juicefs.sh cold-baseline
 
-# B. 热态上限：复现历史命令（大 cache + writeback），同卷/预热后重复读
-bash tests/bench-juicefs.sh warm-cache-writeback \
+# B. 热态上限：复现历史命令（大 cache + writeback），WARMUP=1 预热后重复读
+WARMUP=1 bash tests/bench-juicefs.sh warm-cache-writeback \
     --cache-dir /var/jfsCache --cache-size 102400 --writeback \
     --open-cache 10 --attr-cache 10
 ```
@@ -224,6 +225,12 @@ bash tests/bench-juicefs.sh warm-cache-writeback \
 
 - 若副本在随机场景能逼近硬件天花板（且读写均衡）→ 可作为"放宽规格换性能"的备选方案上报；
 - 若副本随机仍受 Ceph 软件栈限制、收益有限 → 坚持 EC（规格 + 顺序已证 EC 更优）。
+
+### 测试落地
+
+本方向测的是 **CephFS（内核态 `mount -t ceph`），不是 JuiceFS 挂载**，不在 bench-juicefs.sh 职责内。
+需**另写 `tests/bench-cephfs.sh`**（待建）：复用同一套规格 fio 与冷态隔离逻辑，挂载改 CephFS，
+并支持 **EC 池 / 副本池**两种数据池切换，分别跑 randwrite/randread/randrw 三条线对比。
 
 ---
 
@@ -359,8 +366,40 @@ bash tests/bench-juicefs.sh bluestore-blob512k
 > 方向二在"冗余方式对随机的影响"，涉及规格取舍，放最后。
 > 方向四（BlueStore）是**后端并行支线**，与上述三方向正交、可穿插进行，
 > 优先级低（前述同类后端调整多无效，但属未勾选待办，需测一次闭环）。
-> 方向四（BlueStore）是**后端并行支线**，与上述三方向正交、可穿插进行，
-> 优先级低（前述同类后端调整多无效，但属未勾选待办，需测一次闭环）。
+
+## 六、各方向如何用 bench-juicefs.sh 测（能力边界）
+
+> bench 脚本已改造（2026-06-15），通过 **环境变量 + mount 透传参数** 覆盖 JuiceFS 一侧的全部用例。
+> 非 JuiceFS 一侧（CephFS、Ceph 后端）不属本脚本职责，单列说明。
+
+### 脚本新增能力
+
+| 入口 | 作用 | 对应方向 |
+|------|------|---------|
+| `STORAGE=s3\|ceph`（默认 s3） | s3 走 RGW；**ceph=去 RGW 直连 RADOS**（`do_format` 自动切 `--storage ceph --bucket ceph://<pool>`，跳过 bucket/AK/SK/bucket 校验） | **方向三** |
+| `CEPH_POOL=<pool>`（默认 `default.rgw.buckets.data`） | RADOS 数据池名；兼容旧名 `RADOS_POOL` | 方向三 |
+| `EXTRA_FORMAT_OPTS="..."` | 透传给 `juicefs format` 的参数（如 `--max-uploads 40 --compress none`） | **1.4** |
+| `[extra_mount_opts...]`（位置参数） | 透传给 `juicefs mount` 的参数（`--max-downloads/--buffer-size/--prefetch/--cache-*` 等） | **1.1/1.2/1.3/1.5/1.6** |
+| `WARMUP=1` | randread/randrw 前 `juicefs warmup` 预热且**不清缓存**（热态/缓存口径）；默认 `WARMUP=0` 为冷态清缓存真值口径 | **1.6**、历史命令甄别 |
+
+### 各方向/步骤的可测性对照
+
+| 方向/步骤 | 能否用 bench 脚本 | 怎么跑 |
+|----------|-----------------|--------|
+| 1.1 max-downloads | ✅ 直测 | `bash tests/bench-juicefs.sh maxdl512 --max-downloads 512` |
+| 1.2 buffer-size | ✅ 直测 | `... --buffer-size 2048` |
+| 1.3 prefetch | ✅ 直测 | `... --prefetch 0` / `--prefetch 16` |
+| 1.4 max-uploads / compress | ✅ 直测（已加 format 透传） | `EXTRA_FORMAT_OPTS="--max-uploads 40 --compress none" bash tests/bench-juicefs.sh ...` |
+| 1.5 max-readahead 等 mount 参数 | ✅ 直测 | `... --max-readahead 16777216` |
+| 1.6 缓存/warmup（三线全测） | ✅ 直测（已加 WARMUP） | 冷：`bash tests/bench-juicefs.sh cold ...`；热：`WARMUP=1 bash tests/bench-juicefs.sh warm --cache-size 102400` |
+| 历史命令甄别（冷态A / 热态B） | ✅ 直测 | A：默认冷态；B：`WARMUP=1 ... --cache-size 102400 --writeback` |
+| **方向三 去 RGW 直连 RADOS** | ✅ 直测（已加 STORAGE=ceph） | `STORAGE=ceph bash tests/bench-juicefs.sh norgw` |
+| **方向二 CephFS EC vs 副本** | ❌ 不属本脚本 | 是 **CephFS**（内核态，非 JuiceFS 挂载）+ Ceph 池切换；**另写 `tests/bench-cephfs.sh`**（待建） |
+| **方向四 BlueStore 调参** | ➖ 后端先调，再用本脚本看传导 | 在 Ceph 侧 `ceph config set` + `rados bench`（见方向四"具体操作"）；调完后照常 `bash tests/bench-juicefs.sh bluestore-xxx` 看是否传导到 JuiceFS |
+
+> 结论：**JuiceFS 一侧（方向一全部 + 方向三）现在都能用 bench-juicefs.sh 一条命令跑全量三条线**；
+> **方向二 CephFS** 需另起 `tests/bench-cephfs.sh`（同样的规格 fio + 冷态隔离，挂载换成 `mount -t ceph`，
+> 并增加 EC/副本两种池的切换）；**方向四** 的调参动作在 Ceph 后端，本脚本只承担"看传导"的下游验证。
 
 ### 不再尝试（已排除）
 
