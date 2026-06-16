@@ -99,10 +99,12 @@ JuiceFS 既然被广泛使用，必有其设计取舍（面向**大文件/顺序
 | **1.3** | `--prefetch` 两端各测：`--prefetch=0`（关）与 `--prefetch=8/16`（加大） | 随机读下默认 prefetch=1 会对每个 256k 读放大整 4MB block（2-3×，qwen 定量）。**先测关闭**看是否去掉放大收益；若 randread 是"块内多次命中"则**加大**反而好。两端都测 | 关闭：底层 object 带宽下降但有效 IOPS 升 → 读放大是部分主因；加大无改善则确认放大非主因（与 block-size 无效一致） | DeepSeek 文章1 / qwen |
 | **1.4** | 写侧 `--max-uploads`（默认 20→上调）+ 关压缩（format `--compress none`，确认已是）+ `--writeback` 仅用于"验收前台值"场景 | 随机写已 38 接近 59，提 upload 并发或可补到 59；writeback 只提前台值不代表后端真值，验收/真值两套挂载分别记录 | randwrite/randrw 写带宽升向 59；writeback 下前台明显升（标注"前台值"） | DeepSeek 文章3 |
 | **1.5** | FUSE 侧：`--max-readahead`、挂载 `-o max_read` 调大；`--open-cache` 留意（元数据缓存对本 workload 无效，`07` 已证 TiKV 仅 1ms） | 增大 FUSE 单次读窗口，减少 FUSE 层往返次数 | randread 小幅提升；若无效则确认 FUSE 单次往返不是主因 | DeepSeek 文章1 |
-| **1.6（旁路，仅纯 randread 支线）** | warmup 预热 + tmpfs `--cache-dir` + `--cache-partial-only` | randrw 缓存命中率极低（已验证），但**纯 randread** 命中后 IOPS 可达 12000+（qwen 定量 8→12000）。验证"若验收允许缓存"的理论上限 | 纯 randread 在预热后大幅跳升；randrw 基本无变化（预期，用于佐证缓存对验收口径无效） | GLM 文章2/3 / GPT #2 / qwen |
+| **1.6（旁路，缓存/warmup，三条线全测）** | warmup 预热 + tmpfs/大盘 `--cache-dir` + `--cache-partial-only` | 既然要量化预热缓存的影响，就**对 randwrite / randread / randrw 三条线都测**，分别看缓存对写、读、混合的作用，而非只测纯读。`07` 定量：纯随机读命中后 IOPS 可达 12000+（qwen 8→12000）；randrw 历史上命中率极低（去 `--direct=1` 仍 3.7 vs 3.8），预热后是否仍成立要实测验证 | 纯 randread 预热后大幅跳升；randrw 验证是否仍基本无变化（若确无变化→佐证缓存对验收口径无效；若有提升→需重估）；randwrite 看 writeback/缓存对写的贡献 | GLM 文章2/3 / GPT #2 / qwen |
 
 > 注：所有"组合"以 1.1+1.2 为基线优先验证（单客户端并发是最贴合根因的杠杆），
-> 1.3 在其上做加/减两端探测，1.4 单独管写侧，1.5/1.6 为补充与旁路。
+> 1.3 在其上做加/减两端探测，1.4 单独管写侧，1.5 为补充。
+> 1.6 是缓存/warmup 旁路，**对 randwrite/randread/randrw 三条线全测**
+> （warmup 需在跑 randread/randrw 前对测试目录预热）。
 
 #### 执行方式（落到 bench 脚本）
 
@@ -124,7 +126,7 @@ bash tests/bench-juicefs.sh maxdl512-buf2g-noprefetch \
 bash tests/bench-juicefs.sh maxul-tune \
     --max-uploads 40
 
-# 1.6 旁路（仅纯 randread 支线，需配合 warmup，单独评估）
+# 1.6 旁路（缓存/warmup，三条线全测；需在 randread/randrw 前 warmup 预热测试目录）
 bash tests/bench-juicefs.sh memcache \
     --cache-dir /dev/shm/jfsCache --cache-size 10240 --cache-partial-only
 ```
@@ -139,9 +141,11 @@ bash tests/bench-juicefs.sh memcache \
    - 逼近/超过 CephFS 13.9 → JuiceFS 配置确有红利，继续逼近 59；
    - 仍 ~3.8 量级无明显改善 → 单客户端 FUSE+S3 路径是硬伤，**转方向三（去 RGW 直连 RADOS）**，
      并把 CephFS 作为正式备选上报。
-2. 纯 randread 支线（1.6）若证明"缓存命中后可达数千 IOPS"，则向上层确认
-   **验收是否允许预热/缓存**——若允许，warmup 是达标捷径；若不允许（randrw 冷读），
-   则缓存方向作废，回到并发/去 RGW 主线。
+2. 缓存/warmup 旁路（1.6，三条线全测）：
+   - 若纯 randread 预热后达数千 IOPS，且 randrw 也随之提升 → 缓存对验收口径有效，向上层确认
+     **验收是否允许预热/缓存**；若允许，warmup 是达标捷径；
+   - 若 randrw 预热后仍基本无变化（佐证 `07` 结论）→ 缓存对验收口径（冷读 randrw）无效，
+     回到并发/去 RGW 主线。
 
 #### 待甄别样本：一条"测出过提升"的历史挂载命令（记不清冷热，需重跑）
 
