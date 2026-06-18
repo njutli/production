@@ -18,6 +18,11 @@ set -euo pipefail
 #   LAYOUT_FILESIZE=1G       上述预铺每文件大小（默认 1G）
 #   SKIP_SEQ=1               跳过顺序测试（step4-7），只跑布局+随机三项（调参迭代省 ~20min）
 #   REPEAT=N                 每个随机项重复跑 N 次（默认 5），取多次以排除单次波动。
+#   SKIP_RANDWRITE=1         跳过随机写/混合项（step 9a/9b/10/11），只跑纯 randread（step 9）
+#   SKIP_LAYOUT=1            跳过 destroy/format/mount/layout（step 1-8），直接在已挂载、已有布局数据的卷上跑
+#                             随机读/分析写/混合读写（step 9/9a/9b），结束时不下卷不销毁。与 SKIP_SEQ/SKIP_RANDWRITE 可组合。
+#   DO_LAYOUT_ONLY=1          仅建卷+布局后退出、不下卷不销毁。配合 SKIP_SEQ=1 跳过顺序测试，
+#                             用于"建一个有 layout 的卷保留供后续 SKIP_LAYOUT=1 复用"。
 #                            复用布局的项（randread/9a/9b）每次仅 +~60s；fresh_volume 项
 #                            （纯 randwrite/randrw）每次重建卷+65s会话等待，成本较高。
 #
@@ -57,6 +62,17 @@ LAYOUT_FILESIZE="${LAYOUT_FILESIZE:-1G}"
 SKIP_SEQ="${SKIP_SEQ:-0}"
 # REPEAT=N 每个随机项重复跑 N 次（默认 5），取多次平均/中位以排除单次波动（randrw 读方差大）。
 REPEAT="${REPEAT:-5}"
+# SKIP_RANDWRITE=1 跳过随机写/混合项（step 9a/9b/10/11），只跑纯 randread（step 9）。
+# 用于只看随机读的场景（如 2A EC-vs-副本对照）。
+SKIP_RANDWRITE="${SKIP_RANDWRITE:-0}"
+
+# SKIP_LAYOUT=1 跳过 destroy/format/mount/layout（step 1-8），直接在已挂载的卷上跑随机读/分析写/混
+# 合读写（step 9/9a/9b），结束时不下卷不销毁。用于"layout 一次、反复测"的场景。
+SKIP_LAYOUT="${SKIP_LAYOUT:-0}"
+
+# DO_LAYOUT_ONLY=1 执行到 layout 完成后直接退出、不下卷不销毁。与 SKIP_SEQ=1 配合使用，
+# 用于"建一个有 layout 数据的卷并保留供后续 SKIP_LAYOUT=1 复用"的场景。
+DO_LAYOUT_ONLY="${DO_LAYOUT_ONLY:-0}"
 
 METADATA_URL="tikv://${PD_ENDPOINTS}/${JUICEFS_FS_NAME}"
 if [ "${STORAGE}" = "ceph" ]; then
@@ -227,6 +243,13 @@ echo "========================================" | tee -a "${RESULT_FILE}"
 echo "" | tee -a "${RESULT_FILE}"
 
 # ============================================================
+# Gate: SKIP_LAYOUT=1 → skip destroy/format/mount/layout, go to randread directly
+# ============================================================
+if [ "${SKIP_LAYOUT}" = "1" ]; then
+    echo ">>> SKIP_LAYOUT=1: reusing existing volume + layout, jumping to randread (step 9)." | tee -a "${RESULT_FILE}"
+else
+
+# ============================================================
 # 1. Destroy any leftover (clean start)
 # ============================================================
 echo ">>> Destroying any previous volume..." | tee -a "${RESULT_FILE}"
@@ -319,6 +342,15 @@ fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
     --rw=write --numjobs="${LAYOUT_NUMJOBS}" --fallocate=none \
     --group_reporting --end_fsync=1 2>&1 | tee -a "${RESULT_FILE}"
 
+# Gate: DO_LAYOUT_ONLY=1 → layout done, exit (volume preserved for SKIP_LAYOUT=1 reuse)
+if [ "${DO_LAYOUT_ONLY}" = "1" ]; then
+    echo "" | tee -a "${RESULT_FILE}"
+    echo ">>> DO_LAYOUT_ONLY=1: layout complete, exiting (volume preserved). Reuse with SKIP_LAYOUT=1." | tee -a "${RESULT_FILE}"
+    exit 0
+fi
+
+fi   # end SKIP_LAYOUT=0 block (steps 1-8)
+
 # ============================================================
 # 9. Random Read Test (pure, acceptance spec)
 #    复用步骤 8 布局的文件（同 --name/--numjobs/--filesize）。
@@ -348,6 +380,20 @@ fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
     --time_based \
     --runtime=60s 2>&1 | tee -a "${RESULT_FILE}"
 done
+
+# ============================================================
+# Gate: SKIP_RANDWRITE=1 → skip all random write/rw steps
+# ============================================================
+if [ "${SKIP_RANDWRITE}" = "1" ]; then
+    echo "" | tee -a "${RESULT_FILE}"
+    if [ "${SKIP_LAYOUT}" = "1" ]; then
+        echo ">>> SKIP_RANDWRITE=1 SKIP_LAYOUT=1: skipping random write/rw tests, exiting (volume preserved)." | tee -a "${RESULT_FILE}"
+        exit 0
+    fi
+    echo ">>> SKIP_RANDWRITE=1: skipping random write/rw tests (step 9a-11), going to cleanup." | tee -a "${RESULT_FILE}"
+    do_cleanup
+    exit 0
+fi
 
 # ============================================================
 # 9a. Pure Random Write (analysis, reuse layout files)
@@ -406,6 +452,15 @@ fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
     --time_based \
     --runtime=60s 2>&1 | tee -a "${RESULT_FILE}"
 done
+
+# ============================================================
+# Gate: SKIP_LAYOUT=1 → skip spec randwrite/randrw (need fresh volume) + skip cleanup (preserve volume)
+# ============================================================
+if [ "${SKIP_LAYOUT}" = "1" ]; then
+    echo "" | tee -a "${RESULT_FILE}"
+    echo ">>> SKIP_LAYOUT=1: skipping spec randwrite/randrw (step 10-11, require fresh volume), exiting (volume preserved)." | tee -a "${RESULT_FILE}"
+    exit 0
+fi
 
 # ============================================================
 # 10. Random Write Test (pure, acceptance spec)
