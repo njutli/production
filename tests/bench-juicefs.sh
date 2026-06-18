@@ -17,6 +17,9 @@ set -euo pipefail
 #   LAYOUT_NUMJOBS           纯 randread(step9) 预铺文件的 job 数（默认 128，一次写入 128GB）
 #   LAYOUT_FILESIZE=1G       上述预铺每文件大小（默认 1G）
 #   SKIP_SEQ=1               跳过顺序测试（step4-7），只跑布局+随机三项（调参迭代省 ~20min）
+#   REPEAT=N                 每个随机项重复跑 N 次（默认 5），取多次以排除单次波动。
+#                            复用布局的项（randread/9a/9b）每次仅 +~60s；fresh_volume 项
+#                            （纯 randwrite/randrw）每次重建卷+65s会话等待，成本较高。
 #
 # 注意：布局只做一次，randread 复用同一批文件（同 --name=storage_test）；
 #       randwrite/randrw 通过 fresh_volume 隔开，不共享布局数据。
@@ -52,6 +55,8 @@ LAYOUT_FILESIZE="${LAYOUT_FILESIZE:-1G}"
 # SKIP_SEQ=1 跳过顺序测试（step4-7，单/多job 顺序读写），只跑布局 + 随机三项，
 # 用于调参迭代时省掉约 20min 顺序测试时间（仅关心随机读写）。
 SKIP_SEQ="${SKIP_SEQ:-0}"
+# REPEAT=N 每个随机项重复跑 N 次（默认 5），取多次平均/中位以排除单次波动（randrw 读方差大）。
+REPEAT="${REPEAT:-5}"
 
 METADATA_URL="tikv://${PD_ENDPOINTS}/${JUICEFS_FS_NAME}"
 if [ "${STORAGE}" = "ceph" ]; then
@@ -295,8 +300,12 @@ fi
 
 # ============================================================
 # 8. Layout (pre-fill data for randread — once)
-#    一次性写入 LAYOUT_NUMJOBS × LAYOUT_FILESIZE 的数据，
-#    步骤 10 randread 复用这批文件（同 --name=storage_test）。
+#    一次性写入 LAYOUT_NUMJOBS × LAYOUT_FILESIZE 的数据（每 job 一个独立文件）。
+#    步骤 9 randread 复用这批文件（同 --name=storage_test，同 numjobs/filesize）。
+#    关键：纯 randread 必须读到这里铺好的真实数据，因此：
+#      - 布局不用 --create_on_open（文件实打实建出来），不用 --nrfiles（避免 1G 被拆成
+#        100 个 10MB 小文件，与 randread 的文件模型对不齐导致 short read 空转）；
+#      - 每 job 一个 --filesize 的文件，randread 用同样的 job/filesize 打开它们读。
 # ============================================================
 echo "" | tee -a "${RESULT_FILE}"
 echo "========================================" | tee -a "${RESULT_FILE}"
@@ -306,25 +315,26 @@ rm -rf "${JUICEFS_MOUNT_POINT}/test_dir"
 mkdir -p "${JUICEFS_MOUNT_POINT}/test_dir"
 fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
     --name=storage_test \
-    --nrfiles=100 --filesize="${LAYOUT_FILESIZE}" --size="${LAYOUT_FILESIZE}" --bs=4M \
-    --rw=write --numjobs="${LAYOUT_NUMJOBS}" --fallocate=none --create_on_open=1 \
-    --openfiles=100 --group_reporting --end_fsync=1 2>&1 | tee -a "${RESULT_FILE}"
+    --filesize="${LAYOUT_FILESIZE}" --size="${LAYOUT_FILESIZE}" --bs=4M \
+    --rw=write --numjobs="${LAYOUT_NUMJOBS}" --fallocate=none \
+    --group_reporting --end_fsync=1 2>&1 | tee -a "${RESULT_FILE}"
 
 # ============================================================
 # 9. Random Read Test (pure, acceptance spec)
-#    复用步骤 8 布局的文件（同 --name=storage_test），不需 fresh_volume。
-#    --filesize/--size/--numjobs 与步骤 8 的 LAYOUT_FILESIZE/LAYOUT_NUMJOBS 严格对齐，
-#    bs/iodepth/direct/time_based 保持验收规格。
+#    复用步骤 8 布局的文件（同 --name/--numjobs/--filesize）。
+#    无 --create_on_open（文件已存在，只读不建）、无 --nrfiles，确保不再 short read 空转。
+#    bs=256k/iodepth=128/direct=1/time_based 保持验收规格。
 #    仅 drop_caches（或 WARMUP=1 时 warmup），直接跑 randread。
+#    重复 REPEAT 次（复用布局，每次仅 +~60s），排除单次波动。
 # ============================================================
+for i in $(seq 1 "${REPEAT}"); do
 echo "" | tee -a "${RESULT_FILE}"
 echo "========================================" | tee -a "${RESULT_FILE}"
-echo "Random Read Test (pure, spec params, rw=randread, ${LAYOUT_NUMJOBS} jobs × ${LAYOUT_FILESIZE})" | tee -a "${RESULT_FILE}"
+echo "Random Read Test (pure, spec params, rw=randread, ${LAYOUT_NUMJOBS} jobs × ${LAYOUT_FILESIZE}) [run ${i}/${REPEAT}]" | tee -a "${RESULT_FILE}"
 echo "========================================" | tee -a "${RESULT_FILE}"
 prime_cache_or_drop
 fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
     --name=storage_test \
-    --nrfiles=100 \
     --filesize="${LAYOUT_FILESIZE}" \
     --size="${LAYOUT_FILESIZE}" \
     --bs=256k \
@@ -334,19 +344,78 @@ fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
     --numjobs="${LAYOUT_NUMJOBS}" \
     --direct=1 \
     --fallocate=none \
-    --create_on_open=1 \
+    --group_reporting \
+    --time_based \
+    --runtime=60s 2>&1 | tee -a "${RESULT_FILE}"
+done
+
+# ============================================================
+# 9a. Pure Random Write (analysis, reuse layout files)
+#    复用步骤 8 布局文件，不 fresh_volume、不 --create_on_open。
+#    目的：隔离文件创建开销，测量已有数据上的纯稳态随机写。
+#    重复 REPEAT 次。
+# ============================================================
+for i in $(seq 1 "${REPEAT}"); do
+echo "" | tee -a "${RESULT_FILE}"
+echo "========================================" | tee -a "${RESULT_FILE}"
+echo "Random Write Test (analysis, reuse layout, rw=randwrite, ${LAYOUT_NUMJOBS} jobs) [run ${i}/${REPEAT}]" | tee -a "${RESULT_FILE}"
+echo "========================================" | tee -a "${RESULT_FILE}"
+prime_cache_or_drop
+fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
+    --name=storage_test \
+    --filesize="${LAYOUT_FILESIZE}" \
+    --size="${LAYOUT_FILESIZE}" \
+    --bs=256k \
+    --rw=randwrite \
+    --ioengine=libaio \
+    --iodepth=128 \
+    --numjobs="${LAYOUT_NUMJOBS}" \
+    --direct=1 \
+    --fallocate=none \
     --openfiles=100 \
     --group_reporting \
     --time_based \
     --runtime=60s 2>&1 | tee -a "${RESULT_FILE}"
+done
+
+# ============================================================
+# 9b. Random Read/Write Mixed (analysis, reuse layout files)
+#    复用步骤 8 布局文件，不 fresh_volume、不 --create_on_open、不 --nrfiles。
+#    目的：消除"读打到零数据区"的偏差，读写全在已有真实数据上进行。
+#    重复 REPEAT 次。
+# ============================================================
+for i in $(seq 1 "${REPEAT}"); do
+echo "" | tee -a "${RESULT_FILE}"
+echo "========================================" | tee -a "${RESULT_FILE}"
+echo "Random Read/Write Mixed Test (analysis, reuse layout, rw=randrw, ${LAYOUT_NUMJOBS} jobs) [run ${i}/${REPEAT}]" | tee -a "${RESULT_FILE}"
+echo "========================================" | tee -a "${RESULT_FILE}"
+prime_cache_or_drop
+fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
+    --name=storage_test \
+    --filesize="${LAYOUT_FILESIZE}" \
+    --size="${LAYOUT_FILESIZE}" \
+    --bs=256k \
+    --rw=randrw \
+    --ioengine=libaio \
+    --iodepth=128 \
+    --numjobs="${LAYOUT_NUMJOBS}" \
+    --direct=1 \
+    --fallocate=none \
+    --openfiles=100 \
+    --group_reporting \
+    --time_based \
+    --runtime=60s 2>&1 | tee -a "${RESULT_FILE}"
+done
 
 # ============================================================
 # 10. Random Write Test (pure, acceptance spec)
 #    纯随机写：fresh_volume 建新卷，--create_on_open=1 自建文件。
+#    重复 REPEAT 次；每次都 fresh_volume，确保每次都在全新空卷上测（成本较高）。
 # ============================================================
+for i in $(seq 1 "${REPEAT}"); do
 echo "" | tee -a "${RESULT_FILE}"
 echo "========================================" | tee -a "${RESULT_FILE}"
-echo "Random Write Test (pure, spec params, rw=randwrite)" | tee -a "${RESULT_FILE}"
+echo "Random Write Test (pure, spec params, rw=randwrite) [run ${i}/${REPEAT}]" | tee -a "${RESULT_FILE}"
 echo "========================================" | tee -a "${RESULT_FILE}"
 fresh_volume
 fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
@@ -366,15 +435,18 @@ fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
     --group_reporting \
     --time_based \
     --runtime=60s 2>&1 | tee -a "${RESULT_FILE}"
+done
 
 # ============================================================
 # 11. Random Read/Write Mixed Test (acceptance spec — verbatim)
 #    符合规格的混合随机读写：fresh_volume + --create_on_open=1 自建文件。
 #    WARMUP=1 时：先在小布局上 warmup（仅热态口径用）。
+#    重复 REPEAT 次；每次都 fresh_volume，确保每次都在全新空卷上测（成本较高）。
 # ============================================================
+for i in $(seq 1 "${REPEAT}"); do
 echo "" | tee -a "${RESULT_FILE}"
 echo "========================================" | tee -a "${RESULT_FILE}"
-echo "Random Read/Write Mixed Test (acceptance spec, verbatim)" | tee -a "${RESULT_FILE}"
+echo "Random Read/Write Mixed Test (acceptance spec, verbatim) [run ${i}/${REPEAT}]" | tee -a "${RESULT_FILE}"
 echo "========================================" | tee -a "${RESULT_FILE}"
 fresh_volume
 if [ "${WARMUP}" = "1" ]; then
@@ -403,6 +475,7 @@ fio --directory="${JUICEFS_MOUNT_POINT}/test_dir" \
     --group_reporting \
     --time_based \
     --runtime=60s 2>&1 | tee -a "${RESULT_FILE}"
+done
 
 # ============================================================
 # 12. Cleanup + Destroy

@@ -1,0 +1,119 @@
+============================================================
+256K block-size parameter sweep
+Date: Thu Jun 18 10:16:48 CST 2026  layout=32x1G  runtime=60s
+============================================================
+>>> Formatting 256K ceph-direct volume...
+  "DirStats": true,
+  "EnableACL": false
+} [format@format.go:564]
+2026/06/18 10:17:27.918683 juicefs[1204371] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/06/18 10:17:28.423740 juicefs[1204371] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+>>> Layout: 32 jobs x 1G ...
+storage_test: (groupid=0, jobs=32): err= 0: pid=1204612: Thu Jun 18 10:23:29 2026
+  WRITE: bw=91.7MiB/s (96.1MB/s), 91.7MiB/s-91.7MiB/s (96.1MB/s-96.1MB/s), io=32.0GiB (34.4GB), run=357352-357352msec
+
+========================================================
+### Part 1: Read-side parameters ###
+
+========================================================
+PARAM: baseline  opts: 
+2026/06/18 10:23:35.266391 juicefs[1207408] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/06/18 10:23:35.771085 juicefs[1207408] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+--- randread ---
+  randread:    READ: bw=30.7MiB/s (32.2MB/s), 30.7MiB/s-30.7MiB/s (32.2MB/s-32.2MB/s), io=1848MiB (1938MB), run=60197-60197msec
+--- randwrite (analysis) ---
+  randwrite:   WRITE: bw=99.8MiB/s (105MB/s), 99.8MiB/s-99.8MiB/s (105MB/s-105MB/s), io=6002MiB (6294MB), run=60119-60119msec
+--- randrw (analysis) ---
+  randrw read:     READ: bw=21.4MiB/s (22.5MB/s), 21.4MiB/s-21.4MiB/s (22.5MB/s-22.5MB/s), io=1297MiB (1359MB), run=60504-60504msec
+  randrw write:   WRITE: bw=20.6MiB/s (21.6MB/s), 20.6MiB/s-20.6MiB/s (21.6MB/s-21.6MB/s), io=1247MiB (1308MB), run=60504-60504msec
+SUMMARY baseline | rr=   READ: bw=30.7MiB/s (32.2MB/s), 30.7MiB/s-30.7MiB/s (32.2MB/s-32.2MB/s), io=1848MiB (1938MB), run=60197-60197msec | rw=  WRITE: bw=99.8MiB/s (105MB/s), 99.8MiB/s-99.8MiB/s (105MB/s-105MB/s), io=6002MiB (6294MB), run=60119-60119msec | rrwR=   READ: bw=21.4MiB/s (22.5MB/s), 21.4MiB/s-21.4MiB/s (22.5MB/s-22.5MB/s), io=1297MiB (1359MB), run=60504-60504msec | rrwW=  WRITE: bw=20.6MiB/s (21.6MB/s), 20.6MiB/s-20.6MiB/s (21.6MB/s-21.6MB/s), io=1247MiB (1308MB), run=60504-60504msec
+
+========================================================
+PARAM: buf2g  opts: --buffer-size 2048
+2026/06/18 10:26:54.332764 juicefs[1209460] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/06/18 10:26:54.838932 juicefs[1209460] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+--- randread ---
+  randread:    READ: bw=29.1MiB/s (30.5MB/s), 29.1MiB/s-29.1MiB/s (30.5MB/s-30.5MB/s), io=1749MiB (1834MB), run=60209-60209msec
+--- randwrite (analysis) ---
+  randwrite:   WRITE: bw=157MiB/s (165MB/s), 157MiB/s-157MiB/s (165MB/s-165MB/s), io=9454MiB (9913MB), run=60119-60119msec
+--- randrw (analysis) ---
+  randrw read:     READ: bw=19.8MiB/s (20.8MB/s), 19.8MiB/s-19.8MiB/s (20.8MB/s-20.8MB/s), io=1197MiB (1255MB), run=60375-60375msec
+  randrw write:   WRITE: bw=19.1MiB/s (20.0MB/s), 19.1MiB/s-19.1MiB/s (20.0MB/s-20.0MB/s), io=1154MiB (1210MB), run=60375-60375msec
+SUMMARY buf2g | rr=   READ: bw=29.1MiB/s (30.5MB/s), 29.1MiB/s-29.1MiB/s (30.5MB/s-30.5MB/s), io=1749MiB (1834MB), run=60209-60209msec | rw=  WRITE: bw=157MiB/s (165MB/s), 157MiB/s-157MiB/s (165MB/s-165MB/s), io=9454MiB (9913MB), run=60119-60119msec | rrwR=   READ: bw=19.8MiB/s (20.8MB/s), 19.8MiB/s-19.8MiB/s (20.8MB/s-20.8MB/s), io=1197MiB (1255MB), run=60375-60375msec | rrwW=  WRITE: bw=19.1MiB/s (20.0MB/s), 19.1MiB/s-19.1MiB/s (20.0MB/s-20.0MB/s), io=1154MiB (1210MB), run=60375-60375msec
+
+========================================================
+PARAM: prefetch0  opts: --prefetch 0
+2026/06/18 10:31:05.836346 juicefs[1211725] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/06/18 10:31:06.341780 juicefs[1211725] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+--- randread ---
+  randread:    READ: bw=29.8MiB/s (31.3MB/s), 29.8MiB/s-29.8MiB/s (31.3MB/s-31.3MB/s), io=1797MiB (1884MB), run=60194-60194msec
+--- randwrite (analysis) ---
+  randwrite:   WRITE: bw=94.7MiB/s (99.3MB/s), 94.7MiB/s-94.7MiB/s (99.3MB/s-99.3MB/s), io=5694MiB (5970MB), run=60101-60101msec
+--- randrw (analysis) ---
+  randrw read:     READ: bw=23.1MiB/s (24.2MB/s), 23.1MiB/s-23.1MiB/s (24.2MB/s-24.2MB/s), io=1394MiB (1461MB), run=60326-60326msec
+  randrw write:   WRITE: bw=22.2MiB/s (23.3MB/s), 22.2MiB/s-22.2MiB/s (23.3MB/s-23.3MB/s), io=1342MiB (1407MB), run=60326-60326msec
+SUMMARY prefetch0 | rr=   READ: bw=29.8MiB/s (31.3MB/s), 29.8MiB/s-29.8MiB/s (31.3MB/s-31.3MB/s), io=1797MiB (1884MB), run=60194-60194msec | rw=  WRITE: bw=94.7MiB/s (99.3MB/s), 94.7MiB/s-94.7MiB/s (99.3MB/s-99.3MB/s), io=5694MiB (5970MB), run=60101-60101msec | rrwR=   READ: bw=23.1MiB/s (24.2MB/s), 23.1MiB/s-23.1MiB/s (24.2MB/s-24.2MB/s), io=1394MiB (1461MB), run=60326-60326msec | rrwW=  WRITE: bw=22.2MiB/s (23.3MB/s), 22.2MiB/s-22.2MiB/s (23.3MB/s-23.3MB/s), io=1342MiB (1407MB), run=60326-60326msec
+
+========================================================
+PARAM: prefetch16  opts: --prefetch 16
+2026/06/18 10:34:29.586629 juicefs[1213703] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/06/18 10:34:30.092881 juicefs[1213703] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+--- randread ---
+  randread:    READ: bw=29.7MiB/s (31.1MB/s), 29.7MiB/s-29.7MiB/s (31.1MB/s-31.1MB/s), io=1788MiB (1875MB), run=60210-60210msec
+--- randwrite (analysis) ---
+  randwrite:   WRITE: bw=97.9MiB/s (103MB/s), 97.9MiB/s-97.9MiB/s (103MB/s-103MB/s), io=5892MiB (6178MB), run=60171-60171msec
+--- randrw (analysis) ---
+  randrw read:     READ: bw=23.4MiB/s (24.6MB/s), 23.4MiB/s-23.4MiB/s (24.6MB/s-24.6MB/s), io=1417MiB (1485MB), run=60435-60435msec
+  randrw write:   WRITE: bw=22.6MiB/s (23.7MB/s), 22.6MiB/s-22.6MiB/s (23.7MB/s-23.7MB/s), io=1364MiB (1430MB), run=60435-60435msec
+SUMMARY prefetch16 | rr=   READ: bw=29.7MiB/s (31.1MB/s), 29.7MiB/s-29.7MiB/s (31.1MB/s-31.1MB/s), io=1788MiB (1875MB), run=60210-60210msec | rw=  WRITE: bw=97.9MiB/s (103MB/s), 97.9MiB/s-97.9MiB/s (103MB/s-103MB/s), io=5892MiB (6178MB), run=60171-60171msec | rrwR=   READ: bw=23.4MiB/s (24.6MB/s), 23.4MiB/s-23.4MiB/s (24.6MB/s-24.6MB/s), io=1417MiB (1485MB), run=60435-60435msec | rrwW=  WRITE: bw=22.6MiB/s (23.7MB/s), 22.6MiB/s-22.6MiB/s (23.7MB/s-23.7MB/s), io=1364MiB (1430MB), run=60435-60435msec
+
+========================================================
+PARAM: buf2g-prefetch16  opts: --buffer-size 2048 --prefetch 16
+2026/06/18 10:37:52.666088 juicefs[1215728] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/06/18 10:37:53.173158 juicefs[1215728] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+--- randread ---
+  randread:    READ: bw=28.9MiB/s (30.3MB/s), 28.9MiB/s-28.9MiB/s (30.3MB/s-30.3MB/s), io=1742MiB (1827MB), run=60265-60265msec
+--- randwrite (analysis) ---
+  randwrite:   WRITE: bw=139MiB/s (145MB/s), 139MiB/s-139MiB/s (145MB/s-145MB/s), io=8331MiB (8736MB), run=60052-60052msec
+--- randrw (analysis) ---
+  randrw read:     READ: bw=20.4MiB/s (21.4MB/s), 20.4MiB/s-20.4MiB/s (21.4MB/s-21.4MB/s), io=1232MiB (1292MB), run=60330-60330msec
+  randrw write:   WRITE: bw=19.6MiB/s (20.5MB/s), 19.6MiB/s-19.6MiB/s (20.5MB/s-20.5MB/s), io=1181MiB (1239MB), run=60330-60330msec
+SUMMARY buf2g-prefetch16 | rr=   READ: bw=28.9MiB/s (30.3MB/s), 28.9MiB/s-28.9MiB/s (30.3MB/s-30.3MB/s), io=1742MiB (1827MB), run=60265-60265msec | rw=  WRITE: bw=139MiB/s (145MB/s), 139MiB/s-139MiB/s (145MB/s-145MB/s), io=8331MiB (8736MB), run=60052-60052msec | rrwR=   READ: bw=20.4MiB/s (21.4MB/s), 20.4MiB/s-20.4MiB/s (21.4MB/s-21.4MB/s), io=1232MiB (1292MB), run=60330-60330msec | rrwW=  WRITE: bw=19.6MiB/s (20.5MB/s), 19.6MiB/s-19.6MiB/s (20.5MB/s-20.5MB/s), io=1181MiB (1239MB), run=60330-60330msec
+
+========================================================
+PARAM: readahead  opts: --buffer-size 2048 --max-readahead 512
+2026/06/18 10:42:04.051736 juicefs[1218018] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/06/18 10:42:04.559533 juicefs[1218018] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+--- randread ---
+  randread:    READ: bw=30.4MiB/s (31.9MB/s), 30.4MiB/s-30.4MiB/s (31.9MB/s-31.9MB/s), io=1833MiB (1922MB), run=60186-60186msec
+--- randwrite (analysis) ---
+  randwrite:   WRITE: bw=133MiB/s (139MB/s), 133MiB/s-133MiB/s (139MB/s-139MB/s), io=7977MiB (8365MB), run=60061-60061msec
+--- randrw (analysis) ---
+  randrw read:     READ: bw=21.9MiB/s (22.9MB/s), 21.9MiB/s-21.9MiB/s (22.9MB/s-22.9MB/s), io=1321MiB (1385MB), run=60392-60392msec
+  randrw write:   WRITE: bw=21.1MiB/s (22.1MB/s), 21.1MiB/s-21.1MiB/s (22.1MB/s-22.1MB/s), io=1273MiB (1335MB), run=60392-60392msec
+SUMMARY readahead | rr=   READ: bw=30.4MiB/s (31.9MB/s), 30.4MiB/s-30.4MiB/s (31.9MB/s-31.9MB/s), io=1833MiB (1922MB), run=60186-60186msec | rw=  WRITE: bw=133MiB/s (139MB/s), 133MiB/s-133MiB/s (139MB/s-139MB/s), io=7977MiB (8365MB), run=60061-60061msec | rrwR=   READ: bw=21.9MiB/s (22.9MB/s), 21.9MiB/s-21.9MiB/s (22.9MB/s-22.9MB/s), io=1321MiB (1385MB), run=60392-60392msec | rrwW=  WRITE: bw=21.1MiB/s (22.1MB/s), 21.1MiB/s-21.1MiB/s (22.1MB/s-22.1MB/s), io=1273MiB (1335MB), run=60392-60392msec
+
+========================================================
+### Part 2: Write-side parameters ###
+# 2a: writeback
+
+========================================================
+PARAM: writeback  opts: --writeback
+2026/06/18 10:46:10.120080 juicefs[1220323] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/06/18 10:46:10.626845 juicefs[1220323] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+--- randread ---
+  randread:    READ: bw=30.6MiB/s (32.1MB/s), 30.6MiB/s-30.6MiB/s (32.1MB/s-32.1MB/s), io=1841MiB (1930MB), run=60195-60195msec
+--- randwrite (analysis) ---
+  randwrite:   WRITE: bw=71.2MiB/s (74.7MB/s), 71.2MiB/s-71.2MiB/s (74.7MB/s-74.7MB/s), io=4277MiB (4485MB), run=60056-60056msec
+--- randrw (analysis) ---
+  randrw read:     READ: bw=22.7MiB/s (23.8MB/s), 22.7MiB/s-22.7MiB/s (23.8MB/s-23.8MB/s), io=1371MiB (1437MB), run=60375-60375msec
+  randrw write:   WRITE: bw=21.9MiB/s (23.0MB/s), 21.9MiB/s-21.9MiB/s (23.0MB/s-23.0MB/s), io=1322MiB (1386MB), run=60375-60375msec
+SUMMARY writeback | rr=   READ: bw=30.6MiB/s (32.1MB/s), 30.6MiB/s-30.6MiB/s (32.1MB/s-32.1MB/s), io=1841MiB (1930MB), run=60195-60195msec | rw=  WRITE: bw=71.2MiB/s (74.7MB/s), 71.2MiB/s-71.2MiB/s (74.7MB/s-74.7MB/s), io=4277MiB (4485MB), run=60056-60056msec | rrwR=   READ: bw=22.7MiB/s (23.8MB/s), 22.7MiB/s-22.7MiB/s (23.8MB/s-23.8MB/s), io=1371MiB (1437MB), run=60375-60375msec | rrwW=  WRITE: bw=21.9MiB/s (23.0MB/s), 21.9MiB/s-21.9MiB/s (23.0MB/s-23.0MB/s), io=1322MiB (1386MB), run=60375-60375msec
+# 2b: max-uploads=40
+2026/06/18 10:51:55.462050 juicefs[1222595] <INFO>: Deleted 344295 objects [destroy@destroy.go:206]
+2026/06/18 10:51:57.247197 juicefs[1222595] <INFO>: The volume has been destroyed! You may need to delete cache directory manually. [destroy@destroy.go:216]
+>>> Formatting 256K ceph-direct volume...
+2026/06/18 10:51:59.391089 juicefs[1223404] <FATAL>: unknown option: --max-uploads [reorderOptions@main.go:259]
+2026/06/18 10:51:59.521716 juicefs[1223433] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/06/18 10:51:59.535903 juicefs[1223433] <FATAL>: database is not formatted, please run `juicefs format ...` first [main@main.go:31]
+FATAL: mount /mnt/juicefs failed

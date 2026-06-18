@@ -27,8 +27,10 @@
 | `06_2-ramdisk-cluster-test.md` | 全内存盘集群验证（106.6 MB/s 无提升）→ RAID 卡/SSD 均非瓶颈 |
 | `06_3-cephfs-test.md` | CephFS vs JuiceFS 随机读写对比（CephFS 读 3.6×，无 FUSE 税） |
 | `07-random-rw-optimization.md` | 随机读写专项：诊断（瓶颈在 RGW GET 延迟，非网络/介质）+ 框架内优化结果 |
-| `08-next-steps-comparison.md` | 下一步多方向规划：JuiceFS 官方调优 / 去 RGW 直连 RADOS / EC vs 副本随机对比 / BlueStore 调参 |
-| `08_1-direction3-result-direct-rados.md` | **（最新）** 方向三实测结论：去 RGW 直连 RADOS（写 +71%、读 −42%）→ RGW 非随机读根因，瓶颈锁定 JuiceFS 单客户端 FUSE/并发，附下一步定位方法 |
+| `08-next-steps-comparison.md` | 多方向规划（含 06-17 结论纠错区块：RGW 非瓶颈、根因=FUSE 读放大、`--max-downloads` 不存在；原规划保留作思路记录） |
+| `08_1-direction3-result-direct-rados.md` | 方向三实测结论：去 RGW 直连 RADOS → RGW 非随机读根因，附下一步定位方法；**四之二：S3/RADOS/256K 三组 128G 全口径 REPEAT=5 多次重测复核（纯随机读 9.85 / 13.24 / 45.94 MB/s，256K 优势坐实）** |
+| `08_2-abc-bottleneck-localization.md` | **（最新）** A/B/C 白盒定位 + 读放大验证 + 256K 全验收：根因=FUSE 4MB block 对 256k 随机读 ~16× 读放大；**block-size 4M→256K 使纯随机读 12.3→45.8 MB/s（3.7×，达目标 78%），顺序读写不降**，为生产可落地解（副作用：对象数理论×16，待精测）；附 fio bs-sweep / block-size-sweep / 256K 全验收三组实验+原始日志链接 |
+| `09-blocksize-followups-todo.md` | **下一阶段调优工作总纲**：固化 08 系列三大结论（block-size 对齐 bs 随机读 4.7×、去 RGW 部分提升、顺序到顶+随机写达标）+ 已排除非瓶颈 + 随机读瓶颈层次；盘点 08 待办完成度；据"顺序已对齐后端裸能力"判定**下一阶段只聚焦随机读**，按优先级排：①rados bench 标随机读后端裸上限（必做、分叉点）②降残余放大/多客户端聚合（按验收口径）③256K 副作用精测定生产值 ④CephFS/BlueStore 备选 |
 | `results-table.md` | **各条件实测带宽总表（持续更新）**，新优化手段的测试结果追加于此 |
 | `diag.sh` | 可复跑的逐层排查脚本（裸盘→网络→后端→端到端） |
 

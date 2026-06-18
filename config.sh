@@ -57,7 +57,7 @@ CEPH_FAILURE_DOMAIN="osd"
 # Set this before each test run; scripts use PD_ENDPOINTS + RGW_ENDPOINT.
 JUICEFS_CLIENT="${TIKV_SERVER}"
 
-JUICEFS_FS_NAME="juicefs-prod"
+JUICEFS_FS_NAME="${JUICEFS_FS_NAME:-juicefs-prod}"
 JUICEFS_MOUNT_POINT="/mnt/juicefs"
 
 # --- SSH Configuration ---

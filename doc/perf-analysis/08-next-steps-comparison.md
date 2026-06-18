@@ -14,6 +14,37 @@
 
 ---
 
+## ⚠️ 结论更新（2026-06-17，实测后纠错）
+
+> 本文最初（06-15）的多处规划基于两个**后来被实测推翻**的前提，请以本区块为准；
+> 下方原始规划保留作为思路记录，但**带 `--max-downloads`、"RGW 是随机读根因"、"+71%/−42%"
+> 等内容已失效**。完整数据见 `08_1`、`08_2`。
+
+**1. RGW 不是随机读/写的主要瓶颈（推翻原"根因假设"）**
+- 128G 同口径基线（`08_1` 第四节）：纯随机读 S3 10.1 → 直连 RADOS 12.3（**仅 +22%，非数量级**）；
+  纯随机写 S3 67.8 ≈ 直连 66.5（**基本持平**）。
+- 旧文里"随机写 +71%、随机读 −42%"是**口径错配**——拿 randrw 混合里的读/写分量（3.8/38）
+  去比纯随机读/写，已**作废**。
+
+**2. 真正根因 = JuiceFS FUSE 对 256k 随机读的 ~16× 读放大（4MB block）**
+- A/B/C 白盒实验（`08_2`）：randread 时 **object 层并发 get_c=50–124、吞吐 ~100MB/s，
+  但 FUSE 有效读仅 ~5MB/s** → 拉的整 4MB block 大部分被浪费。
+- **调并发/缓冲/预读参数无一提升**（buffer-size 反而降）；**多客户端聚合≈单客户端**
+  → 不是"并发上限不够"，加客户端也无效。
+
+**3. `--max-downloads` 在本环境不存在**
+- 当前 JuiceFS **1.3.1 没有 `--max-downloads`**（旧文档/文章误用）。读并发相关参数实际是
+  `--buffer-size` / `--prefetch` / `--max-readahead`，且经实测对随机读均无效。
+
+**4. 下一步方向（取代原"方向一客户端调参"主线）**
+- ✅ **减小 `--block-size`（已端到端验证，`08_2` 五之三/五之四）**：format 期 4M→256K，使纯随机读
+  **12.3→45.8 MB/s（3.7×，达目标 59 的 78%）**，且顺序读写不降反略升——消除读放大的生产解。
+  待办：精测副作用（对象数理论 ×16）、叠加缓存够 59、256K vs 512K 定生产值。
+- ✅ 随机读密集负载 **转 CephFS**（内核态无放大，已测 13.9）作正式备选（方向二）。
+- ⚠️ 环境侧已修复：HAProxy LB 由 `roundrobin` 改 `balance source`（否则多 RGW 写后读 404，见 `08_2`）。
+
+---
+
 ## 不再考虑：Ceph RBD
 
 RBD 随机性能虽好，但**块设备单客户端独占，不满足多客户端共享 POSIX 的业务要求**，
@@ -94,7 +125,7 @@ JuiceFS 既然被广泛使用，必有其设计取舍（面向**大文件/顺序
 
 | 步骤 | 改动（mount/format 参数） | 假设 / 依据 | 预期信号 | 来源 |
 |------|--------------------------|------------|---------|------|
-| **1.1** | `--max-downloads=200`（默认 200，先确认当前值，再上调到 512 / 1024） | 单客户端 GET 并发上限可能限制了 in-flight 请求数；提高后单进程可并行更多 100ms GET | randread 带宽随并发上调而升，`juicefs stats` 的 object 列并发数增大 | GPT #1 |
+| **1.1** | ~~`--max-downloads=200`~~ **【失效：JuiceFS 1.3.1 无此参数】** 实际读并发由 `--buffer-size`/`--prefetch` 决定 | 单客户端 GET 并发上限可能限制 in-flight 数 | ❌ 实测：A/B/C（`08_2`）已证 object 并发 50–124 不低、调参无一提升 | GPT #1 |
 | **1.2** | `--buffer-size=2048`（默认 300MB→2GB） | 读缓冲不足会限制预读 block 的并发驻留；2GB≈512 个 4MB block 可同时在途 | 与 1.1 叠加后 randread 进一步上升；顺序读也应受益（官方 674→1418） | DeepSeek 文章1 |
 | **1.3** | `--prefetch` 两端各测：`--prefetch=0`（关）与 `--prefetch=8/16`（加大） | 随机读下默认 prefetch=1 会对每个 256k 读放大整 4MB block（2-3×，qwen 定量）。**先测关闭**看是否去掉放大收益；若 randread 是"块内多次命中"则**加大**反而好。两端都测 | 关闭：底层 object 带宽下降但有效 IOPS 升 → 读放大是部分主因；加大无改善则确认放大非主因（与 block-size 无效一致） | DeepSeek 文章1 / qwen |
 | **1.4** | 写侧 `--max-uploads`（默认 20→上调）+ 关压缩（format `--compress none`，确认已是）+ `--writeback` 仅用于"验收前台值"场景 | 随机写已 38 接近 59，提 upload 并发或可补到 59；writeback 只提前台值不代表后端真值，验收/真值两套挂载分别记录 | randwrite/randrw 写带宽升向 59；writeback 下前台明显升（标注"前台值"） | DeepSeek 文章3 |
@@ -114,13 +145,14 @@ JuiceFS 既然被广泛使用，必有其设计取舍（面向**大文件/顺序
 # 基线
 bash tests/bench-juicefs.sh baseline
 
-# 1.1 + 1.2：单客户端并发 + 大读缓冲
-bash tests/bench-juicefs.sh maxdl512-buf2g \
-    --max-downloads 512 --buffer-size 2048
+# 读并发/缓冲（注意：1.3.1 无 --max-downloads，用 --buffer-size/--prefetch）
+bash tests/bench-juicefs.sh buf2g \
+    --buffer-size 2048
 
-# 1.3：在上一组基础上关预读
-bash tests/bench-juicefs.sh maxdl512-buf2g-noprefetch \
-    --max-downloads 512 --buffer-size 2048 --prefetch 0
+# 关/加预读
+bash tests/bench-juicefs.sh prefetch0 \
+    --buffer-size 2048 --prefetch 0
+# （⚠️ 以上读侧参数已由 08_2 A/B/C 实测证明对随机读无提升，仅留作复现）
 
 # 1.4：写侧并发（format 期参数走 EXTRA_FORMAT_OPTS）
 EXTRA_FORMAT_OPTS="--max-uploads 40 --compress none" \
@@ -340,22 +372,30 @@ CEPH_POOL=juicefs-data STORAGE=ceph bash tests/bench-juicefs.sh norgw
 > 上述两个问题均已修复（认证参数硬编码 + 布局只做一次/randread 复用对齐/`SKIP_SEQ`），
 > 详细数据、分析与脚本工作流见 **`08_1-direction3-result-direct-rados.md`**。
 
-#### 测试结果（STORAGE=ceph，EC 4+2，256k iodepth=128 numjobs=128 direct=1，time_based runtime=60s）
+#### 测试结果（128G 同口径重测，256k iodepth=128 numjobs=128 direct=1 runtime=60s）
 
-| 用例 | S3 (RGW) 基线 | Direct RADOS | 变化 |
-|------|-------------|-------------|------|
-| 顺序读 | ~100 MB/s | 100 MB/s | — |
-| 顺序写 | ~102 MB/s | 102 MB/s | — |
-| 纯随机写（randwrite） | 38 MB/s | **65.1 MB/s** | **+71%** |
-| 混合随机读写（randrw）— 读 | 3.8 MB/s | **2.2 MB/s** | **−42%** |
-| 混合随机读写（randrw）— 写 | 38 MB/s | **33.4 MB/s** | −12% |
+> ⚠️ 旧版此处曾用 randrw 混合口径得出"随机写 +71%、随机读 −42%"，**已作废**。
+> 下表为 2026-06-17 **128G 完整同口径**数据（S3 baseline 在修复 LB roundrobin 写后读 404 后跑通）。
+> 详见 `08_1` 第四节。
+
+| 用例 | S3 (RGW) 128G | Direct RADOS 128G | 变化（去 RGW） |
+|------|---------------|-------------------|----------------|
+| 顺序读 | 112 MB/s | 101 MB/s | −10% |
+| 顺序写 | 69.8 MB/s | 107 MB/s | +53% |
+| 纯随机读（randread） | 10.1 MB/s | 12.3 MB/s | **+22%** |
+| 纯随机写（randwrite） | 67.8 MB/s | 66.5 MB/s | ≈持平 |
+| 混合 randrw — 读 | 1.6 MB/s | 1.8 MB/s | +13% |
+| 混合 randrw — 写 | 33.0 MB/s | 33.5 MB/s | ≈持平 |
 
 #### 结论
 
-- **随机写 +71%**：RGW 层确实是写入路径的瓶颈之一，去掉 HTTP/RGW 转发后，逐对象写入直连 RADOS 受益明显。
-- **随机读 −42%（不升反降）**：推翻了 "RGW object GET ~100ms 是随机读主因" 的假设。去掉 RGW 后读不但没提升反而更差，说明瓶颈在 **JuiceFS FUSE 处理 / 单客户端序列化**，不在 RGW HTTP 层。
-- **方向三判定**：RGW 不是随机读根因 → 按 08 文档判定逻辑，**转回方向一**（在 RADOS 路径上做 JuiceFS 客户端并发/缓冲调优，或将 CephFS 作正式备选上报）。
-- **bench 脚本已修复**：`do_format` ceph 分支已硬编码 `--access-key ceph --secret-key client.juicefs`，`STORAGE=ceph bash tests/bench-juicefs.sh` 可正常 format+挂载。
+- **去 RGW 对随机读仅 +22%（10.1→12.3），非数量级；随机写基本持平** → **RGW 不是随机读/写的主要瓶颈**。
+- **纯随机写两边都已达标**（67.8 / 66.5 vs 目标 59）；纯随机读 ~10–12 接近 CephFS 13.9；
+  randrw 混合读仅 1.6–1.8（被写争抢），验收口径下读才是真正拦路虎。
+- **方向三判定**：RGW 既非随机读、也非随机写主因。瓶颈在 JuiceFS 客户端读路径本身
+  → A/B/C 白盒定位（`08_2`）已查明根因 = **FUSE 4MB block 对 256k 随机读的 ~16× 读放大**；
+  调并发/缓冲/加客户端均无效，下一步应 **减小 `--block-size`** 或随机密集负载 **转 CephFS**。
+- **bench 脚本已修复**：`do_format` ceph 分支硬编码 `--access-key ceph --secret-key client.juicefs`。
 
 ---
 
@@ -483,7 +523,7 @@ bash tests/bench-juicefs.sh bluestore-blob512k
 
 | 方向/步骤 | 能否用 bench 脚本 | 怎么跑 |
 |----------|-----------------|--------|
-| 1.1 max-downloads | ✅ 直测 | `bash tests/bench-juicefs.sh maxdl512 --max-downloads 512` |
+| 1.1 ~~max-downloads~~ | ❌ 失效（1.3.1 无此参数）；改测 buffer-size/prefetch，实测无提升 | `bash tests/bench-juicefs.sh buf2g --buffer-size 2048`（趋势见 `08_2` B 实验） |
 | 1.2 buffer-size | ✅ 直测 | `... --buffer-size 2048` |
 | 1.3 prefetch | ✅ 直测 | `... --prefetch 0` / `--prefetch 16` |
 | 1.4 max-uploads / compress | ✅ 直测（已加 format 透传） | `EXTRA_FORMAT_OPTS="--max-uploads 40 --compress none" bash tests/bench-juicefs.sh ...` |
