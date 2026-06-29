@@ -1,0 +1,32 @@
+# mount: --cache-size 102400 --cache-dir /data/jfsCache --max-readahead 0 --writeback
+# --directory=/mnt/juicefs/test_dir --name=storage_test --filesize=1G --size=1G --bs=256k --rw=randwrite --ioengine=libaio --iodepth=128 --numjobs=128 --direct=1 --fallocate=none --openfiles=100 --group_reporting --time_based --runtime=60s
+storage_test: (g=0): rw=randwrite, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=libaio, iodepth=128
+...
+fio-3.28
+Starting 128 processes
+
+storage_test: (groupid=0, jobs=128): err= 0: pid=377095: Thu Jun 25 03:59:59 2026
+  write: IOPS=2859, BW=715MiB/s (750MB/s)(42.0GiB/60143msec); 0 zone resets
+    slat (usec): min=188, max=1340.2k, avg=44641.42, stdev=74721.47
+    clat (usec): min=8, max=17709k, avg=5612962.11, stdev=3945009.90
+     lat (msec): min=20, max=17730, avg=5657.61, stdev=3967.21
+    clat percentiles (msec):
+     |  1.00th=[ 1020],  5.00th=[ 1435], 10.00th=[ 1620], 20.00th=[ 1938],
+     | 30.00th=[ 2467], 40.00th=[ 2769], 50.00th=[ 4597], 60.00th=[ 6342],
+     | 70.00th=[ 8020], 80.00th=[ 9194], 90.00th=[11208], 95.00th=[13624],
+     | 99.00th=[15234], 99.50th=[15637], 99.90th=[16442], 99.95th=[16711],
+     | 99.99th=[17113]
+   bw (  KiB/s): min=65336, max=3226409, per=95.20%, avg=696899.07, stdev=4875.41, samples=14567
+   iops        : min=  156, max=12600, avg=2706.32, stdev=19.08, samples=14567
+  lat (usec)   : 10=0.01%, 20=0.07%, 50=0.01%
+  lat (msec)   : 50=0.03%, 100=0.01%, 250=0.15%, 500=0.21%, 750=0.23%
+  lat (msec)   : 1000=0.26%, 2000=20.72%, >=2000=78.31%
+  cpu          : usr=0.10%, sys=0.15%, ctx=345392, majf=0, minf=1702
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.3%, 8=0.6%, 16=1.2%, 32=2.4%, >=64=95.3%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=99.9%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.1%
+     issued rwts: total=0,171975,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+  WRITE: bw=715MiB/s (750MB/s), 715MiB/s-715MiB/s (750MB/s-750MB/s), io=42.0GiB (45.1GB), run=60143-60143msec

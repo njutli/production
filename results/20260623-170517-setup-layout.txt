@@ -1,0 +1,184 @@
+========================================
+JuiceFS Benchmark — setup-layout
+Date: Tue Jun 23 05:05:17 PM CST 2026
+Config: tikv://192.168.11.12:2379/juicefs-prod
+Extra mount opts: 
+========================================
+
+>>> Destroying any previous volume...
+>>> Cleaning up...
+Waiting for session to expire...
+Destroying JuiceFS volume...
+[1;33mWARNING[0m: The target volume will be permanently destroyed, including:
+[1;33mWARNING[0m: 1. ALL objects in the data storage: ceph://juicefs-data/juicefs-prod/
+[1;33mWARNING[0m: 2. ALL entries in the metadata engine: tikv://192.168.11.12:2379/juicefs-prod
+2026/06/23 17:06:23.288127 juicefs[1820527] <INFO>: Deleted 0 objects [destroy@destroy.go:206]
+2026/06/23 17:06:25.055460 juicefs[1820527] <INFO>: The volume has been destroyed! You may need to delete cache directory manually. [destroy@destroy.go:216]
+
+>>> Formatting JuiceFS (storage=ceph)...
+2026/06/23 17:06:27.160672 juicefs[1820580] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/06/23 17:06:27.160873 juicefs[1820580] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/06/23 17:06:27.195109 juicefs[1820580] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [format@format.go:527]
+2026/06/23 17:06:27.370644 juicefs[1820580] <INFO>: Volume is formatted as {
+  "Name": "juicefs-prod",
+  "UUID": "eb9de470-dc17-4070-90b3-168dad2d300a",
+  "Storage": "ceph",
+  "Bucket": "ceph://juicefs-data",
+  "AccessKey": "ceph",
+  "SecretKey": "removed",
+  "BlockSize": 256,
+  "Compression": "none",
+  "EncryptAlgo": "aes256gcm-rsa",
+  "KeyEncrypted": true,
+  "TrashDays": 0,
+  "MetaVersion": 1,
+  "MinClientVersion": "1.1.0-A",
+  "DirStats": true,
+  "EnableACL": false
+} [format@format.go:564]
+Format OK.
+
+>>> Mounting JuiceFS...
+2026/06/23 17:06:27.504988 juicefs[1820634] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/06/23 17:06:27.505283 juicefs[1820634] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/06/23 17:06:32.083253 juicefs[1820634] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/06/23 17:06:32.589645 juicefs[1820634] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+Mount OK.
+
+>>> SKIP_SEQ=1: skipping sequential tests (step 4-7), jumping to layout + random.
+
+========================================
+Layout (pre-fill for randread, 128 jobs × 1G)
+========================================
+storage_test: (g=0): rw=write, bs=(R) 4096KiB-4096KiB, (W) 4096KiB-4096KiB, (T) 4096KiB-4096KiB, ioengine=psync, iodepth=1
+...
+fio-3.28
+Starting 128 processes
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)

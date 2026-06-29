@@ -1,0 +1,76 @@
+============================================================
+全配置 × 全指标矩阵  20260624-190317   目标各项 ≥59 MiB/s
+ROUNDS(随机/混合)=3  RUNTIME=60s  随机jobs=128
+配置数=6  指标=seqread/seqwrite-fsync/seqwrite-nofsync/mseqread/mseqwrite + randread/randwrite/randrw×3
+============================================================
+
+########## c0-default  (--cache-size 0)  cold=1 ##########
+2026/06/24 19:03:19.582312 juicefs[229765] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/06/24 19:03:19.583523 juicefs[229765] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/06/24 19:03:19.598631 juicefs[229765] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:592]
+2026/06/24 19:03:19.624524 juicefs[229765] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/06/24 19:03:20.131775 juicefs[229765] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+  [顺序] seqread=75.7 seqwrite-fsync=51.8 seqwrite-nofsync=34.4 multi-seqread=111 multi-seqwrite=35.0
+  [随机 r1] randread=31.2 randwrite=34.5 randrw(R/W)=15.1/14.7
+  [随机 r2] randread=31.4 randwrite=34.5 randrw(R/W)=15.3/15.0
+  [随机 r3] randread=31.6 randwrite=38.1 randrw(R/W)=15.9/15.6
+
+########## c0-noRA  (--cache-size 0 --max-readahead 0)  cold=1 ##########
+2026/06/24 21:04:52.784709 juicefs[267226] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/06/24 21:04:52.784879 juicefs[267226] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/06/24 21:04:52.801193 juicefs[267226] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:592]
+2026/06/24 21:04:52.839780 juicefs[267226] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/06/24 21:04:53.346494 juicefs[267226] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+  [顺序] seqread=48.0 seqwrite-fsync=37.9 seqwrite-nofsync=34.3 multi-seqread=56.2 multi-seqwrite=34.1
+  [随机 r1] randread=44.0 randwrite=47.6 randrw(R/W)=17.1/16.8
+  [随机 r2] randread=50.6 randwrite=54.3 randrw(R/W)=16.0/15.7
+  [随机 r3] randread=49.2 randwrite=50.6 randrw(R/W)=10.3/10.1
+
+########## cache-default  (--cache-size 102400 --cache-dir /data/jfsCache)  cold=0 ##########
+2026/06/24 23:21:11.150444 juicefs[327006] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/06/24 23:21:11.150639 juicefs[327006] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/06/24 23:21:11.190583 juicefs[327006] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/06/24 23:21:11.697107 juicefs[327006] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+  [顺序] seqread=36.7 seqwrite-fsync=43.3 seqwrite-nofsync=41.2 multi-seqread=105 multi-seqwrite=33.2
+  [随机 r1] randread=27.9 randwrite=40.8 randrw(R/W)=16.4/16.0
+  [随机 r2] randread=69.1 randwrite=51.1 randrw(R/W)=15.9/15.5
+  [随机 r3] randread=96.2 randwrite=49.5 randrw(R/W)=16.0/15.6
+
+########## cache-noRA  (--cache-size 102400 --cache-dir /data/jfsCache --max-readahead 0)  cold=0 ##########
+2026/06/25 01:23:02.949586 juicefs[361013] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/06/25 01:23:02.949788 juicefs[361013] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/06/25 01:23:02.997878 juicefs[361013] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/06/25 01:23:03.506637 juicefs[361013] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+  [顺序] seqread=46.9 seqwrite-fsync=47.1 seqwrite-nofsync=41.5 multi-seqread=63.2 multi-seqwrite=30.9
+  [随机 r1] randread=101 randwrite=48.0 randrw(R/W)=16.3/16.0
+  [随机 r2] randread=142 randwrite=45.5 randrw(R/W)=14.8/14.5
+  [随机 r3] randread=174 randwrite=49.3 randrw(R/W)=16.0/15.7
+
+########## cache-noRA-wb  (--cache-size 102400 --cache-dir /data/jfsCache --max-readahead 0 --writeback)  cold=0 ##########
+2026/06/25 03:36:00.149576 juicefs[372141] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/06/25 03:36:00.149764 juicefs[372141] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/06/25 03:36:00.225974 juicefs[372141] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/06/25 03:36:00.733684 juicefs[372141] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+  [顺序] seqread=756 seqwrite-fsync=353 seqwrite-nofsync=357 multi-seqread=9843 multi-seqwrite=589
+  [随机 r1] randread=107 randwrite=705 randrw(R/W)=235/236
+  [随机 r2] randread=430 randwrite=725 randrw(R/W)=277/278
+  [随机 r3] randread=448 randwrite=715 randrw(R/W)=218/219
+
+########## cache-default-wb  (--cache-size 102400 --cache-dir /data/jfsCache --writeback)  cold=0 ##########
+2026/06/25 04:01:21.177354 juicefs[377725] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/06/25 04:01:21.177645 juicefs[377725] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/06/25 04:01:21.216514 juicefs[377725] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/06/25 04:01:21.724751 juicefs[377725] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+  [顺序] seqread=1274 seqwrite-fsync=347 seqwrite-nofsync=350 multi-seqread=8474 multi-seqwrite=467
+  [随机 r1] randread=410 randwrite=519 randrw(R/W)=139/138
+  [随机 r2] randread=324 randwrite=515 randrw(R/W)=139/139
+  [随机 r3] randread=278 randwrite=660 randrw(R/W)=126/126
+
+============================================================
+判读：找各项(顺序5 + 随机读/写/混合)同时 ≥59 的配置
+  cache=0 档看 r1（真冷态）；cache 档看 r1(冷)和 r3(热预热)
+  seqwrite-fsync vs seqwrite-nofsync：后者暴露 writeback 流式写收益
+  seqread 为热读口径（4G<<cache），非冷读后端
+  spec randwrite/randrw(create_on_open) 不在本矩阵，如需对选定配置用 bench-juicefs.sh 全量补
+  --writeback 有丢对象风险，交付须标注
+DONE OUT=results/fullmatrix-20260624-190317.txt

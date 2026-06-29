@@ -1,0 +1,62 @@
+### date: Fri Jun 26 10:21:05 CST 2026
+### ceph health
+HEALTH_OK
+### ceph osd tree
+ID  CLASS  WEIGHT   TYPE NAME            STATUS  REWEIGHT  PRI-AFF
+-1         3.25839  root default                                  
+-3         0.93100      host ceph-node1                           
+ 0    hdd  0.46550          osd.0            up   1.00000  1.00000
+ 1    hdd  0.46550          osd.1            up   1.00000  1.00000
+-5         0.93100      host ceph-node2                           
+ 2    hdd  0.46550          osd.2            up   1.00000  1.00000
+ 3    hdd  0.46550          osd.3            up   1.00000  1.00000
+-6         1.39639      host ceph-node3                           
+ 4    hdd  0.93089          osd.4            up   1.00000  1.00000
+ 5    hdd  0.46550          osd.5            up   1.00000  1.00000
+### ceph df
+--- RAW STORAGE ---
+CLASS     SIZE    AVAIL     USED  RAW USED  %RAW USED
+hdd    2.8 TiB  2.7 TiB  118 GiB   118 GiB       4.12
+TOTAL  2.8 TiB  2.7 TiB  118 GiB   118 GiB       4.12
+ 
+--- POOLS ---
+POOL                       ID  PGS   STORED  OBJECTS     USED  %USED  MAX AVAIL
+default.rgw.log            10   32  3.6 KiB      209  408 KiB      0    506 GiB
+.rgw.root                  12   32  1.5 KiB        4   48 KiB      0    506 GiB
+default.rgw.control        13   32      0 B        8      0 B      0    506 GiB
+default.rgw.meta           14   32  1.8 KiB        6   51 KiB      0    506 GiB
+.mgr                       15    1  449 KiB        2  1.3 MiB      0    506 GiB
+default.rgw.buckets.index  28   32  6.1 MiB       11   18 MiB      0    506 GiB
+default.rgw.buckets.data   36   32      0 B        0      0 B      0    506 GiB
+juicefs-data               43   32   72 GiB  296.36k  108 GiB   6.65   1011 GiB
+### RGW status
+rgw.myrgw.ceph-node1.pmvalq  ceph-node1  *:80   running (2d)      7m ago  10d     155M        -  17.2.8   259b35566514  a6b59700a7cf  
+rgw.myrgw.ceph-node2.arxgxu  ceph-node2  *:80   running (2d)      7m ago  10d     154M        -  17.2.8   259b35566514  def89683eda6  
+rgw.myrgw.ceph-node3.xzapur  ceph-node3  *:80   running (2d)      7m ago  10d     143M        -  17.2.8   a0f373aaaf5a  36bda3e30782  
+### haproxy status
+active
+### RGW user
+{
+    "user_id": "juicefs",
+    "display_name": "JuiceFS-RAM",
+    "email": "",
+    "suspended": 0,
+    "max_buckets": 1000,
+    "subusers": [],
+    "keys": [
+        {
+            "user": "juicefs",
+            "access_key": "I5LFISDKKNMOQCIM7IWY",
+            "secret_key": "gQVKPfJ0wj3wEoDb3CvgGhyKHOG0KwFPg34ZttK5"
+        }
+    ],
+    "swift_keys": [],
+### client
+Linux tikv-node 5.15.0-181-generic #191-Ubuntu SMP Fri May 22 19:09:02 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+               total        used        free      shared  buff/cache   available
+Mem:           251Gi         9Gi       175Gi       5.0Mi        66Gi       240Gi
+Swap:             0B          0B          0B
+### juicefs version
+juicefs version 1.3.1+unknown
+### fio version
+fio-3.28

@@ -1,0 +1,32 @@
+============================================================
+randrw compare: default vs --max-readahead 0 (cache=100G default)
+Date: Wed Jun 24 18:08:39 CST 2026
+Layout: 128G, 256K block, 128 files
+fio: bs=256k randrw iodepth=128 numjobs=128 direct=1 runtime=60s
+============================================================
+
+########## Config A: default (readahead on, cache 100G) ##########
+2026/06/24 18:08:41.832496 juicefs[223680] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/06/24 18:08:41.832697 juicefs[223680] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/06/24 18:08:41.872319 juicefs[223680] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/06/24 18:08:42.378572 juicefs[223680] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+--- a-r1: drop done, starting fio ---
+  a-r1: READ=  drop OSD 192.168.11.11 okMB/s  WRITE=MB/s
+--- a-r2: drop done, starting fio ---
+  a-r2: READ=  drop OSD 192.168.11.11 okMB/s  WRITE=MB/s
+--- a-r3: drop done, starting fio ---
+  a-r3: READ=  drop OSD 192.168.11.11 okMB/s  WRITE=MB/s
+
+########## Config B: --max-readahead 0 (cache 100G default) ##########
+2026/06/24 18:12:24.249409 juicefs[224843] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/06/24 18:12:24.249582 juicefs[224843] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/06/24 18:12:24.295175 juicefs[224843] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/06/24 18:12:24.801515 juicefs[224843] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+--- b-r1: drop done, starting fio ---
+  b-r1: READ=  drop OSD 192.168.11.11 okMB/s  WRITE=MB/s
+--- b-r2: drop done, starting fio ---
+  b-r2: READ=  drop OSD 192.168.11.11 okMB/s  WRITE=MB/s
+--- b-r3: drop done, starting fio ---
+  b-r3: READ=  drop OSD 192.168.11.11 okMB/s  WRITE=MB/s
+
+DONE OUT=results/randrw-compare-20260624-180839.txt

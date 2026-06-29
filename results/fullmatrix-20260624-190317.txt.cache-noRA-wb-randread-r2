@@ -1,0 +1,32 @@
+# mount: --cache-size 102400 --cache-dir /data/jfsCache --max-readahead 0 --writeback
+# --directory=/mnt/juicefs/test_dir --name=storage_test --filesize=1G --size=1G --bs=256k --rw=randread --ioengine=libaio --iodepth=128 --numjobs=128 --direct=1 --fallocate=none --openfiles=100 --group_reporting --time_based --runtime=60s
+storage_test: (g=0): rw=randread, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=libaio, iodepth=128
+...
+fio-3.28
+Starting 128 processes
+
+storage_test: (groupid=0, jobs=128): err= 0: pid=375749: Thu Jun 25 03:52:37 2026
+  read: IOPS=1718, BW=430MiB/s (450MB/s)(27.0GiB/64264msec)
+    slat (usec): min=631, max=5571.1k, avg=69996.18, stdev=103377.51
+    clat (usec): min=11, max=24492k, avg=8218186.88, stdev=2333420.38
+     lat (msec): min=33, max=24558, avg=8288.19, stdev=2336.23
+    clat percentiles (msec):
+     |  1.00th=[  558],  5.00th=[ 3004], 10.00th=[ 5537], 20.00th=[ 7819],
+     | 30.00th=[ 8288], 40.00th=[ 8423], 50.00th=[ 8557], 60.00th=[ 8658],
+     | 70.00th=[ 8926], 80.00th=[ 9194], 90.00th=[ 9597], 95.00th=[11476],
+     | 99.00th=[14832], 99.50th=[16040], 99.90th=[17113], 99.95th=[17113],
+     | 99.99th=[17113]
+   bw (  KiB/s): min=143340, max=830773, per=100.00%, avg=490271.15, stdev=861.31, samples=12421
+   iops        : min=  554, max= 3232, avg=1914.15, stdev= 3.35, samples=12421
+  lat (usec)   : 20=0.11%, 50=0.01%
+  lat (msec)   : 50=0.07%, 100=0.08%, 250=0.24%, 500=0.42%, 750=0.40%
+  lat (msec)   : 1000=0.41%, 2000=1.70%, >=2000=96.57%
+  cpu          : usr=0.03%, sys=0.14%, ctx=228612, majf=1, minf=1050256
+  IO depths    : 1=0.1%, 2=0.2%, 4=0.5%, 8=0.9%, 16=1.9%, 32=3.7%, >=64=92.7%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=99.9%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.1%
+     issued rwts: total=110418,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+   READ: bw=430MiB/s (450MB/s), 430MiB/s-430MiB/s (450MB/s-450MB/s), io=27.0GiB (28.9GB), run=64264-64264msec

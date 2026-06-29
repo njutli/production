@@ -31,8 +31,22 @@
 | `08_1-direction3-result-direct-rados.md` | 方向三实测结论：去 RGW 直连 RADOS → RGW 非随机读根因，附下一步定位方法；**四之二：S3/RADOS/256K 三组 128G 全口径 REPEAT=5 多次重测复核（纯随机读 9.85 / 13.24 / 45.94 MB/s，256K 优势坐实）** |
 | `08_2-abc-bottleneck-localization.md` | **（最新）** A/B/C 白盒定位 + 读放大验证 + 256K 全验收：根因=FUSE 4MB block 对 256k 随机读 ~16× 读放大；**block-size 4M→256K 使纯随机读 12.3→45.8 MB/s（3.7×，达目标 78%），顺序读写不降**，为生产可落地解（副作用：对象数理论×16，待精测）；附 fio bs-sweep / block-size-sweep / 256K 全验收三组实验+原始日志链接 |
 | `09-blocksize-followups-todo.md` | **下一阶段调优工作总纲**：固化 08 系列三大结论（block-size 对齐 bs 随机读 4.7×、去 RGW 部分提升、顺序到顶+随机写达标）+ 已排除非瓶颈 + 随机读瓶颈层次；盘点 08 待办完成度；据"顺序已对齐后端裸能力"判定**下一阶段只聚焦随机读**，按优先级排：①rados bench 标随机读后端裸上限（必做、分叉点）②降残余放大/多客户端聚合（按验收口径）③256K 副作用精测定生产值 ④CephFS/BlueStore 备选 |
+| `10-random-read-bottleneck-localization-plan.md` | 随机读瓶颈定位与提升计划（124 来历 / 2.5× 归因 / L1L2L3 分层 / 单客户端主线 / v1.3.1 保留 / 无效数据弃用） |
+| `10_3-l1-rados-and-cache-compare-results.md` | L1 裸 RADOS 256K（放大 1.04× → 后端/EC 非放大源）+ §五 cache/预读 G1-G4 对比（16G 工作集，结论待 128G 复测修正）|
+| `10_A-model-tuning-supplements-summary.md` | tun/ 三份模型（GLM5.1/5.2/qwen）调优补充的汇总+纠偏+候选清单（对照 10_3 标证实/证伪）|
+| `10_A_1 / 10_A_2_3 / 10_A_4 / 10_A_7` | 候选清单各顺位验证结果：①FUSE 节流证伪 ②tcpdump/strace 分解（放大在 JuiceFS 内部、strace 2.60×、slice 碎片排除、元数据缓存证伪）④readahead/prefetch 关停 **128G 冷态证伪**（无改善+顺序写退化）⑦FUSE splice/max_read 系统不支持 |
+| `10_issue-1-highconcurrency-randread-hang.md` | 高并发 fio 偶发起不来：非系统卡死/非 fio bug/非压力大，根因=前一个 fio 被 SIGKILL 后的残留污染 |
 | `results-table.md` | **各条件实测带宽总表（持续更新）**，新优化手段的测试结果追加于此 |
 | `diag.sh` | 可复跑的逐层排查脚本（裸盘→网络→后端→端到端） |
+
+## 测试脚本（`tests/`）
+
+| 脚本 | 用途 / 口径 |
+|------|------------|
+| `bench-juicefs.sh` | 全周期基准（顺序/随机/混合）；`WARMUP=1` 热态、`SKIP_LAYOUT/DO_LAYOUT_ONLY/SKIP_RANDWRITE` 复用开关 |
+| `bench-rados-256k-rand.sh` | L1 裸 RADOS 256K 随机读（定位放大是否在 librados/EC 层）|
+| `bench-cache-randread.sh` | 纯 randread 的 cache × 预读 G1-G4 对比（10_3 §五）|
+| `bench-hot-multiround.sh` | **热态多轮带宽（验收口径，全程不 drop cache，自然预热）**：在大缓存 + 已有 128G 布局上连跑多轮 纯randread + randrw(9b 口径)，看 Run1→RunN 是否递增并稳定达标。**口径=热态/缓存命中，代表重复访问场景上限，非冷态真值**。⚠️ 当前**默认不带** `--max-readahead 0 / --prefetch 0`（依据 10_A_4 的 128G **冷态**证伪）；**待定点**：GLM 正在跑的 128G G4（开 cache + 关预读）若证明**热态**下关预读有效，则需补一个带预读关停的对照组 |
 
 ## 一句话结论
 

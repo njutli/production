@@ -1,0 +1,40 @@
+============================================================
+回退测试1：带 RGW + fio bs=4M / block-size=256K 冷态基线 20260626-102105
+============================================================
+## 口径:
+  STORAGE=s3 (走 RGW, haproxy 负载均衡 :8080)
+  block-size=256K, fio bs=4M (bs != block-size)
+  cache-size=0 (冷态), client drop_caches
+  --max-uploads=150 (官方推荐)
+  随机项 REPEAT=3
+
+  env snapshot -> results/rgw-4m-bs256k-20260626/env-snapshot.txt
+## 格式化卷 (S3/RGW, block-size=256K)
+## 挂载 (--cache-size 0, --max-uploads=150)
+  mount OK
+
+## 顺序测试 (fio bs=4M, block-size=256K, cache-size 0)
+### seqread prep (write 4G)
+  seqread: READ=76.1 WRITE=NA
+  seqwrite: READ=NA WRITE=23.0
+  multi-seqread: READ=108 WRITE=NA
+  multi-seqwrite: READ=NA WRITE=20.7
+
+## 布局 (128 jobs x 1G = 128G)
+  layout: WRITE=19.6
+
+## 随机测试 (REPEAT=3)
+### Round 1
+  randread r1: READ=26.3 WRITE=NA
+  randwrite r1: READ=NA WRITE=30.2
+  randrw r1: READ=11.3 WRITE=11.3
+### Round 2
+  randread r2: READ=27.9 WRITE=NA
+  randwrite r2: READ=NA WRITE=26.6
+  randrw r2: READ=11.1 WRITE=11.1
+### Round 3
+  randread r3: READ=29.0 WRITE=NA
+  randwrite r3: READ=NA WRITE=33.6
+  randrw r3: READ=10.9 WRITE=10.9
+
+DONE

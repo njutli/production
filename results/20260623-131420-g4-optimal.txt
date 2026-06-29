@@ -1,0 +1,25 @@
+========================================
+JuiceFS Benchmark — g4-optimal
+Date: Tue Jun 23 01:14:20 PM CST 2026
+Config: tikv://192.168.11.12:2379/juicefs-prod
+Extra mount opts: --cache-size 10240 --cache-dir /data/jfsCache --max-readahead 0 --prefetch 0
+========================================
+
+>>> Destroying any previous volume...
+>>> Cleaning up...
+Waiting for session to expire...
+Destroying JuiceFS volume...
++-----+------------+--------------+
+|   3 | ceph-node2 | /mnt/juicefs |
+|  17 | ceph-node1 | /mnt/juicefs |
+|  18 | ceph-node2 | /mnt/juicefs |
++-----+------------+--------------+ [destroy@destroy.go:143]
+
+>>> Formatting JuiceFS (storage=ceph)...
+2026/06/23 13:15:27.560900 juicefs[1770813] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/06/23 13:15:27.561064 juicefs[1770813] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/06/23 13:15:27.593967 juicefs[1770813] <INFO>: Data use ceph://default.rgw.buckets.data/juicefs-prod/ [format@format.go:527]
+2026/06/23 13:15:27.601368 juicefs[1770813] <WARNING>: Test storage ceph://default.rgw.buckets.data/juicefs-prod/ failed: Failed to put: rados: ret=-1, Operation not permitted, tries: #1 [test@format.go:374]
+2026/06/23 13:15:28.604371 juicefs[1770813] <WARNING>: Test storage ceph://default.rgw.buckets.data/juicefs-prod/ failed: Failed to put: rados: ret=-1, Operation not permitted, tries: #2 [test@format.go:374]
+2026/06/23 13:15:32.607153 juicefs[1770813] <WARNING>: Test storage ceph://default.rgw.buckets.data/juicefs-prod/ failed: Failed to put: rados: ret=-1, Operation not permitted, tries: #3 [test@format.go:374]
+2026/06/23 13:15:39.607937 juicefs[1770813] <FATAL>: Storage ceph://default.rgw.buckets.data/juicefs-prod/ is not configured correctly: Failed to put: rados: ret=-1, Operation not permitted [format@format.go:530]

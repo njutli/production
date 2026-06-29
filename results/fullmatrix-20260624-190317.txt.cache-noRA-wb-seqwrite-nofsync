@@ -1,0 +1,28 @@
+# mount: --cache-size 102400 --cache-dir /data/jfsCache --max-readahead 0 --writeback
+sequential-write: (g=0): rw=write, bs=(R) 4096KiB-4096KiB, (W) 4096KiB-4096KiB, (T) 4096KiB-4096KiB, ioengine=psync, iodepth=1
+fio-3.28
+Starting 1 process
+sequential-write: Laying out IO file (1 file / 4096MiB)
+
+sequential-write: (groupid=0, jobs=1): err= 0: pid=372704: Thu Jun 25 03:37:07 2026
+  write: IOPS=89, BW=357MiB/s (374MB/s)(4096MiB/11487msec); 0 zone resets
+    clat (usec): min=7453, max=14878, avg=9435.19, stdev=607.37
+     lat (usec): min=7453, max=14879, avg=9435.87, stdev=607.40
+    clat percentiles (usec):
+     |  1.00th=[ 7832],  5.00th=[ 8356], 10.00th=[ 8586], 20.00th=[ 8979],
+     | 30.00th=[ 9241], 40.00th=[ 9372], 50.00th=[ 9503], 60.00th=[ 9634],
+     | 70.00th=[ 9765], 80.00th=[ 9896], 90.00th=[10028], 95.00th=[10159],
+     | 99.00th=[10683], 99.50th=[11076], 99.90th=[13304], 99.95th=[14877],
+     | 99.99th=[14877]
+   bw (  KiB/s): min=344064, max=401408, per=99.94%, avg=364916.36, stdev=14898.09, samples=22
+   iops        : min=   84, max=   98, avg=89.09, stdev= 3.64, samples=22
+  lat (msec)   : 10=88.96%, 20=11.04%
+  cpu          : usr=15.53%, sys=32.07%, ctx=32788, majf=0, minf=2071
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=0,1024,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+  WRITE: bw=357MiB/s (374MB/s), 357MiB/s-357MiB/s (374MB/s-374MB/s), io=4096MiB (4295MB), run=11487-11487msec

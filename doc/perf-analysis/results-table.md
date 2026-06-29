@@ -104,3 +104,89 @@
 - [ ] （修正后方向）BlueStore 调参后的带宽
 - [x] **去 RGW 直连 RADOS（方向三）** → **写 +71%、读 −42%，RGW 非随机读根因。详见 `08_1`**
 - ⛔ 后端 HDD→SSD/NVMe → **不适用：磁盘本就是 SSD**
+
+## 五、--max-readahead 档位扫描（cache=0，真冷态）
+
+> 日期：2026-06-24　来源：`results/readahead-sweep-20260624-162801.txt`
+> 口径：128G 256K block，`--cache-size 0`（真冷态），每项跑前 client+3 OSD drop_caches
+> ⚠️ **cache-size 0 强制禁用 prefetch**（源码 `cached_store.go:562-567` SelfCheck + `:886-887`）
+
+| readahead (MiB) | randread 256k | seqread 4M | seqwrite 4M |
+|:---:|:---:|:---:|:---:|
+| **0** | **49.6** | 49.5 | 56.8 |
+| 1 | 36.0 | 86.1 | 63.2 |
+| 4 | 35.8 | 92.6 | 55.9 |
+| 8 | 35.7 | 92.6 | 59.2 |
+| default | 35.5 | 91.3 | 66.1 |
+
+关键发现：
+- cache=0 时 prefetch 被强制关闭，readahead=0 的 randread 仅 49.6（不达标），远低于 10_A_4 的 77.7（cache=100G）
+- readahead 从 0→1 断崖式下跌（49.6→36.0），中间档位无甜点
+- readahead=0 时 seqread 也暴跌（49.5 vs default 91.3）
+
+## 六、randrw 对比：default vs --max-readahead 0（cache=100G）
+
+> 日期：2026-06-24　来源：`results/randrw-compare-20260624-180839.txt`
+> 口径：128G 256K block，默认 cache=100G（prefetch 正常），randrw 128jobs×1G，bs=256k iodepth=128 direct=1 runtime=60s
+> 每轮跑前 client+3 OSD drop_caches
+
+| Config | | r1 | r2 | r3 | AVG |
+|--------|---|---|---|---|-----|
+| **A: default** | READ | 24.3 | 29.1 | 30.7 | **28.0** |
+| | WRITE | 23.9 | 28.8 | 30.3 | **27.7** |
+| **B: --max-readahead 0** | READ | 31.7 | 26.9 | 23.4 | **27.3** |
+| | WRITE | 31.4 | 26.5 | 23.1 | **27.0** |
+
+关键发现：
+- randrw 下 default vs --max-readahead 0 **无显著差异**（28.0 vs 27.3，波动范围内）
+- 读写带宽基本对等（~28/~27），randrw 读写各占一半
+- 两种配置均**远低于 59 目标**（randrw 总带宽 ~55 MB/s，读部分 ~28 MB/s）
+- r1→r3 趋势不一致（A 递增、B 递减），属于正常波动
+
+> 原始 fio 文件：`results/randrw-compare-20260624-180839.txt.{a,b}-r{1,2,3}`
+
+## 七、全配置矩阵测试（fullmatrix）
+
+> 日期：2026-06-24/25　来源：`results/fullmatrix-20260624-190317.txt`
+> 口径：128G 256K block，每轮跑前 client drop_caches（cache=0 档额外 OSD drop）
+> 顺序项各 1 次（seqread 为热读：先写 4G 再读，4G<<cache）；随机项 3 轮
+> ⚠️ writeback 配置数据全部不可信：写只落本地缓存未刷后端，读缓存命中本地，带宽远超千兆上限。不记录。
+
+### 真实数据（排除 writeback）
+
+| 配置 | | seqread | seqwrite-fsync | seqwrite-nofsync | mseqread | mseqwrite | randread r1 | randread r2 | randread r3 | randwrite r1 | randrw(R/W) r1 |
+|------|---|---------|---------------|------------------|----------|-----------|------------|------------|------------|-------------|----------------|
+| **c0-default** | | 75.7 | 51.8 | 34.4 | 111 | 35.0 | 31.2 | 31.4 | 31.6 | 34.5 | 15.1/14.7 |
+| **c0-noRA** | | 48.0 | 37.9 | 34.3 | 56.2 | 34.1 | 44.0 | 50.6 | 49.2 | 47.6 | 17.1/16.8 |
+| **cache-default** | | 36.7 | 43.3 | 41.2 | 105 | 33.2 | 27.9 | 69.1 | 96.2 | 40.8 | 16.4/16.0 |
+| **cache-noRA** | | 46.9 | 47.1 | 41.5 | 63.2 | 30.9 | 101 | 142 | 174 | 48.0 | 16.3/16.0 |
+
+> 单位 MiB/s。cache=0 档看 r1（真冷态）；cache 档 r1=冷态、r3=热态（缓存逐渐填充）。
+
+### 关键发现
+
+1. **randread 缓存预热效应显著**：
+   - cache-default：r1=27.9(冷) → r3=96.2(热)，3.4× 提升
+   - cache-noRA：r1=101(冷) → r3=174(热)，1.7× 提升
+   - 关 readahead 在冷态即达标（101 > 59），热态更优（174）
+
+2. **randrw 是硬瓶颈**：所有配置 r1 读均 ≤17.1，远低于 59。3 轮无改善（cache-noRA: 16.3→14.8→16.0）。缓存和 readahead 均无法解决 randrw。
+
+3. **seqwrite-fsync vs nofsync**：无 writeback 时两者接近（34-52），fsync 略高（可能因 fio 等待机制差异）。writeback 下两者均不可信（本地缓存吸收）。
+
+4. **c0-default 的 seqread(75.7) 和 mseqread(111) 高于 cache-default(36.7/105)**：
+   可能因 cache-default 的 prefetch/readahead 干扰顺序读。但 cache 档的 seqread 为热读口径（4G 在缓存内），c0 档为真冷读后端，口径不同不可直接对比。
+
+5. **cache-default randread r1(27.9) < c0-default(31.2)**：cache 开着但 readahead 也开着时，冷态 randread 反而更差（readahead 放大拖累 + 缓存未命中）。
+
+### 结论
+
+| 负载 | 最优配置 | 最优值 | 达标? |
+|------|---------|--------|-------|
+| randread（冷） | cache-noRA | 101 | ✅ |
+| randread（热 r3） | cache-noRA | 174 | ✅ |
+| randrw | 无配置达标 | ~16 | ❌ |
+| seqwrite | c0-default | 51.8 | ❌ |
+| seqread（冷） | c0-default | 75.7 | ✅ |
+
+**无任何单一配置能让所有指标同时达标。randrw 是不可逾越的瓶颈。**

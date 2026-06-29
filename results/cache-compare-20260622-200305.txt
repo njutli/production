@@ -1,0 +1,41 @@
+============================================================
+Cache Compare: cache=0 (cold) vs cache=10240MB (warm)
+Date: Mon Jun 22 08:03:05 PM CST 2026
+STORAGE=ceph  pool=juicefs-data  block-size=256K  REPEAT=3  runtime=60s
+fio: verbatim spec — 256k randrw iodepth=128 numjobs=128 direct=1 create_on_open=1
+cache-dir=/data/jfsCache  target=59 MB/s (gigabit half-speed)
+============================================================
+
+########## Group 1: cache=0 (cold baseline) ##########
+  "BlockSize": 256,
+2026/06/22 20:04:15.287264 juicefs[709822] <INFO>: [92mOK[0m, jfs-cachecmp is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+  g1r1:  READ=N/AMB/s  WRITE=38.0MB/s  (raw: /home/turboai/production/results/cache-compare-20260622-200305-g1r1.txt)
+  g1r2:  READ=N/AMB/s  WRITE=38.4MB/s  (raw: /home/turboai/production/results/cache-compare-20260622-200305-g1r2.txt)
+  g1r3:  READ=N/AMB/s  WRITE=37.4MB/s  (raw: /home/turboai/production/results/cache-compare-20260622-200305-g1r3.txt)
+
+########## Group 2: cache=10240MB (warm steady-state) ##########
+  "BlockSize": 256,
+2026/06/22 20:12:58.714440 juicefs[711359] <INFO>: [92mOK[0m, jfs-cachecmp is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+  g2r1:  READ=N/AMB/s  WRITE=35.1MB/s  (raw: /home/turboai/production/results/cache-compare-20260622-200305-g2r1.txt)
+  g2r2:  READ=N/AMB/s  WRITE=37.6MB/s  (raw: /home/turboai/production/results/cache-compare-20260622-200305-g2r2.txt)
+  g2r3:  READ=N/AMB/s  WRITE=37.4MB/s  (raw: /home/turboai/production/results/cache-compare-20260622-200305-g2r3.txt)
+
+>>> cleanup
+
+============================================================
+SUMMARY
+============================================================
+Group 1 (cache=0 — cold baseline, same as all prior tests):
+  run1: READ=   0.0 MB/s  WRITE=  38.0 MB/s
+  run2: READ=   0.0 MB/s  WRITE=  38.4 MB/s
+  run3: READ=   0.0 MB/s  WRITE=  37.4 MB/s
+  ── AVG:    READ=   0.0 MB/s  WRITE=  37.9 MB/s  (n=3) ──
+
+Group 2 (cache=10240MB — warm steady-state, AI training scenario):
+  run1: READ=   0.0 MB/s  WRITE=  35.1 MB/s
+  run2: READ=   0.0 MB/s  WRITE=  37.6 MB/s
+  run3: READ=   0.0 MB/s  WRITE=  37.4 MB/s
+  ── AVG:    READ=   0.0 MB/s  WRITE=  36.7 MB/s  (n=3) ──
+
+Target: 59 MB/s (single-client, gigabit half-speed)
+DONE  full log: /home/turboai/production/results/cache-compare-20260622-200305.txt

@@ -1,0 +1,29 @@
+# mount: --cache-size 0 --max-readahead 0
+sequential-read: (g=0): rw=read, bs=(R) 4096KiB-4096KiB, (W) 4096KiB-4096KiB, (T) 4096KiB-4096KiB, ioengine=psync, iodepth=1
+fio-3.28
+Starting 1 process
+sequential-read: Laying out IO file (1 file / 4096MiB)
+
+sequential-read: (groupid=0, jobs=1): err= 0: pid=269021: Wed Jun 24 21:09:45 2026
+  read: IOPS=12, BW=48.0MiB/s (50.3MB/s)(4096MiB/85323msec)
+    clat (msec): min=58, max=1576, avg=83.32, stdev=111.51
+     lat (msec): min=58, max=1576, avg=83.32, stdev=111.51
+    clat percentiles (msec):
+     |  1.00th=[   62],  5.00th=[   63], 10.00th=[   64], 20.00th=[   65],
+     | 30.00th=[   66], 40.00th=[   67], 50.00th=[   68], 60.00th=[   69],
+     | 70.00th=[   70], 80.00th=[   72], 90.00th=[   78], 95.00th=[   84],
+     | 99.00th=[  498], 99.50th=[ 1053], 99.90th=[ 1452], 99.95th=[ 1569],
+     | 99.99th=[ 1569]
+   bw (  KiB/s): min= 8192, max=65536, per=100.00%, avg=52172.80, stdev=17031.26, samples=160
+   iops        : min=    2, max=   16, avg=12.74, stdev= 4.16, samples=160
+  lat (msec)   : 100=95.51%, 250=2.34%, 500=1.17%, 750=0.29%, 1000=0.10%
+  lat (msec)   : 2000=0.59%
+  cpu          : usr=0.01%, sys=5.54%, ctx=18574, majf=0, minf=4122
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=1024,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+   READ: bw=48.0MiB/s (50.3MB/s), 48.0MiB/s-48.0MiB/s (50.3MB/s-50.3MB/s), io=4096MiB (4295MB), run=85323-85323msec

@@ -1,0 +1,43 @@
+============================================================
+--max-readahead 档位扫描（128G 256K 冷态）  20260624-162801
+档位(MiB): 0 1 4 8 default   NUMJOBS=128  RUNTIME=60s
+目标 59；随机读越高越好，顺序读/写不应跌破 59
+============================================================
+>>> 布局文件数=128（期望128）
+
+readahead(MiB) | randread256k | seqread4M | seqwrite4M | (randread放大)
+---------------|--------------|-----------|------------|---------------
+2026/06/24 16:28:03.673159 juicefs[181705] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/06/24 16:28:03.674281 juicefs[181705] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/06/24 16:28:03.689253 juicefs[181705] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:592]
+2026/06/24 16:28:03.717719 juicefs[181705] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/06/24 16:28:04.224033 juicefs[181705] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+  0            |     drop OSD 192.168.11.11 ok |     drop OSD 192.168.11.11 ok | NA         | 
+2026/06/24 16:31:51.513294 juicefs[184017] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/06/24 16:31:51.513480 juicefs[184017] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/06/24 16:31:51.527056 juicefs[184017] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:592]
+2026/06/24 16:31:51.553247 juicefs[184017] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/06/24 16:31:52.059521 juicefs[184017] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+  1            |     drop OSD 192.168.11.11 ok |     drop OSD 192.168.11.11 ok | NA         | 
+2026/06/24 16:35:27.917029 juicefs[186338] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/06/24 16:35:27.917250 juicefs[186338] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/06/24 16:35:27.932221 juicefs[186338] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:592]
+2026/06/24 16:35:27.955439 juicefs[186338] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/06/24 16:35:28.462614 juicefs[186338] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+  4            |     drop OSD 192.168.11.11 ok |     drop OSD 192.168.11.11 ok | NA         | 
+2026/06/24 16:39:04.546603 juicefs[188542] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/06/24 16:39:04.546808 juicefs[188542] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/06/24 16:39:04.562105 juicefs[188542] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:592]
+2026/06/24 16:39:04.586105 juicefs[188542] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/06/24 16:39:05.092097 juicefs[188542] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+  8            |     drop OSD 192.168.11.11 ok |     drop OSD 192.168.11.11 ok | NA         | 
+2026/06/24 16:42:41.902492 juicefs[189781] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/06/24 16:42:41.902685 juicefs[189781] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/06/24 16:42:41.917445 juicefs[189781] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:592]
+2026/06/24 16:42:41.941899 juicefs[189781] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/06/24 16:42:42.448676 juicefs[189781] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+  default      |     drop OSD 192.168.11.11 ok |     drop OSD 192.168.11.11 ok | NA         | 
+
+>>> 判读：找 randread 尽量高(≥59)、且 seqread/seqwrite 都不跌破 59 的最大档位
+    预期甜点在 256K(=1block)~1M 之间：够顺序流水、又不在随机读拉太多无用块
+DONE OUT=results/readahead-sweep-20260624-162801.txt

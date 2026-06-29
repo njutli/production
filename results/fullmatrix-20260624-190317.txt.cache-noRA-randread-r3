@@ -1,0 +1,32 @@
+# mount: --cache-size 102400 --cache-dir /data/jfsCache --max-readahead 0
+# --directory=/mnt/juicefs/test_dir --name=storage_test --filesize=1G --size=1G --bs=256k --rw=randread --ioengine=libaio --iodepth=128 --numjobs=128 --direct=1 --fallocate=none --openfiles=100 --group_reporting --time_based --runtime=60s
+storage_test: (g=0): rw=randread, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=libaio, iodepth=128
+...
+fio-3.28
+Starting 128 processes
+
+storage_test: (groupid=0, jobs=128): err= 0: pid=371285: Thu Jun 25 03:33:04 2026
+  read: IOPS=697, BW=174MiB/s (183MB/s)(10.3GiB/60639msec)
+    slat (usec): min=713, max=2333.5k, avg=182073.89, stdev=274468.09
+    clat (usec): min=9, max=42450k, avg=18216874.17, stdev=10239856.03
+     lat (msec): min=73, max=42454, avg=18398.95, stdev=10214.52
+    clat percentiles (msec):
+     |  1.00th=[  625],  5.00th=[ 2903], 10.00th=[ 5000], 20.00th=[ 8288],
+     | 30.00th=[11610], 40.00th=[14295], 50.00th=[17113], 60.00th=[17113],
+     | 70.00th=[17113], 80.00th=[17113], 90.00th=[17113], 95.00th=[17113],
+     | 99.00th=[17113], 99.50th=[17113], 99.90th=[17113], 99.95th=[17113],
+     | 99.99th=[17113]
+   bw (  KiB/s): min=65024, max=2743808, per=100.00%, avg=220152.71, stdev=3568.92, samples=7774
+   iops        : min=  252, max=10718, avg=859.94, stdev=13.94, samples=7774
+  lat (usec)   : 10=0.01%, 20=0.28%, 50=0.01%
+  lat (msec)   : 100=0.01%, 250=0.05%, 500=0.46%, 750=0.35%, 1000=0.30%
+  lat (msec)   : 2000=1.66%, >=2000=96.88%
+  cpu          : usr=0.01%, sys=0.08%, ctx=91143, majf=0, minf=1050302
+  IO depths    : 1=0.3%, 2=0.6%, 4=1.2%, 8=2.4%, 16=4.8%, 32=9.7%, >=64=80.9%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=99.5%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.5%
+     issued rwts: total=42320,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+   READ: bw=174MiB/s (183MB/s), 174MiB/s-174MiB/s (183MB/s-183MB/s), io=10.3GiB (11.1GB), run=60639-60639msec

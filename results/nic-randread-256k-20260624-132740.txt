@@ -1,0 +1,34 @@
+============================================================
+128G randread + NIC RX (256K block-size, correct)
+Date: Wed Jun 24 01:27:40 PM CST 2026
+Layout: 128G, BlockSize=256, EC 4+2
+fio: bs=256k randread iodepth=128 numjobs=128 direct=1 runtime=60s
+NIC: eno1  Target: 59 MB/s  Baseline(09): 45.9 MB/s / ~2.5x
+============================================================
+
+########## A: default (readahead on, cache=0) ##########
+  a-r1: READ=44.9MB/s  NIC_RX=117.5MB/s  NIC_TX=8.1MB/s  ampl=2.62x  (raw: /home/turboai/production/results/nic-randread-256k-20260624-132740-a-r1.txt)
+  a-r2: READ=45.6MB/s  NIC_RX=118.6MB/s  NIC_TX=7.7MB/s  ampl=2.60x  (raw: /home/turboai/production/results/nic-randread-256k-20260624-132740-a-r2.txt)
+  a-r3: READ=45.4MB/s  NIC_RX=118.4MB/s  NIC_TX=7.7MB/s  ampl=2.61x  (raw: /home/turboai/production/results/nic-randread-256k-20260624-132740-a-r3.txt)
+
+########## B: --max-readahead 0 (readahead off, cache=0) ##########
+  b-r1: READ=73.2MB/s  NIC_RX=115.7MB/s  NIC_TX=10.7MB/s  ampl=1.58x  (raw: /home/turboai/production/results/nic-randread-256k-20260624-132740-b-r1.txt)
+  b-r2: READ=78.9MB/s  NIC_RX=117.8MB/s  NIC_TX=5.2MB/s  ampl=1.49x  (raw: /home/turboai/production/results/nic-randread-256k-20260624-132740-b-r2.txt)
+  b-r3: READ=80.9MB/s  NIC_RX=117.3MB/s  NIC_TX=2.1MB/s  ampl=1.45x  (raw: /home/turboai/production/results/nic-randread-256k-20260624-132740-b-r3.txt)
+
+########## C: G4 (cache=10G + --max-readahead 0 --prefetch 0) ##########
+  c-r1: READ=75.6MB/s  NIC_RX=117.1MB/s  NIC_TX=10.9MB/s  ampl=1.55x  (raw: /home/turboai/production/results/nic-randread-256k-20260624-132740-c-r1.txt)
+  c-r2: READ=76.1MB/s  NIC_RX=117.3MB/s  NIC_TX=10.7MB/s  ampl=1.54x  (raw: /home/turboai/production/results/nic-randread-256k-20260624-132740-c-r2.txt)
+  c-r3: READ=76.1MB/s  NIC_RX=117.2MB/s  NIC_TX=10.7MB/s  ampl=1.54x  (raw: /home/turboai/production/results/nic-randread-256k-20260624-132740-c-r3.txt)
+
+============================================================
+SUMMARY
+============================================================
+
+Config a (default (readahead on, cache=0)):
+
+Config b (--max-readahead 0 (readahead off, cache=0)):
+
+Config c (G4 (cache=10G + readahead off + prefetch off)):
+
+Full log: /home/turboai/production/results/nic-randread-256k-20260624-132740.txt

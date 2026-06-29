@@ -1,0 +1,31 @@
+# mount: --cache-size 102400 --cache-dir /data/jfsCache
+# --directory=/mnt/juicefs/test_dir --name=storage_test --filesize=1G --size=1G --bs=256k --rw=randread --ioengine=libaio --iodepth=128 --numjobs=128 --direct=1 --fallocate=none --openfiles=100 --group_reporting --time_based --runtime=60s
+storage_test: (g=0): rw=randread, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=libaio, iodepth=128
+...
+fio-3.28
+Starting 128 processes
+
+storage_test: (groupid=0, jobs=128): err= 0: pid=358183: Thu Jun 25 01:12:10 2026
+  read: IOPS=111, BW=27.9MiB/s (29.3MB/s)(1709MiB/61221msec)
+    slat (usec): min=753, max=25874k, avg=1133247.24, stdev=2065555.11
+    clat (usec): min=6, max=60670k, avg=20161743.45, stdev=13315761.16
+     lat (msec): min=37, max=61213, avg=21294.99, stdev=14104.33
+    clat percentiles (usec):
+     |  1.00th=[      10],  5.00th=[ 1820328], 10.00th=[ 3439330],
+     | 20.00th=[ 7683965], 30.00th=[11475616], 40.00th=[15233713],
+     | 50.00th=[17112761], 60.00th=[17112761], 70.00th=[17112761],
+     | 80.00th=[17112761], 90.00th=[17112761], 95.00th=[17112761],
+     | 99.00th=[17112761], 99.50th=[17112761], 99.90th=[17112761],
+     | 99.95th=[17112761], 99.99th=[17112761]
+  lat (usec)   : 10=1.74%, 20=0.12%, 100=0.01%
+  lat (msec)   : 50=0.01%, 100=0.01%, 250=0.19%, 500=0.41%, 750=0.39%
+  lat (msec)   : 1000=0.42%, 2000=2.22%, >=2000=94.46%
+  cpu          : usr=0.00%, sys=0.02%, ctx=17286, majf=0, minf=439318
+  IO depths    : 1=1.9%, 2=3.7%, 4=7.5%, 8=15.0%, 16=30.0%, 32=40.5%, >=64=1.4%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=87.5%, >=64=12.5%
+     issued rwts: total=6837,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+   READ: bw=27.9MiB/s (29.3MB/s), 27.9MiB/s-27.9MiB/s (29.3MB/s-29.3MB/s), io=1709MiB (1792MB), run=61221-61221msec

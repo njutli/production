@@ -1,0 +1,34 @@
+# randwrite round 2: rw=randwrite bs=256k iodepth=128 numjobs=128 direct=1 runtime=60s
+# mount: --cache-size 102400 --cache-dir /data/jfsCache 
+# block-size: 256K, fio bs: 256K
+# date: Sat Jun 27 04:11:27 CST 2026
+storage_test: (g=0): rw=randwrite, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=libaio, iodepth=128
+...
+fio-3.28
+Starting 128 processes
+
+storage_test: (groupid=0, jobs=128): err= 0: pid=1086254: Sat Jun 27 04:12:45 2026
+  write: IOPS=199, BW=49.8MiB/s (52.2MB/s)(3032MiB/60897msec); 0 zone resets
+    slat (usec): min=287, max=2539.2k, avg=638859.65, stdev=546201.96
+    clat (usec): min=6, max=60891k, avg=38170521.21, stdev=20124006.59
+     lat (msec): min=522, max=60894, avg=38809.38, stdev=19861.13
+    clat percentiles (usec):
+     |  1.00th=[      17],  5.00th=[ 3707765], 10.00th=[ 7683965],
+     | 20.00th=[15904801], 30.00th=[17112761], 40.00th=[17112761],
+     | 50.00th=[17112761], 60.00th=[17112761], 70.00th=[17112761],
+     | 80.00th=[17112761], 90.00th=[17112761], 95.00th=[17112761],
+     | 99.00th=[17112761], 99.50th=[17112761], 99.90th=[17112761],
+     | 99.95th=[17112761], 99.99th=[17112761]
+   bw (  KiB/s): min= 2559, max= 2560, per=5.02%, avg=2560.00, stdev= 0.00, samples=20
+   iops        : min=    9, max=   10, avg=10.00, stdev= 0.00, samples=20
+  lat (usec)   : 10=0.55%, 20=0.49%, 50=0.02%
+  lat (msec)   : 750=0.13%, 1000=0.51%, 2000=1.39%, >=2000=96.91%
+  cpu          : usr=0.01%, sys=0.01%, ctx=24539, majf=0, minf=1557
+  IO depths    : 1=1.1%, 2=2.1%, 4=4.2%, 8=8.4%, 16=16.9%, 32=33.8%, >=64=33.5%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=16.3%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=83.7%
+     issued rwts: total=0,12127,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+  WRITE: bw=49.8MiB/s (52.2MB/s), 49.8MiB/s-49.8MiB/s (52.2MB/s-52.2MB/s), io=3032MiB (3179MB), run=60897-60897msec

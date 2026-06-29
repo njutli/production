@@ -61,7 +61,7 @@ run_rand() {  # $1=threads ; runs rand for RUNTIME with concurrent NIC sampling
     # snapshot NIC, launch rand, snapshot NIC after
     local s e srx stx erx etx
     s=$(nic_bytes); srx=${s% *}; stx=${s#* }
-    rados bench -p "${CEPH_POOL}" "${RUNTIME}" rand -b "${OBJSIZE}" -t "${t}" \
+    rados bench -p "${CEPH_POOL}" "${RUNTIME}" rand -t "${t}" \
         --run-name "${CLIENT}" 2>&1 | tee -a "${OUT}" > "${OUT}.rand.t${t}"
     e=$(nic_bytes); erx=${e% *}; etx=${e#* }
 

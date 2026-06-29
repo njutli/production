@@ -1,0 +1,32 @@
+# mount: --cache-size 102400 --cache-dir /data/jfsCache --max-readahead 0 --writeback
+# --directory=/mnt/juicefs/test_dir --name=storage_test --filesize=1G --size=1G --bs=256k --rw=randwrite --ioengine=libaio --iodepth=128 --numjobs=128 --direct=1 --fallocate=none --openfiles=100 --group_reporting --time_based --runtime=60s
+storage_test: (g=0): rw=randwrite, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=libaio, iodepth=128
+...
+fio-3.28
+Starting 128 processes
+
+storage_test: (groupid=0, jobs=128): err= 0: pid=376039: Thu Jun 25 03:54:18 2026
+  write: IOPS=2899, BW=725MiB/s (760MB/s)(42.5GiB/60080msec); 0 zone resets
+    slat (usec): min=175, max=524540, avg=44094.80, stdev=55356.38
+    clat (usec): min=8, max=13471k, avg=5550058.07, stdev=3668637.00
+     lat (msec): min=20, max=13592, avg=5594.16, stdev=3694.20
+    clat percentiles (msec):
+     |  1.00th=[  961],  5.00th=[ 1401], 10.00th=[ 1552], 20.00th=[ 1972],
+     | 30.00th=[ 2433], 40.00th=[ 2601], 50.00th=[ 4111], 60.00th=[ 7752],
+     | 70.00th=[ 8792], 80.00th=[ 9597], 90.00th=[10402], 95.00th=[11073],
+     | 99.00th=[12013], 99.50th=[12281], 99.90th=[12818], 99.95th=[13087],
+     | 99.99th=[13221]
+   bw (  KiB/s): min=143360, max=3384033, per=92.66%, avg=687662.14, stdev=4755.89, samples=14983
+   iops        : min=  560, max=13213, avg=2684.41, stdev=18.57, samples=14983
+  lat (usec)   : 10=0.01%, 20=0.07%, 50=0.01%
+  lat (msec)   : 50=0.01%, 250=0.15%, 500=0.25%, 750=0.21%, 1000=0.44%
+  lat (msec)   : 2000=19.38%, >=2000=79.49%
+  cpu          : usr=0.10%, sys=0.15%, ctx=349717, majf=0, minf=1678
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.3%, 8=0.6%, 16=1.2%, 32=2.4%, >=64=95.4%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=99.9%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.1%
+     issued rwts: total=0,174174,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+  WRITE: bw=725MiB/s (760MB/s), 725MiB/s-725MiB/s (760MB/s-760MB/s), io=42.5GiB (45.7GB), run=60080-60080msec

@@ -1,0 +1,78 @@
+============================================================
+Cache + Readahead randread test
+Date: Tue Jun 23 11:57:50 AM CST 2026
+STORAGE=ceph  pool=juicefs-data  block-size=256K  REPEAT=3  runtime=60s
+fio: 256k randread iodepth=128 numjobs=128 direct=1 (pure read, no create_on_open)
+data: 1 files x 128M  cache-dir=/data/jfsCache  nic=eno1
+target: 59 MB/s (gigabit half-speed)  L1 baseline: 112.7 MB/s (ampl=1.04x)
+============================================================
+
+########## Group 1: cache=0, default readahead/prefetch ##########
+  "BlockSize": 256,
+2026/06/23 11:59:00.185146 juicefs[1759137] <INFO>: [92mOK[0m, jfs-randread is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+>>> Prefilling 128 files x 128M (seq write)...
+>>> Prefill done.
+  g1r1:  READ=29.7MB/s  NIC_RX=94.3MB/s  NIC_TX=6.7MB/s  ampl=3.18x  (raw: /home/turboai/production/results/cache-randread-20260623-115750-g1r1.txt)
+  g1r2:  READ=37.1MB/s  NIC_RX=117.2MB/s  NIC_TX=8.2MB/s  ampl=3.16x  (raw: /home/turboai/production/results/cache-randread-20260623-115750-g1r2.txt)
+  g1r3:  READ=39.1MB/s  NIC_RX=118.5MB/s  NIC_TX=3.2MB/s  ampl=3.03x  (raw: /home/turboai/production/results/cache-randread-20260623-115750-g1r3.txt)
+
+########## Group 2: cache=10240MB, default readahead/prefetch ##########
+  "BlockSize": 256,
+2026/06/23 12:10:36.236956 juicefs[1761158] <INFO>: [92mOK[0m, jfs-randread is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+>>> Prefilling 128 files x 128M (seq write)...
+>>> Prefill done.
+  g2r1:  READ=40.8MB/s  NIC_RX=92.0MB/s  NIC_TX=7.0MB/s  ampl=2.25x  (raw: /home/turboai/production/results/cache-randread-20260623-115750-g2r1.txt)
+  g2r2:  READ=58.1MB/s  NIC_RX=118.5MB/s  NIC_TX=4.3MB/s  ampl=2.04x  (raw: /home/turboai/production/results/cache-randread-20260623-115750-g2r2.txt)
+  g2r3:  READ=59.7MB/s  NIC_RX=118.2MB/s  NIC_TX=2.1MB/s  ampl=1.98x  (raw: /home/turboai/production/results/cache-randread-20260623-115750-g2r3.txt)
+
+########## Group 3: cache=0, --max-readahead=0 --prefetch=0 ##########
+  "BlockSize": 256,
+2026/06/23 12:22:14.648340 juicefs[1763328] <INFO>: [92mOK[0m, jfs-randread is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+>>> Prefilling 128 files x 128M (seq write)...
+>>> Prefill done.
+  g3r1:  READ=41.8MB/s  NIC_RX=90.1MB/s  NIC_TX=8.6MB/s  ampl=2.16x  (raw: /home/turboai/production/results/cache-randread-20260623-115750-g3r1.txt)
+  g3r2:  READ=57.5MB/s  NIC_RX=117.6MB/s  NIC_TX=7.0MB/s  ampl=2.05x  (raw: /home/turboai/production/results/cache-randread-20260623-115750-g3r2.txt)
+  g3r3:  READ=60.0MB/s  NIC_RX=117.6MB/s  NIC_TX=2.1MB/s  ampl=1.96x  (raw: /home/turboai/production/results/cache-randread-20260623-115750-g3r3.txt)
+
+########## Group 4: cache=10240MB, --max-readahead=0 --prefetch=0 ##########
+  "BlockSize": 256,
+2026/06/23 12:33:32.627874 juicefs[1766500] <INFO>: [92mOK[0m, jfs-randread is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+>>> Prefilling 128 files x 128M (seq write)...
+>>> Prefill done.
+  g4r1:  READ=56.6MB/s  NIC_RX=80.8MB/s  NIC_TX=9.3MB/s  ampl=1.43x  (raw: /home/turboai/production/results/cache-randread-20260623-115750-g4r1.txt)
+  g4r2:  READ=84.5MB/s  NIC_RX=109.0MB/s  NIC_TX=8.1MB/s  ampl=1.29x  (raw: /home/turboai/production/results/cache-randread-20260623-115750-g4r2.txt)
+  g4r3:  READ=95.7MB/s  NIC_RX=117.2MB/s  NIC_TX=2.1MB/s  ampl=1.22x  (raw: /home/turboai/production/results/cache-randread-20260623-115750-g4r3.txt)
+
+>>> cleanup
+
+============================================================
+SUMMARY
+============================================================
+
+Group 1 (cache=0, default readahead):
+  run1: READ=  29.7 MB/s  NIC_RX=  94.3 MB/s  ampl=3.18x
+  run2: READ=  37.1 MB/s  NIC_RX= 117.2 MB/s  ampl=3.16x
+  run3: READ=  39.1 MB/s  NIC_RX= 118.5 MB/s  ampl=3.03x
+  ── AVG:    READ=  35.3 MB/s  NIC_RX= 110.0 MB/s  ampl=3.12x  (n=3) ──
+
+Group 2 (cache=10240MB, default readahead):
+  run1: READ=  40.8 MB/s  NIC_RX=  92.0 MB/s  ampl=2.25x
+  run2: READ=  58.1 MB/s  NIC_RX= 118.5 MB/s  ampl=2.04x
+  run3: READ=  59.7 MB/s  NIC_RX= 118.2 MB/s  ampl=1.98x
+  ── AVG:    READ=  52.9 MB/s  NIC_RX= 109.6 MB/s  ampl=2.07x  (n=3) ──
+
+Group 3 (cache=0, --max-readahead=0 --prefetch=0):
+  run1: READ=  41.8 MB/s  NIC_RX=  90.1 MB/s  ampl=2.16x
+  run2: READ=  57.5 MB/s  NIC_RX= 117.6 MB/s  ampl=2.05x
+  run3: READ=  60.0 MB/s  NIC_RX= 117.6 MB/s  ampl=1.96x
+  ── AVG:    READ=  53.1 MB/s  NIC_RX= 108.4 MB/s  ampl=2.04x  (n=3) ──
+
+Group 4 (cache=10240MB, --max-readahead=0 --prefetch=0):
+  run1: READ=  56.6 MB/s  NIC_RX=  80.8 MB/s  ampl=1.43x
+  run2: READ=  84.5 MB/s  NIC_RX= 109.0 MB/s  ampl=1.29x
+  run3: READ=  95.7 MB/s  NIC_RX= 117.2 MB/s  ampl=1.22x
+  ── AVG:    READ=  78.9 MB/s  NIC_RX= 102.3 MB/s  ampl=1.30x  (n=3) ──
+
+Target: 59 MB/s (single-client, gigabit half-speed)
+L1 baseline: 112.7 MB/s (bare RADOS 256K rand, ampl=1.04x)
+DONE  full log: /home/turboai/production/results/cache-randread-20260623-115750.txt

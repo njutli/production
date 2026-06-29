@@ -1,0 +1,12 @@
+2026/06/27 16:09:42.230112 juicefs[1402319] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/06/27 16:09:42.230294 juicefs[1402319] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+ volume name: juicefs-prod
+ volume UUID: b905f53a-6f92-4b5c-8da3-91be95fe6056
+data storage: ceph://juicefs-data/juicefs-prod/
+  used bytes: 137438957568
+ used inodes: 129
+[1;33mWARNING[0m: The target volume will be permanently destroyed, including:
+[1;33mWARNING[0m: 1. ALL objects in the data storage: ceph://juicefs-data/juicefs-prod/
+[1;33mWARNING[0m: 2. ALL entries in the metadata engine: tikv://192.168.11.12:2379/juicefs-prod
+2026/06/27 16:17:21.526461 juicefs[1402319] <INFO>: Deleted 615055 objects [destroy@destroy.go:206]
+2026/06/27 16:17:22.705796 juicefs[1402319] <INFO>: The volume has been destroyed! You may need to delete cache directory manually. [destroy@destroy.go:216]

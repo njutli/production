@@ -1,0 +1,14 @@
+============================================================
+Cache + Readahead randread test
+Date: Tue Jun 23 09:51:23 AM CST 2026
+STORAGE=ceph  pool=juicefs-data  block-size=256K  REPEAT=3  runtime=60s
+fio: 256k randread iodepth=128 numjobs=128 direct=1 (pure read, no create_on_open)
+data: 128 files x 64M  cache-dir=/data/jfsCache  nic=eno1
+target: 59 MB/s (gigabit half-speed)  L1 baseline: 112.7 MB/s (ampl=1.04x)
+============================================================
+
+########## Group 1: cache=0, default readahead/prefetch ##########
+  "BlockSize": 256,
+2026/06/23 09:52:33.187964 juicefs[764899] <INFO>: [92mOK[0m, jfs-randread is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+>>> Prefilling 128 files x 64M (seq write)...
+>>> Prefill done.

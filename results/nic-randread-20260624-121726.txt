@@ -1,0 +1,56 @@
+============================================================
+128G randread + NIC RX: readahead on/off + G4 config
+Date: Wed Jun 24 12:17:26 PM CST 2026
+Layout: 128 jobs x 1G = 128G (default opts, pre-built)
+fio: bs=256k randread iodepth=128 numjobs=128 direct=1 runtime=60s
+NIC: eno1  Target: 59 MB/s  Baseline(09): 45.9 MB/s / 2.5x ampl
+============================================================
+
+########## Config A: default (readahead=on, prefetch=on, cache=0) ##########
+  a-r1: READ=17.1MB/s  NIC_RX=122.7MB/s  NIC_TX=19.8MB/s  ampl=7.18x  (raw: /home/turboai/production/results/nic-randread-20260624-121726-a-r1.txt)
+  a-r2: READ=18.7MB/s  NIC_RX=122.7MB/s  NIC_TX=20.2MB/s  ampl=6.56x  (raw: /home/turboai/production/results/nic-randread-20260624-121726-a-r2.txt)
+  a-r3: READ=18.4MB/s  NIC_RX=124.7MB/s  NIC_TX=19.7MB/s  ampl=6.78x  (raw: /home/turboai/production/results/nic-randread-20260624-121726-a-r3.txt)
+
+########## Config B: --max-readahead 0 (readahead=off, prefetch=on, cache=0) ##########
+  b-r1: READ=38.7MB/s  NIC_RX=104.2MB/s  NIC_TX=35.0MB/s  ampl=2.69x  (raw: /home/turboai/production/results/nic-randread-20260624-121726-b-r1.txt)
+  b-r2: READ=48.3MB/s  NIC_RX=111.2MB/s  NIC_TX=34.0MB/s  ampl=2.30x  (raw: /home/turboai/production/results/nic-randread-20260624-121726-b-r2.txt)
+  b-r3: READ=60.6MB/s  NIC_RX=115.4MB/s  NIC_TX=18.4MB/s  ampl=1.90x  (raw: /home/turboai/production/results/nic-randread-20260624-121726-b-r3.txt)
+
+########## Config C: G4 (--cache-size 10240 --cache-dir /data/jfsCache --max-readahead 0 --prefetch 0) ##########
+  c-r1: READ=42.6MB/s  NIC_RX=111.4MB/s  NIC_TX=34.0MB/s  ampl=2.62x  (raw: /home/turboai/production/results/nic-randread-20260624-121726-c-r1.txt)
+  c-r2: READ=46.9MB/s  NIC_RX=112.7MB/s  NIC_TX=27.2MB/s  ampl=2.40x  (raw: /home/turboai/production/results/nic-randread-20260624-121726-c-r2.txt)
+  c-r3: READ=52.7MB/s  NIC_RX=114.5MB/s  NIC_TX=17.9MB/s  ampl=2.17x  (raw: /home/turboai/production/results/nic-randread-20260624-121726-c-r3.txt)
+
+============================================================
+SUMMARY
+============================================================
+
+Config a (default (readahead on, cache=0)):
+  run1: READ=   0.0 MB/s  NIC_RX=   0.0 MB/s  ampl=NIC_RX=122.7MB/sx
+  run2: READ=  17.1 MB/s  NIC_RX= 122.7 MB/s  ampl=7.18x
+  run3: READ=   0.0 MB/s  NIC_RX=   0.0 MB/s  ampl=NIC_RX=122.7MB/sx
+  run4: READ=  18.7 MB/s  NIC_RX= 122.7 MB/s  ampl=6.56x
+  run5: READ=   0.0 MB/s  NIC_RX=   0.0 MB/s  ampl=NIC_RX=124.7MB/sx
+  run6: READ=  18.4 MB/s  NIC_RX= 124.7 MB/s  ampl=6.78x
+  -- AVG:    READ=   9.0 MB/s  NIC_RX=  61.7 MB/s  ampl=6.83x  (n=6) --
+
+Config b (--max-readahead 0 (readahead off, cache=0)):
+  run1: READ=   0.0 MB/s  NIC_RX=   0.0 MB/s  ampl=NIC_RX=104.2MB/sx
+  run2: READ=  38.7 MB/s  NIC_RX= 104.2 MB/s  ampl=2.69x
+  run3: READ=   0.0 MB/s  NIC_RX=   0.0 MB/s  ampl=NIC_RX=111.2MB/sx
+  run4: READ=  48.3 MB/s  NIC_RX= 111.2 MB/s  ampl=2.30x
+  run5: READ=   0.0 MB/s  NIC_RX=   0.0 MB/s  ampl=NIC_RX=115.4MB/sx
+  run6: READ=  60.6 MB/s  NIC_RX= 115.4 MB/s  ampl=1.90x
+  -- AVG:    READ=  24.6 MB/s  NIC_RX=  55.1 MB/s  ampl=2.24x  (n=6) --
+
+Config c (G4 (cache=10G + readahead off + prefetch off)):
+  run1: READ=   0.0 MB/s  NIC_RX=   0.0 MB/s  ampl=NIC_RX=111.4MB/sx
+  run2: READ=  42.6 MB/s  NIC_RX= 111.4 MB/s  ampl=2.62x
+  run3: READ=   0.0 MB/s  NIC_RX=   0.0 MB/s  ampl=NIC_RX=112.7MB/sx
+  run4: READ=  46.9 MB/s  NIC_RX= 112.7 MB/s  ampl=2.40x
+  run5: READ=   0.0 MB/s  NIC_RX=   0.0 MB/s  ampl=NIC_RX=114.5MB/sx
+  run6: READ=  52.7 MB/s  NIC_RX= 114.5 MB/s  ampl=2.17x
+  -- AVG:    READ=  23.7 MB/s  NIC_RX=  56.4 MB/s  ampl=2.38x  (n=6) --
+
+Target: 59 MB/s  Baseline(09): 45.9 MB/s / 2.5x ampl
+Full log: /home/turboai/production/results/nic-randread-20260624-121726.txt
