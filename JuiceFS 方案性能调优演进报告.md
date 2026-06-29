@@ -147,3 +147,114 @@
 
 - **EC 4+2 协议开销**：每个 256K 读取需从 4 个 OSD 各取分片，strace 观测到 139 次 socket read 调用，怀疑是残余放大的主要来源
 - **读写争抢（randrw）**：混合读写场景下读被写阻塞的机制尚不明确，正在通过 pprof / strace / OSD perf dump 等手段深入诊断
+
+---
+
+## 六、冷态基线及相关配置参数（后续调优工作基础）
+
+> 以下冷态全量测试数据是后续瓶颈定位和调优工作的基准口径。
+> 所有配置对比、瓶颈分析均以冷态数据为准，暖态/writeback 数据仅用于评估用户体验带宽。
+
+### 6.1 冷态基线配置参数
+
+| 参数 | 值 | 说明 |
+|------|-----|------|
+| `--storage` | ceph | 直连 RADOS，绕过 RGW |
+| `--block-size` | 256K | 对齐 fio bs=256K，消除读放大 |
+| `--cache-size` | 0 | 关闭客户端缓存，确保数据走网络到 Ceph |
+| `--max-uploads` | 20（默认） | 不额外调参 |
+| `--max-readahead` | 默认 | 不额外调参 |
+| `--writeback` | 关闭 | 不启用写缓存 |
+| fio 顺序 bs | 256K | 与 block-size 对齐 |
+| fio 随机 bs | 256K | 与 block-size 对齐 |
+| fio 随机 numjobs | 128 | 128 并发 |
+| fio 随机 iodepth | 128 | libaio 深度 128 |
+| fio `--direct` | 1 | 绕过内核 page cache |
+| fio `--time_based --runtime` | 60s | 时间基准测试 |
+| 工作集 | 128G（128jobs × 1G） | 超出缓存容量，确保冷态 |
+
+### 6.2 冷态全量基线数据（双轮取最高值）
+
+| 顺序读 | 顺序写 | 多线程读 | 多线程写 | 布局写 | 随机读 | 随机写 | 随机读写 R | 随机读写 W |
+|--------|--------|----------|----------|--------|--------|--------|------------|------------|
+| 80.4 | 50.8 | 110 | 41.5 | 33.3 | 33.6 | 53.5 | 17.3 | 17.0 |
+
+> 单位 MB/s。fio bs=256K，block-size=256K，cache=0，无 writeback，mu=默认。
+> 达标标准：≥59 MB/s。冷态下达标项：顺序读、多线程读。其余均未达标。
+
+### 6.3 为什么以冷态为调优基准
+
+1. **消除缓存效应**：cache=0 确保每次读取都走网络到 Ceph，反映后端真实性能
+2. **消除 staging 污染**：无 writeback，写操作直接穿透到后端，读测试不会被 staging→cache 硬链接污染
+3. **可复现**：冷态测试每轮独立（destroy + reformat + drop_caches），结果稳定可对比
+4. **反映集群真实能力**：暖态/writeback 数据反映的是客户端缓存能力，不是集群吞吐
+
+---
+
+## 七、生产配置测试数据（writeback + mu=150 + cache=100G）
+
+> 以下数据来自 `results/full-bs256k-warm-writeback-mu150-20260629-131422/`。
+> 配置：`--cache-size 102400 --cache-dir /data/jfsCache --max-uploads 150 --writeback`
+
+### 7.1 测试结果
+
+| 指标 | 冷态基线 | 暖态 mu=150（无 writeback） | 暖态 writeback+mu150 |
+|------|---------|---------------------------|---------------------|
+| 顺序读 | 80.4 | 89.9 | **1193** |
+| 顺序写 | 50.8 | 62.4 | **346** |
+| 多线程读 | 110 | 109 | **12800** |
+| 多线程写 | 41.5 | 41.7 | **431** |
+| 布局写 | 33.3 | 42.5 | **417** |
+| 随机读 r1 | 33.6 | 38.3 | **197** |
+| 随机读 r3 | 33.6 | 102 | **864** |
+| 随机写 | 53.5 | 42.8 | **688** |
+| 随机读写 R | 17.3 | 18.9 | **260** |
+| 随机读写 W | 17.0 | 18.7 | **261** |
+
+> 单位 MB/s。writeback 列的高带宽来自本地 SSD，NIC 流量极低（10~3000 KB/s），数据几乎未经过网络到 Ceph。
+
+### 7.2 数据解读
+
+#### writeback 的工作原理
+
+`--writeback` 开启后，写操作先将 block 写入本地 staging 磁盘（`rawstaging/` 目录），`Finish()` 立即返回，不等后端上传完成。后台由 `max-uploads`（150）个 uploader goroutine 异步将 staging 文件上传到 Ceph。同时，staging 文件通过 `os.Link()` 硬链接到 cache 目录，使等待上传的数据同时成为读缓存。
+
+#### 这些数据不代表集群真实吞吐能力
+
+1. **写带宽是本地 SSD 速度，不是集群带宽**：seqwrite=346、randwrite=688 均为本地磁盘写入速度，后台上传仍受 1Gbps 网络 + EC 4+2 写放大限制，实际 drain 速率约 50~60 MB/s
+2. **读数据被 staging→cache 硬链接污染**：layout 写入的 128G block 全部硬链接到 cache 目录，后续读测试命中本地缓存，NIC_RX 几乎为零，测的是本地 SSD 读带宽而非 Ceph 读性能
+3. **长时间大压力写入会被打回原形**：若持续写入速率超过后台 drain 速率（~60 MB/s），staging 会不断堆积直到磁盘满，前端最终被回压到后端真实速度
+
+#### 但在突发型负载场景下有可观收益
+
+对于 AI 训练 checkpoint 等突发写入场景（写一批数据 → 计算一段时间 → 再写一批），writeback 的收益链条为：
+
+1. **突发写秒级完成**：如 50GB checkpoint 写本地 SSD ~300 MB/s，约 3 分钟完成（无 writeback 需 ~14 分钟）
+2. **计算间隙后台 drain**：训练继续跑 GPU 的 30 分钟里，150 个 uploader goroutine 以 ~60 MB/s 速度清空 staging（50GB 约 14 分钟），下一个 checkpoint 到来前 staging 已清空
+3. **checkpoint 读取命中本地缓存**：恢复训练时读 checkpoint，数据仍在 cache 目录（staging 硬链接），不走网络
+
+关键前提：**平均写入速率需低于后台 drain 速率（~60 MB/s）**。AI 训练 checkpoint 场景（大块数据间歇写入）通常满足此条件；持续日志/流式写入场景则不适用。
+
+#### 风险评估
+
+| 风险场景 | 影响 | 评估 |
+|---------|------|------|
+| 进程 crash | staging 文件在本地磁盘，下次 mount 时 `scanStaging()` 自动恢复上传 | 安全 |
+| 正常 umount | `waitWritebackComplete()` 阻塞等待 staging 清空 | 安全 |
+| 硬掉电 | staging 文件 `closeFile()` 未显式 fsync，page cache 可能未刷盘 | 数据中心环境（UPS）下风险极低 |
+| staging 磁盘满 | 回退到直接上传，前端降至后端真实速度 | 需确保本地盘空间充足（建议 ≥150GB） |
+
+### 7.3 生产配置建议
+
+```
+juicefs mount -d \
+  --storage ceph --bucket ceph://juicefs-data \
+  --access-key ceph --secret-key client.juicefs \
+  --block-size 256K \
+  --cache-size 102400 --cache-dir /data/jfsCache \
+  --max-uploads 150 \
+  --writeback \
+  tikv://192.168.11.12:2379/juicefs-prod /mnt/juicefs
+```
+
+> 后续瓶颈定位和调优工作继续以冷态全量测试为基准。writeback 配置仅用于生产部署，不参与调优分析。
