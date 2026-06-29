@@ -1,0 +1,60 @@
+storage_test: (g=0): rw=write, bs=(R) 4096KiB-4096KiB, (W) 4096KiB-4096KiB, (T) 4096KiB-4096KiB, ioengine=psync, iodepth=1
+...
+fio-3.28
+Starting 32 processes
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+
+storage_test: (groupid=0, jobs=32): err= 0: pid=2134440: Mon Jun 29 09:59:56 2026
+  write: IOPS=8, BW=35.0MiB/s (36.7MB/s)(32.0GiB/937451msec); 0 zone resets
+    clat (msec): min=33, max=10512, avg=3586.30, stdev=1204.91
+     lat (msec): min=33, max=10513, avg=3586.74, stdev=1204.90
+    clat percentiles (msec):
+     |  1.00th=[  264],  5.00th=[ 2265], 10.00th=[ 2668], 20.00th=[ 2970],
+     | 30.00th=[ 3272], 40.00th=[ 3373], 50.00th=[ 3373], 60.00th=[ 3473],
+     | 70.00th=[ 3675], 80.00th=[ 3876], 90.00th=[ 4597], 95.00th=[ 6208],
+     | 99.00th=[ 8087], 99.50th=[ 8658], 99.90th=[10268], 99.95th=[10268],
+     | 99.99th=[10537]
+   bw (  KiB/s): min=262093, max=787755, per=100.00%, avg=264322.43, stdev=1030.49, samples=8096
+   iops        : min=   61, max=  192, avg=64.49, stdev= 0.25, samples=8096
+  lat (msec)   : 50=0.78%, 250=0.15%, 500=0.71%, 750=0.18%, 1000=0.09%
+  lat (msec)   : 2000=1.76%, >=2000=96.34%
+  cpu          : usr=0.01%, sys=0.15%, ctx=263259, majf=0, minf=10448
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=0,8192,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+  WRITE: bw=35.0MiB/s (36.7MB/s), 35.0MiB/s-35.0MiB/s (36.7MB/s-36.7MB/s), io=32.0GiB (34.4GB), run=937451-937451msec

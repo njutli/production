@@ -1,0 +1,35 @@
+# randwrite round 4: rw=randwrite bs=256k iodepth=128 numjobs=128 direct=1 runtime=60s
+# mount: --cache-size 102400 --cache-dir /data/jfsCache
+# date: Thu Jun 25 14:59:19 CST 2026
+# cache_dir_size: 92260836KB
+storage_test: (g=0): rw=randwrite, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=libaio, iodepth=128
+...
+fio-3.28
+Starting 128 processes
+
+storage_test: (groupid=0, jobs=128): err= 0: pid=563961: Thu Jun 25 15:01:05 2026
+  write: IOPS=190, BW=47.7MiB/s (50.1MB/s)(2915MiB/61042msec); 0 zone resets
+    slat (usec): min=298, max=2841.3k, avg=664274.89, stdev=582265.12
+    clat (usec): min=5, max=61034k, avg=38844321.49, stdev=18084611.09
+     lat (msec): min=21, max=61038, avg=39508.60, stdev=17753.83
+    clat percentiles (usec):
+     |  1.00th=[      13],  5.00th=[ 4529849], 10.00th=[ 9999221],
+     | 20.00th=[17112761], 30.00th=[17112761], 40.00th=[17112761],
+     | 50.00th=[17112761], 60.00th=[17112761], 70.00th=[17112761],
+     | 80.00th=[17112761], 90.00th=[17112761], 95.00th=[17112761],
+     | 99.00th=[17112761], 99.50th=[17112761], 99.90th=[17112761],
+     | 99.95th=[17112761], 99.99th=[17112761]
+   bw (  KiB/s): min= 2557, max= 3584, per=5.93%, avg=2901.21, stdev=160.91, samples=28
+   iops        : min=    8, max=   14, avg=11.27, stdev= 0.66, samples=28
+  lat (usec)   : 10=0.59%, 20=0.51%
+  lat (msec)   : 50=0.06%, 500=0.05%, 750=0.03%, 1000=0.03%, 2000=0.81%
+  lat (msec)   : >=2000=97.92%
+  cpu          : usr=0.01%, sys=0.01%, ctx=23755, majf=0, minf=1622
+  IO depths    : 1=1.1%, 2=2.2%, 4=4.4%, 8=8.8%, 16=17.6%, 32=35.1%, >=64=30.8%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=22.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=78.0%
+     issued rwts: total=0,11659,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+  WRITE: bw=47.7MiB/s (50.1MB/s), 47.7MiB/s-47.7MiB/s (50.1MB/s-50.1MB/s), io=2915MiB (3056MB), run=61042-61042msec

@@ -1,0 +1,64 @@
+### date: Thu Jun 25 20:13:39 CST 2026
+### ceph health
+HEALTH_OK
+### ceph osd tree
+ID  CLASS  WEIGHT   TYPE NAME            STATUS  REWEIGHT  PRI-AFF
+-1         3.25839  root default                                  
+-3         0.93100      host ceph-node1                           
+ 0    hdd  0.46550          osd.0            up   1.00000  1.00000
+ 1    hdd  0.46550          osd.1            up   1.00000  1.00000
+-5         0.93100      host ceph-node2                           
+ 2    hdd  0.46550          osd.2            up   1.00000  1.00000
+ 3    hdd  0.46550          osd.3            up   1.00000  1.00000
+-6         1.39639      host ceph-node3                           
+ 4    hdd  0.93089          osd.4            up   1.00000  1.00000
+ 5    hdd  0.46550          osd.5            up   1.00000  1.00000
+### ceph osd pool get juicefs-data all
+size: 6
+min_size: 5
+pg_num: 32
+pgp_num: 32
+crush_rule: juicefs-data
+hashpspool: true
+allow_ec_overwrites: true
+nodelete: false
+nopgchange: false
+nosizechange: false
+write_fadvise_dontneed: false
+noscrub: false
+nodeep-scrub: false
+use_gmt_hitset: 1
+erasure_code_profile: ec-prod
+fast_read: 0
+pg_autoscale_mode: on
+eio: false
+bulk: false
+### ceph df
+--- RAW STORAGE ---
+CLASS     SIZE    AVAIL     USED  RAW USED  %RAW USED
+hdd    2.8 TiB  2.6 TiB  218 GiB   218 GiB       7.61
+TOTAL  2.8 TiB  2.6 TiB  218 GiB   218 GiB       7.61
+ 
+--- POOLS ---
+POOL                       ID  PGS   STORED  OBJECTS     USED  %USED  MAX AVAIL
+default.rgw.log            10   32  3.6 KiB      209  408 KiB      0    486 GiB
+.rgw.root                  12   32  1.5 KiB        4   48 KiB      0    486 GiB
+default.rgw.control        13   32      0 B        8      0 B      0    486 GiB
+default.rgw.meta           14   32  1.8 KiB        6   51 KiB      0    486 GiB
+.mgr                       15    1  449 KiB        2  1.3 MiB      0    486 GiB
+default.rgw.buckets.index  28   32  6.1 MiB       11   18 MiB      0    486 GiB
+default.rgw.buckets.data   36   32      0 B        0      0 B      0    486 GiB
+juicefs-data               43   32  136 GiB  596.98k  205 GiB  12.31    972 GiB
+### OSD perf dump (before test)
+--- osd.0 ---
+parse error
+--- osd.1 ---
+parse error
+--- osd.2 ---
+parse error
+--- osd.3 ---
+parse error
+--- osd.4 ---
+parse error
+--- osd.5 ---
+parse error

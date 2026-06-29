@@ -1,0 +1,34 @@
+# randread round 1: rw=randread bs=256k iodepth=128 numjobs=128 direct=1 runtime=60s
+# mount: --cache-size 102400 --cache-dir /data/jfsCache --max-uploads 150
+# block-size: 256K, fio bs: 256K
+# date: Sun Jun 28 08:25:31 CST 2026
+storage_test: (g=0): rw=randread, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=libaio, iodepth=128
+...
+fio-3.28
+Starting 128 processes
+
+storage_test: (groupid=0, jobs=128): err= 0: pid=1757358: Sun Jun 28 08:26:53 2026
+  read: IOPS=177, BW=44.4MiB/s (46.6MB/s)(2760MiB/62096msec)
+    slat (usec): min=581, max=21942k, avg=705516.45, stdev=1792749.01
+    clat (usec): min=8, max=62058k, avg=21128593.16, stdev=14933439.50
+     lat (msec): min=691, max=62090, avg=21834.11, stdev=15348.90
+    clat percentiles (usec):
+     |  1.00th=[      12],  5.00th=[ 2432697], 10.00th=[ 4596958],
+     | 20.00th=[ 8086619], 30.00th=[11207181], 40.00th=[15233713],
+     | 50.00th=[17112761], 60.00th=[17112761], 70.00th=[17112761],
+     | 80.00th=[17112761], 90.00th=[17112761], 95.00th=[17112761],
+     | 99.00th=[17112761], 99.50th=[17112761], 99.90th=[17112761],
+     | 99.95th=[17112761], 99.99th=[17112761]
+   bw (  KiB/s): min= 5640, max= 8204, per=15.21%, avg=6923.00, stdev=512.39, samples=10
+   iops        : min=   21, max=   32, avg=27.00, stdev= 2.00, samples=10
+  lat (usec)   : 10=0.65%, 20=0.48%, 50=0.03%
+  lat (msec)   : 750=0.18%, 1000=0.24%, 2000=1.70%, >=2000=96.71%
+  cpu          : usr=0.00%, sys=0.04%, ctx=24976, majf=0, minf=706615
+  IO depths    : 1=1.2%, 2=2.3%, 4=4.6%, 8=9.3%, 16=18.6%, 32=36.5%, >=64=27.6%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=19.5%, 8=0.0%, 16=0.0%, 32=0.0%, 64=5.7%, >=64=74.8%
+     issued rwts: total=11040,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+   READ: bw=44.4MiB/s (46.6MB/s), 44.4MiB/s-44.4MiB/s (46.6MB/s-46.6MB/s), io=2760MiB (2894MB), run=62096-62096msec

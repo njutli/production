@@ -1,0 +1,85 @@
+============================================================
+暖态基线测试（可追溯） 20260625-133153
+============================================================
+
+## 测试方法
+  脚本: tests/bench-warm-baseline.sh
+  启动命令: cd /home/turboai/production && bash tests/bench-warm-baseline.sh
+  输出目录: results/warm-baseline-20260625/
+  口径: 复用冷态基线的卷和 128G 布局, 不 destroy/reformat
+  挂载: --cache-size 102400 --cache-dir /data/jfsCache (100G, JuiceFS 默认)
+  不 drop_caches (客户端 + OSD 都不 drop, 模拟生产暖态)
+  顺序项各 1 次; 随机项 7 轮, 观察收敛趋势
+  每轮记录: cache 大小 + NIC RX
+
+## 环境快照
+
+### 集群状态
+  ceph status -> results/warm-baseline-20260625/ceph-status-before.txt
+### 客户端状态
+  client status -> results/warm-baseline-20260625/client-status-before.txt
+
+## 挂载
+  --cache-size 102400 --cache-dir /data/jfsCache (100G, JuiceFS 默认)
+  不 drop_caches（暖态，模拟生产）
+  清空 cache 目录（确保 r1 cache 为空）
+  mount OK
+  布局文件数=128（期望128）
+
+## 顺序测试 (100G cache, 不 drop_caches)
+### seqread prep (write 4G)
+  seqread: READ=79.0 WRITE=NA NIC_RX=4322.7
+  seqwrite: READ=NA WRITE=51.5 NIC_RX=65.8
+  multi-seqread: READ=109 WRITE=NA NIC_RX=69200.1
+  multi-seqwrite: READ=NA WRITE=36.2 NIC_RX=1013.5
+
+## 随机测试 (reuse 128G layout, 100G cache, 不 drop_caches, 7 rounds)
+  目标：观察 r1→r7 收敛趋势，连续两轮变化 <5% 视为稳态
+### Round 1
+  randread r1: READ=42.0 WRITE=NA NIC_RX=6809.9
+  randwrite r1: READ=NA WRITE=35.8 NIC_RX=543.0
+  randrw r1: READ=18.0 WRITE=17.6 NIC_RX=1604.0
+### Round 2
+  randread r2: READ=77.2 WRITE=NA NIC_RX=6616.0
+  randwrite r2: READ=NA WRITE=45.4 NIC_RX=234.4
+  randrw r2: READ=14.2 WRITE=13.9 NIC_RX=1416.6
+### Round 3
+  randread r3: READ=107 WRITE=NA NIC_RX=6467.5
+  randwrite r3: READ=NA WRITE=47.0 NIC_RX=338.0
+  randrw r3: READ=15.9 WRITE=15.6 NIC_RX=1644.2
+### Round 4
+  randread r4: READ=138 WRITE=NA NIC_RX=6520.3
+  randwrite r4: READ=NA WRITE=47.7 NIC_RX=283.1
+  randrw r4: READ=14.6 WRITE=14.3 NIC_RX=1543.8
+### Round 5
+  randread r5: READ=169 WRITE=NA NIC_RX=6566.5
+  randwrite r5: READ=NA WRITE=54.8 NIC_RX=199.7
+  randrw r5: READ=11.3 WRITE=11.1 NIC_RX=1331.5
+### Round 6
+  randread r6: READ=187 WRITE=NA NIC_RX=5502.6
+  randwrite r6: READ=NA WRITE=40.8 NIC_RX=380.0
+  randrw r6: READ=15.6 WRITE=15.3 NIC_RX=1549.7
+### Round 7
+  randread r7: READ=223 WRITE=NA NIC_RX=6564.8
+  randwrite r7: READ=NA WRITE=53.3 NIC_RX=195.3
+  randrw r7: READ=14.3 WRITE=14.0 NIC_RX=1631.8
+
+## OSD 后状态
+  ceph status after -> results/warm-baseline-20260625/ceph-status-after.txt
+
+============================================================
+## 汇总
+============================================================
+
+所有原始 fio 输出保存在: results/warm-baseline-20260625/
+  - ceph-status-before.txt / ceph-status-after.txt (集群状态前后对比)
+  - client-status-before.txt (客户端状态快照)
+  - mount.log (挂载参数)
+  - seqread.txt / seqwrite.txt / multi-seqread.txt / multi-seqwrite.txt
+  - randread-r{1..7}.txt / randwrite-r{1..7}.txt / randrw-r{1..7}.txt
+  - summary.txt (本文件)
+
+每轮 fio 文件包含: mount 参数 + 日期 + cache 大小 + fio 完整输出
+每轮 summary 记录: READ/WRITE/NIC_RX
+
+DONE
