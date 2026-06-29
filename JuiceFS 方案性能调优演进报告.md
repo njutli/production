@@ -149,8 +149,9 @@
 - **读写争抢（randrw）**：混合读写场景下读被写阻塞的机制尚不明确，正在通过 pprof / strace / OSD perf dump 等手段深入诊断
 
 ---
+> 以下为草稿内容，非正式报告章节，待后续调优推进后整合。
 
-## 六、冷态基线及相关配置参数（后续调优工作基础）
+## 【草稿】冷态基线及相关配置参数
 
 > 以下冷态全量测试数据是后续瓶颈定位和调优工作的基准口径。
 > 所有配置对比、瓶颈分析均以冷态数据为准，暖态/writeback 数据仅用于评估用户体验带宽。
@@ -191,7 +192,7 @@
 
 ---
 
-## 七、生产配置测试数据（writeback + mu=150 + cache=100G）
+## 【草稿】writeback + mu=150 + cache=100G 测试数据及讨论
 
 > 以下数据来自 `results/full-bs256k-warm-writeback-mu150-20260629-131422/`。
 > 配置：`--cache-size 102400 --cache-dir /data/jfsCache --max-uploads 150 --writeback`
