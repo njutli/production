@@ -14,7 +14,7 @@ description: Use for ALL tasks involving file operations, cluster operations, or
 | 主机名     | tikv-node             |
 | IP 地址    | 192.168.11.12         |
 | 用户名     | turboai               |
-| 密码       | 123456                |
+| 密码       | TurboAi@303                |
 | 基础目录   | /home/turboai/production |
 
 ## SSH 连接方式
@@ -22,13 +22,13 @@ description: Use for ALL tasks involving file operations, cluster operations, or
 使用 `sshpass` 进行非交互式 SSH 连接：
 
 ```bash
-sshpass -p '123456' ssh -o StrictHostKeyChecking=no turboai@192.168.11.12 "<command>"
+sshpass -p 'TurboAi@303' ssh -o StrictHostKeyChecking=no turboai@192.168.11.12 "<command>"
 ```
 
 文件传输使用 `scp`：
 
 ```bash
-sshpass -p '123456' scp -o StrictHostKeyChecking=no <local_file> turboai@192.168.11.12:/home/turboai/production/<path>
+sshpass -p 'TurboAi@303' scp -o StrictHostKeyChecking=no <local_file> turboai@192.168.11.12:/home/turboai/production/<path>
 ```
 
 ## 文件操作规范

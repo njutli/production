@@ -28,7 +28,7 @@ READAHEAD_LIST="${READAHEAD_LIST:-0 1 4 8 default}"
 # OSD 节点（用于 drop_caches 取真冷态）
 OSD_NODES="${OSD_NODES:-192.168.11.11 192.168.11.13 192.168.11.14}"
 OSD_PW1="${OSD_PW1:-TurboAi@303}"   # node1
-OSD_PW23="${OSD_PW23:-123456}"      # node2/3
+OSD_PW23="${OSD_PW23:-TurboAi@303}"      # node2/3
 TS="$(date +%Y%m%d-%H%M%S)"
 OUT="${OUT:-results/readahead-sweep-${TS}.txt}"
 mkdir -p results

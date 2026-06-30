@@ -29,7 +29,7 @@ CACHE_DIR="${CACHE_DIR:-/data/jfsCache}"
 ROUNDS="${ROUNDS:-3}"               # 随机/混合项轮数
 OSD_NODES="${OSD_NODES:-192.168.11.11 192.168.11.13 192.168.11.14}"
 OSD_PW1="${OSD_PW1:-TurboAi@303}"
-OSD_PW23="${OSD_PW23:-123456}"
+OSD_PW23="${OSD_PW23:-TurboAi@303}"
 TS="$(date +%Y%m%d-%H%M%S)"
 OUT="${OUT:-results/fullmatrix-${TS}.txt}"
 mkdir -p results
