@@ -1,0 +1,962 @@
+============================================
+ readahead sweep + OSD amplification
+ Wed Jul  1 12:21:27 CST 2026
+============================================
+RA values: 0 4 default
+Workloads: randread randwrite randrw
+Rounds: 3
+Default readahead = 8 * BlockSize = 2 MiB (mount.go:413)
+
+=== Ceph health ===
+WARNING: ceph health check failed
+
+
+============================================
+ RA=0
+============================================
+[12:21:28] MOUNT ra=0
+2026/07/01 12:21:31.181852 juicefs[2825011] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+  MOUNT OK (cache=0 confirmed, ra=0)
+  FILES: 128 (expect 128)
+
+--- randread ---
+
+[12:21:34] ra=0 rw=randread round=1
+[12:21:34] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [12:22:21] FIO START (randread, 60s)
+  OSD after: 6/6 OK
+  [12:23:54] FIO DONE (rc=0)
+  RESULT: read_bw=51.6 read_io=3131 write_bw=NA write_io=NA
+  NIC: rx_delta=7592604868B (7240.8 MiB)
+  IODEPTH>=64: NA%
+
+[12:23:54] ra=0 rw=randread round=2
+[12:23:54] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [12:24:40] FIO START (randread, 60s)
+  OSD after: 6/6 OK
+  [12:26:12] FIO DONE (rc=0)
+  RESULT: read_bw=51.7 read_io=3135 write_bw=NA write_io=NA
+  NIC: rx_delta=7671379988B (7315.9 MiB)
+  IODEPTH>=64: NA%
+
+[12:26:12] ra=0 rw=randread round=3
+[12:26:12] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [12:26:57] FIO START (randread, 60s)
+  OSD after: 6/6 OK
+  [12:28:30] FIO DONE (rc=0)
+  RESULT: read_bw=52.0 read_io=3152 write_bw=NA write_io=NA
+  NIC: rx_delta=7740653952B (7382.0 MiB)
+  IODEPTH>=64: NA%
+
+--- randwrite ---
+
+[12:28:30] ra=0 rw=randwrite round=1
+[12:28:30] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [12:29:15] FIO START (randwrite, 60s)
+  OSD after: 6/6 OK
+  [12:30:48] FIO DONE (rc=0)
+  RESULT: read_bw=NA read_io=NA write_bw=56.5 write_io=3430
+  NIC: rx_delta=816893045B (779.0 MiB)
+  IODEPTH>=64: NA%
+
+[12:30:48] ra=0 rw=randwrite round=2
+[12:30:49] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [12:31:35] FIO START (randwrite, 60s)
+  OSD after: 6/6 OK
+  [12:33:07] FIO DONE (rc=0)
+  RESULT: read_bw=NA read_io=NA write_bw=61.4 write_io=3717
+  NIC: rx_delta=593739576B (566.2 MiB)
+  IODEPTH>=64: NA%
+
+[12:33:07] ra=0 rw=randwrite round=3
+[12:33:07] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [12:33:53] FIO START (randwrite, 60s)
+  OSD after: 6/6 OK
+  [12:35:25] FIO DONE (rc=0)
+  RESULT: read_bw=NA read_io=NA write_bw=44.9 write_io=2729
+  NIC: rx_delta=1353029332B (1290.3 MiB)
+  IODEPTH>=64: NA%
+
+--- randrw ---
+
+[12:35:25] ra=0 rw=randrw round=1
+[12:35:25] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [12:36:10] FIO START (randrw, 60s)
+  OSD after: 6/6 OK
+  [12:37:42] FIO DONE (rc=0)
+  RESULT: read_bw=15.1 read_io=945 write_bw=14.8 write_io=924
+  NIC: rx_delta=2865451684B (2732.7 MiB)
+  IODEPTH>=64: NA%
+
+[12:37:42] ra=0 rw=randrw round=2
+[12:37:42] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [12:38:28] FIO START (randrw, 60s)
+  OSD after: 6/6 OK
+  [12:40:00] FIO DONE (rc=0)
+  RESULT: read_bw=28.3 read_io=1771 write_bw=28.0 write_io=1755
+  NIC: rx_delta=5518393764B (5262.7 MiB)
+  IODEPTH>=64: NA%
+
+[12:40:00] ra=0 rw=randrw round=3
+[12:40:00] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [12:40:45] FIO START (randrw, 60s)
+  OSD after: 6/6 OK
+  [12:42:18] FIO DONE (rc=0)
+  RESULT: read_bw=31.8 read_io=1983 write_bw=31.4 write_io=1962
+  NIC: rx_delta=5958894079B (5682.8 MiB)
+  IODEPTH>=64: NA%
+
+============================================
+ RA=4
+============================================
+[12:42:18] MOUNT ra=4
+2026/07/01 12:42:20.939804 juicefs[2836705] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+  MOUNT OK (cache=0 confirmed, ra=4)
+  FILES: 128 (expect 128)
+
+--- randread ---
+
+[12:42:23] ra=4 rw=randread round=1
+[12:42:24] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [12:43:09] FIO START (randread, 60s)
+  OSD after: 6/6 OK
+  [12:44:42] FIO DONE (rc=0)
+  RESULT: read_bw=34.3 read_io=2091 write_bw=NA write_io=NA
+  NIC: rx_delta=7855379091B (7491.4 MiB)
+  IODEPTH>=64: NA%
+
+[12:44:42] ra=4 rw=randread round=2
+[12:44:42] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [12:45:28] FIO START (randread, 60s)
+  OSD after: 6/6 OK
+  [12:47:00] FIO DONE (rc=0)
+  RESULT: read_bw=34.1 read_io=2080 write_bw=NA write_io=NA
+  NIC: rx_delta=7817152561B (7455.0 MiB)
+  IODEPTH>=64: NA%
+
+[12:47:00] ra=4 rw=randread round=3
+[12:47:00] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [12:47:45] FIO START (randread, 60s)
+  OSD after: 6/6 OK
+  [12:49:18] FIO DONE (rc=0)
+  RESULT: read_bw=34.2 read_io=2087 write_bw=NA write_io=NA
+  NIC: rx_delta=7924361517B (7557.2 MiB)
+  IODEPTH>=64: NA%
+
+--- randwrite ---
+
+[12:49:18] ra=4 rw=randwrite round=1
+[12:49:18] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [12:50:03] FIO START (randwrite, 60s)
+  OSD after: 6/6 OK
+  [12:51:35] FIO DONE (rc=0)
+  RESULT: read_bw=NA read_io=NA write_bw=43.5 write_io=2648
+  NIC: rx_delta=1289468412B (1229.7 MiB)
+  IODEPTH>=64: NA%
+
+[12:51:35] ra=4 rw=randwrite round=2
+[12:51:35] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [12:52:20] FIO START (randwrite, 60s)
+  OSD after: 6/6 OK
+  [12:53:53] FIO DONE (rc=0)
+  RESULT: read_bw=NA read_io=NA write_bw=51.3 write_io=3109
+  NIC: rx_delta=881047705B (840.2 MiB)
+  IODEPTH>=64: NA%
+
+[12:53:53] ra=4 rw=randwrite round=3
+[12:53:53] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [12:54:38] FIO START (randwrite, 60s)
+  OSD after: 6/6 OK
+  [12:56:10] FIO DONE (rc=0)
+  RESULT: read_bw=NA read_io=NA write_bw=52.1 write_io=3152
+  NIC: rx_delta=829323607B (790.9 MiB)
+  IODEPTH>=64: NA%
+
+--- randrw ---
+
+[12:56:10] ra=4 rw=randrw round=1
+[12:56:10] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [12:56:56] FIO START (randrw, 60s)
+  OSD after: 6/6 OK
+  [12:58:29] FIO DONE (rc=0)
+  RESULT: read_bw=21.8 read_io=1348 write_bw=21.4 write_io=1327
+  NIC: rx_delta=6227065464B (5938.5 MiB)
+  IODEPTH>=64: NA%
+
+[12:58:29] ra=4 rw=randrw round=2
+[12:58:29] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [12:59:14] FIO START (randrw, 60s)
+  OSD after: 6/6 OK
+  [13:00:47] FIO DONE (rc=0)
+  RESULT: read_bw=27.2 read_io=1699 write_bw=26.8 write_io=1677
+  NIC: rx_delta=6721721074B (6410.3 MiB)
+  IODEPTH>=64: NA%
+
+[13:00:47] ra=4 rw=randrw round=3
+[13:00:47] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [13:01:32] FIO START (randrw, 60s)
+  OSD after: 6/6 OK
+  [13:03:04] FIO DONE (rc=0)
+  RESULT: read_bw=26.1 read_io=1718 write_bw=25.7 write_io=1693
+  NIC: rx_delta=6856181786B (6538.5 MiB)
+  IODEPTH>=64: NA%
+
+============================================
+ RA=default
+============================================
+[13:03:04] MOUNT ra=default
+2026/07/01 13:03:07.435114 juicefs[2848204] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+  MOUNT OK (cache=0 confirmed, ra=default)
+  FILES: 128 (expect 128)
+
+--- randread ---
+
+[13:03:10] ra=default rw=randread round=1
+[13:03:10] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [13:03:57] FIO START (randread, 60s)
+  OSD after: 6/6 OK
+  [13:05:29] FIO DONE (rc=0)
+  RESULT: read_bw=34.3 read_io=2095 write_bw=NA write_io=NA
+  NIC: rx_delta=7857663040B (7493.6 MiB)
+  IODEPTH>=64: NA%
+
+[13:05:29] ra=default rw=randread round=2
+[13:05:29] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [13:06:15] FIO START (randread, 60s)
+  OSD after: 6/6 OK
+  [13:07:48] FIO DONE (rc=0)
+  RESULT: read_bw=34.2 read_io=2088 write_bw=NA write_io=NA
+  NIC: rx_delta=7831587157B (7468.7 MiB)
+  IODEPTH>=64: NA%
+
+[13:07:48] ra=default rw=randread round=3
+[13:07:48] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [13:08:34] FIO START (randread, 60s)
+  OSD after: 6/6 OK
+  [13:10:06] FIO DONE (rc=0)
+  RESULT: read_bw=34.3 read_io=2090 write_bw=NA write_io=NA
+  NIC: rx_delta=7861046002B (7496.8 MiB)
+  IODEPTH>=64: NA%
+
+--- randwrite ---
+
+[13:10:06] ra=default rw=randwrite round=1
+[13:10:06] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [13:10:51] FIO START (randwrite, 60s)
+  OSD after: 6/6 OK
+  [13:12:23] FIO DONE (rc=0)
+  RESULT: read_bw=NA read_io=NA write_bw=56.7 write_io=3438
+  NIC: rx_delta=730346458B (696.5 MiB)
+  IODEPTH>=64: NA%
+
+[13:12:23] ra=default rw=randwrite round=2
+[13:12:23] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [13:13:09] FIO START (randwrite, 60s)
+  OSD after: 6/6 OK
+  [13:14:41] FIO DONE (rc=0)
+  RESULT: read_bw=NA read_io=NA write_bw=39.7 write_io=2415
+  NIC: rx_delta=994284159B (948.2 MiB)
+  IODEPTH>=64: NA%
+
+[13:14:41] ra=default rw=randwrite round=3
+[13:14:41] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [13:15:27] FIO START (randwrite, 60s)
+  OSD after: 6/6 OK
+  [13:16:59] FIO DONE (rc=0)
+  RESULT: read_bw=NA read_io=NA write_bw=53.4 write_io=3245
+  NIC: rx_delta=979121503B (933.7 MiB)
+  IODEPTH>=64: NA%
+
+--- randrw ---
+
+[13:16:59] ra=default rw=randrw round=1
+[13:16:59] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [13:17:45] FIO START (randrw, 60s)
+  OSD after: 6/6 OK
+  [13:19:17] FIO DONE (rc=0)
+  RESULT: read_bw=21.5 read_io=1338 write_bw=21.2 write_io=1318
+  NIC: rx_delta=5811673829B (5542.4 MiB)
+  IODEPTH>=64: NA%
+
+[13:19:17] ra=default rw=randrw round=2
+[13:19:17] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [13:20:02] FIO START (randrw, 60s)
+  OSD after: 6/6 OK
+  [13:21:35] FIO DONE (rc=0)
+  RESULT: read_bw=27.5 read_io=1714 write_bw=27.2 write_io=1697
+  NIC: rx_delta=7279954949B (6942.7 MiB)
+  IODEPTH>=64: NA%
+
+[13:21:35] ra=default rw=randrw round=3
+[13:21:35] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [13:22:21] FIO START (randrw, 60s)
+  OSD after: 6/6 OK
+  [13:23:53] FIO DONE (rc=0)
+  RESULT: read_bw=27.5 read_io=1706 write_bw=27.2 write_io=1687
+  NIC: rx_delta=7145868094B (6814.8 MiB)
+  IODEPTH>=64: NA%
+
+============================================
+ ALL DONE Wed Jul  1 13:23:53 CST 2026
+============================================
+
+=== Summary ===
+
+ra | rw | round | read_bw | write_bw | rx_mib
+---|---|---|---|---|---
+0 | randread | 1 | 51.6 | NA | 7240.8
+0 | randread | 2 | 51.7 | NA | 7315.9
+0 | randread | 3 | 52.0 | NA | 7382.0
+0 | randwrite | 1 | NA | 56.5 | 779.0
+0 | randwrite | 2 | NA | 61.4 | 566.2
+0 | randwrite | 3 | NA | 44.9 | 1290.3
+0 | randrw | 1 | 15.1 | 14.8 | 2732.7
+0 | randrw | 2 | 28.3 | 28.0 | 5262.7
+0 | randrw | 3 | 31.8 | 31.4 | 5682.8
+4 | randread | 1 | 34.3 | NA | 7491.4
+4 | randread | 2 | 34.1 | NA | 7455.0
+4 | randread | 3 | 34.2 | NA | 7557.2
+4 | randwrite | 1 | NA | 43.5 | 1229.7
+4 | randwrite | 2 | NA | 51.3 | 840.2
+4 | randwrite | 3 | NA | 52.1 | 790.9
+4 | randrw | 1 | 21.8 | 21.4 | 5938.5
+4 | randrw | 2 | 27.2 | 26.8 | 6410.3
+4 | randrw | 3 | 26.1 | 25.7 | 6538.5
+default | randread | 1 | 34.3 | NA | 7493.6
+default | randread | 2 | 34.2 | NA | 7468.7
+default | randread | 3 | 34.3 | NA | 7496.8
+default | randwrite | 1 | NA | 56.7 | 696.5
+default | randwrite | 2 | NA | 39.7 | 948.2
+default | randwrite | 3 | NA | 53.4 | 933.7
+default | randrw | 1 | 21.5 | 21.2 | 5542.4
+default | randrw | 2 | 27.5 | 27.2 | 6942.7
+default | randrw | 3 | 27.5 | 27.2 | 6814.8
+
+total 2.9M
+-rw-rw-r-- 1 turboai turboai  263 Jul  1 12:21 env.txt
+-rw-rw-r-- 1 turboai turboai  650 Jul  1 12:21 mount-ra0.log
+-rw-rw-r-- 1 turboai turboai  650 Jul  1 12:42 mount-ra4.log
+-rw-rw-r-- 1 turboai turboai  650 Jul  1 13:03 mount-radefault.log
+-rw-rw-r-- 1 turboai turboai  19K Jul  1 13:23 nohup.log
+-rw-rw-r-- 1 turboai turboai 1.8K Jul  1 12:23 ra0-randread-r1-fio.txt
+-rw-rw-r-- 1 turboai turboai  157 Jul  1 12:23 ra0-randread-r1-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:23 ra0-randread-r1-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:21 ra0-randread-r1-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:23 ra0-randread-r1-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:21 ra0-randread-r1-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:23 ra0-randread-r1-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:21 ra0-randread-r1-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:23 ra0-randread-r1-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:21 ra0-randread-r1-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:23 ra0-randread-r1-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:22 ra0-randread-r1-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:23 ra0-randread-r1-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:22 ra0-randread-r1-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 1.8K Jul  1 12:25 ra0-randread-r2-fio.txt
+-rw-rw-r-- 1 turboai turboai  157 Jul  1 12:26 ra0-randread-r2-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:25 ra0-randread-r2-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:24 ra0-randread-r2-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:25 ra0-randread-r2-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:24 ra0-randread-r2-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:25 ra0-randread-r2-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:24 ra0-randread-r2-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:25 ra0-randread-r2-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:24 ra0-randread-r2-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:25 ra0-randread-r2-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:24 ra0-randread-r2-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:26 ra0-randread-r2-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:24 ra0-randread-r2-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 1.8K Jul  1 12:27 ra0-randread-r3-fio.txt
+-rw-rw-r-- 1 turboai turboai  157 Jul  1 12:28 ra0-randread-r3-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:27 ra0-randread-r3-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:26 ra0-randread-r3-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:27 ra0-randread-r3-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:26 ra0-randread-r3-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:27 ra0-randread-r3-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:26 ra0-randread-r3-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:28 ra0-randread-r3-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:26 ra0-randread-r3-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:28 ra0-randread-r3-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:26 ra0-randread-r3-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:28 ra0-randread-r3-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:26 ra0-randread-r3-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 2.3K Jul  1 12:37 ra0-randrw-r1-fio.txt
+-rw-rw-r-- 1 turboai turboai  159 Jul  1 12:37 ra0-randrw-r1-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:37 ra0-randrw-r1-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:35 ra0-randrw-r1-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:37 ra0-randrw-r1-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:35 ra0-randrw-r1-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:37 ra0-randrw-r1-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:35 ra0-randrw-r1-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:37 ra0-randrw-r1-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:35 ra0-randrw-r1-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:37 ra0-randrw-r1-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:35 ra0-randrw-r1-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:37 ra0-randrw-r1-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:36 ra0-randrw-r1-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 2.7K Jul  1 12:39 ra0-randrw-r2-fio.txt
+-rw-rw-r-- 1 turboai turboai  161 Jul  1 12:40 ra0-randrw-r2-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:39 ra0-randrw-r2-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:37 ra0-randrw-r2-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:39 ra0-randrw-r2-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:37 ra0-randrw-r2-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:39 ra0-randrw-r2-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:37 ra0-randrw-r2-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:39 ra0-randrw-r2-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:38 ra0-randrw-r2-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:39 ra0-randrw-r2-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:38 ra0-randrw-r2-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:40 ra0-randrw-r2-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:38 ra0-randrw-r2-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 2.7K Jul  1 12:41 ra0-randrw-r3-fio.txt
+-rw-rw-r-- 1 turboai turboai  161 Jul  1 12:42 ra0-randrw-r3-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:41 ra0-randrw-r3-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:40 ra0-randrw-r3-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:41 ra0-randrw-r3-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:40 ra0-randrw-r3-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:41 ra0-randrw-r3-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:40 ra0-randrw-r3-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:41 ra0-randrw-r3-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:40 ra0-randrw-r3-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:42 ra0-randrw-r3-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:40 ra0-randrw-r3-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:42 ra0-randrw-r3-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:40 ra0-randrw-r3-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 1.8K Jul  1 12:30 ra0-randwrite-r1-fio.txt
+-rw-rw-r-- 1 turboai turboai  155 Jul  1 12:30 ra0-randwrite-r1-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:30 ra0-randwrite-r1-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:28 ra0-randwrite-r1-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:30 ra0-randwrite-r1-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:28 ra0-randwrite-r1-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:30 ra0-randwrite-r1-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:28 ra0-randwrite-r1-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:30 ra0-randwrite-r1-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:28 ra0-randwrite-r1-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:30 ra0-randwrite-r1-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:29 ra0-randwrite-r1-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:30 ra0-randwrite-r1-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:29 ra0-randwrite-r1-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 1.8K Jul  1 12:32 ra0-randwrite-r2-fio.txt
+-rw-rw-r-- 1 turboai turboai  155 Jul  1 12:33 ra0-randwrite-r2-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:32 ra0-randwrite-r2-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:30 ra0-randwrite-r2-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:32 ra0-randwrite-r2-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:31 ra0-randwrite-r2-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:32 ra0-randwrite-r2-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:31 ra0-randwrite-r2-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:32 ra0-randwrite-r2-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:31 ra0-randwrite-r2-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:32 ra0-randwrite-r2-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:31 ra0-randwrite-r2-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:33 ra0-randwrite-r2-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:31 ra0-randwrite-r2-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 1.9K Jul  1 12:35 ra0-randwrite-r3-fio.txt
+-rw-rw-r-- 1 turboai turboai  157 Jul  1 12:35 ra0-randwrite-r3-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:34 ra0-randwrite-r3-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:33 ra0-randwrite-r3-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:34 ra0-randwrite-r3-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:33 ra0-randwrite-r3-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:34 ra0-randwrite-r3-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:33 ra0-randwrite-r3-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:34 ra0-randwrite-r3-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:33 ra0-randwrite-r3-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:35 ra0-randwrite-r3-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:33 ra0-randwrite-r3-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:35 ra0-randwrite-r3-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:33 ra0-randwrite-r3-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 1.7K Jul  1 12:44 ra4-randread-r1-fio.txt
+-rw-rw-r-- 1 turboai turboai  157 Jul  1 12:44 ra4-randread-r1-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:44 ra4-randread-r1-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:42 ra4-randread-r1-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:44 ra4-randread-r1-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:42 ra4-randread-r1-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:44 ra4-randread-r1-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:42 ra4-randread-r1-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:44 ra4-randread-r1-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:42 ra4-randread-r1-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:44 ra4-randread-r1-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:42 ra4-randread-r1-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:44 ra4-randread-r1-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:43 ra4-randread-r1-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 1.7K Jul  1 12:46 ra4-randread-r2-fio.txt
+-rw-rw-r-- 1 turboai turboai  157 Jul  1 12:47 ra4-randread-r2-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:46 ra4-randread-r2-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:44 ra4-randread-r2-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:46 ra4-randread-r2-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:44 ra4-randread-r2-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:46 ra4-randread-r2-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:44 ra4-randread-r2-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:46 ra4-randread-r2-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:45 ra4-randread-r2-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:46 ra4-randread-r2-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:45 ra4-randread-r2-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:47 ra4-randread-r2-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:45 ra4-randread-r2-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 1.7K Jul  1 12:48 ra4-randread-r3-fio.txt
+-rw-rw-r-- 1 turboai turboai  157 Jul  1 12:49 ra4-randread-r3-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:48 ra4-randread-r3-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:47 ra4-randread-r3-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:48 ra4-randread-r3-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:47 ra4-randread-r3-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:48 ra4-randread-r3-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:47 ra4-randread-r3-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:48 ra4-randread-r3-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:47 ra4-randread-r3-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:49 ra4-randread-r3-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:47 ra4-randread-r3-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:49 ra4-randread-r3-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:47 ra4-randread-r3-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 2.7K Jul  1 12:57 ra4-randrw-r1-fio.txt
+-rw-rw-r-- 1 turboai turboai  161 Jul  1 12:58 ra4-randrw-r1-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:57 ra4-randrw-r1-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:56 ra4-randrw-r1-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:57 ra4-randrw-r1-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:56 ra4-randrw-r1-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:57 ra4-randrw-r1-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:56 ra4-randrw-r1-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:58 ra4-randrw-r1-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:56 ra4-randrw-r1-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:58 ra4-randrw-r1-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:56 ra4-randrw-r1-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:58 ra4-randrw-r1-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:56 ra4-randrw-r1-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 2.4K Jul  1 13:00 ra4-randrw-r2-fio.txt
+-rw-rw-r-- 1 turboai turboai  161 Jul  1 13:00 ra4-randrw-r2-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:00 ra4-randrw-r2-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:58 ra4-randrw-r2-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:00 ra4-randrw-r2-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:58 ra4-randrw-r2-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:00 ra4-randrw-r2-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:58 ra4-randrw-r2-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:00 ra4-randrw-r2-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:58 ra4-randrw-r2-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:00 ra4-randrw-r2-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:59 ra4-randrw-r2-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:00 ra4-randrw-r2-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:59 ra4-randrw-r2-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 2.4K Jul  1 13:02 ra4-randrw-r3-fio.txt
+-rw-rw-r-- 1 turboai turboai  161 Jul  1 13:03 ra4-randrw-r3-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:02 ra4-randrw-r3-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:00 ra4-randrw-r3-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:02 ra4-randrw-r3-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:00 ra4-randrw-r3-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:02 ra4-randrw-r3-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:01 ra4-randrw-r3-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:02 ra4-randrw-r3-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:01 ra4-randrw-r3-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:02 ra4-randrw-r3-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:01 ra4-randrw-r3-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:03 ra4-randrw-r3-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:01 ra4-randrw-r3-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 1.9K Jul  1 12:51 ra4-randwrite-r1-fio.txt
+-rw-rw-r-- 1 turboai turboai  157 Jul  1 12:51 ra4-randwrite-r1-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:50 ra4-randwrite-r1-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:49 ra4-randwrite-r1-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:51 ra4-randwrite-r1-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:49 ra4-randwrite-r1-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:51 ra4-randwrite-r1-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:49 ra4-randwrite-r1-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:51 ra4-randwrite-r1-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:49 ra4-randwrite-r1-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:51 ra4-randwrite-r1-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:49 ra4-randwrite-r1-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:51 ra4-randwrite-r1-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:50 ra4-randwrite-r1-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 1.8K Jul  1 12:53 ra4-randwrite-r2-fio.txt
+-rw-rw-r-- 1 turboai turboai  155 Jul  1 12:53 ra4-randwrite-r2-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:53 ra4-randwrite-r2-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:51 ra4-randwrite-r2-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:53 ra4-randwrite-r2-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:51 ra4-randwrite-r2-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:53 ra4-randwrite-r2-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:51 ra4-randwrite-r2-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:53 ra4-randwrite-r2-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:51 ra4-randwrite-r2-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:53 ra4-randwrite-r2-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:52 ra4-randwrite-r2-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:53 ra4-randwrite-r2-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:52 ra4-randwrite-r2-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 1.8K Jul  1 12:55 ra4-randwrite-r3-fio.txt
+-rw-rw-r-- 1 turboai turboai  155 Jul  1 12:56 ra4-randwrite-r3-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:55 ra4-randwrite-r3-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:54 ra4-randwrite-r3-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:55 ra4-randwrite-r3-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:54 ra4-randwrite-r3-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:55 ra4-randwrite-r3-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:54 ra4-randwrite-r3-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:55 ra4-randwrite-r3-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 12:54 ra4-randwrite-r3-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:55 ra4-randwrite-r3-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 12:54 ra4-randwrite-r3-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:56 ra4-randwrite-r3-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 12:54 ra4-randwrite-r3-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 1.7K Jul  1 13:04 radefault-randread-r1-fio.txt
+-rw-rw-r-- 1 turboai turboai  157 Jul  1 13:05 radefault-randread-r1-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:04 radefault-randread-r1-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:03 radefault-randread-r1-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:04 radefault-randread-r1-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:03 radefault-randread-r1-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:04 radefault-randread-r1-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:03 radefault-randread-r1-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:05 radefault-randread-r1-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:03 radefault-randread-r1-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:05 radefault-randread-r1-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:03 radefault-randread-r1-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:05 radefault-randread-r1-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:03 radefault-randread-r1-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 1.7K Jul  1 13:07 radefault-randread-r2-fio.txt
+-rw-rw-r-- 1 turboai turboai  157 Jul  1 13:07 radefault-randread-r2-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:07 radefault-randread-r2-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:05 radefault-randread-r2-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:07 radefault-randread-r2-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:05 radefault-randread-r2-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:07 radefault-randread-r2-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:05 radefault-randread-r2-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:07 radefault-randread-r2-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:05 radefault-randread-r2-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:07 radefault-randread-r2-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:06 radefault-randread-r2-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:07 radefault-randread-r2-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:06 radefault-randread-r2-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 1.7K Jul  1 13:09 radefault-randread-r3-fio.txt
+-rw-rw-r-- 1 turboai turboai  157 Jul  1 13:10 radefault-randread-r3-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:09 radefault-randread-r3-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:07 radefault-randread-r3-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:09 radefault-randread-r3-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:07 radefault-randread-r3-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:09 radefault-randread-r3-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:08 radefault-randread-r3-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:09 radefault-randread-r3-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:08 radefault-randread-r3-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:09 radefault-randread-r3-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:08 radefault-randread-r3-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:10 radefault-randread-r3-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:08 radefault-randread-r3-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 2.4K Jul  1 13:18 radefault-randrw-r1-fio.txt
+-rw-rw-r-- 1 turboai turboai  161 Jul  1 13:19 radefault-randrw-r1-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:18 radefault-randrw-r1-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:17 radefault-randrw-r1-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:18 radefault-randrw-r1-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:17 radefault-randrw-r1-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:18 radefault-randrw-r1-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:17 radefault-randrw-r1-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:18 radefault-randrw-r1-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:17 radefault-randrw-r1-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:19 radefault-randrw-r1-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:17 radefault-randrw-r1-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:19 radefault-randrw-r1-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:17 radefault-randrw-r1-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 2.7K Jul  1 13:21 radefault-randrw-r2-fio.txt
+-rw-rw-r-- 1 turboai turboai  161 Jul  1 13:21 radefault-randrw-r2-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:20 radefault-randrw-r2-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:19 radefault-randrw-r2-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:20 radefault-randrw-r2-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:19 radefault-randrw-r2-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:21 radefault-randrw-r2-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:19 radefault-randrw-r2-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:21 radefault-randrw-r2-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:19 radefault-randrw-r2-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:21 radefault-randrw-r2-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:19 radefault-randrw-r2-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:21 radefault-randrw-r2-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:20 radefault-randrw-r2-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 2.4K Jul  1 13:23 radefault-randrw-r3-fio.txt
+-rw-rw-r-- 1 turboai turboai  161 Jul  1 13:23 radefault-randrw-r3-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:23 radefault-randrw-r3-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:21 radefault-randrw-r3-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:23 radefault-randrw-r3-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:21 radefault-randrw-r3-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:23 radefault-randrw-r3-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:21 radefault-randrw-r3-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:23 radefault-randrw-r3-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:21 radefault-randrw-r3-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:23 radefault-randrw-r3-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:22 radefault-randrw-r3-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:23 radefault-randrw-r3-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:22 radefault-randrw-r3-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 1.8K Jul  1 13:12 radefault-randwrite-r1-fio.txt
+-rw-rw-r-- 1 turboai turboai  155 Jul  1 13:12 radefault-randwrite-r1-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:11 radefault-randwrite-r1-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:10 radefault-randwrite-r1-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:11 radefault-randwrite-r1-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:10 radefault-randwrite-r1-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:11 radefault-randwrite-r1-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:10 radefault-randwrite-r1-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:11 radefault-randwrite-r1-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:10 radefault-randwrite-r1-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:12 radefault-randwrite-r1-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:10 radefault-randwrite-r1-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:12 radefault-randwrite-r1-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:10 radefault-randwrite-r1-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 1.8K Jul  1 13:14 radefault-randwrite-r2-fio.txt
+-rw-rw-r-- 1 turboai turboai  155 Jul  1 13:14 radefault-randwrite-r2-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:14 radefault-randwrite-r2-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:12 radefault-randwrite-r2-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:14 radefault-randwrite-r2-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:12 radefault-randwrite-r2-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:14 radefault-randwrite-r2-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:12 radefault-randwrite-r2-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:14 radefault-randwrite-r2-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:12 radefault-randwrite-r2-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:14 radefault-randwrite-r2-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:12 radefault-randwrite-r2-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:14 radefault-randwrite-r2-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:13 radefault-randwrite-r2-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 1.8K Jul  1 13:16 radefault-randwrite-r3-fio.txt
+-rw-rw-r-- 1 turboai turboai  155 Jul  1 13:16 radefault-randwrite-r3-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:16 radefault-randwrite-r3-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:14 radefault-randwrite-r3-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:16 radefault-randwrite-r3-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:14 radefault-randwrite-r3-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:16 radefault-randwrite-r3-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:14 radefault-randwrite-r3-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:16 radefault-randwrite-r3-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 13:14 radefault-randwrite-r3-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:16 radefault-randwrite-r3-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 13:15 radefault-randwrite-r3-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:16 radefault-randwrite-r3-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 13:15 radefault-randwrite-r3-osd5-before.json
+-rw-rw-r-- 1 turboai turboai  19K Jul  1 13:23 test-script.log

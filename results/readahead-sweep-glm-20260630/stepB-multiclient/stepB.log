@@ -1,0 +1,39 @@
+============================================
+ Step B: Multi-client randread @ ra=0
+ Wed Jul  1 13:36:51 CST 2026
+============================================
+Clients: tikv node1 node2
+Rounds: 3
+
+=== Fix timezone on node2 (.13) ===
+bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+                Time zone: Asia/Shanghai (CST, +0800)
+
+[13:36:51] MOUNT tikv (192.168.11.12) ra=0
+2026/07/01 13:36:54.441956 juicefs[2866945] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+  tikv MOUNT OK (cache=0, ra=0)
+[13:36:57] MOUNT node1 (192.168.11.11) ra=0
+bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+2026/07/01 13:37:01.183441 juicefs[2727558] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+  node1 MOUNT OK (cache=0, ra=0)
+[13:37:04] MOUNT node2 (192.168.11.13) ra=0
+bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+2026/07/01 13:37:07.530176 juicefs[2244136] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+  node2 MOUNT OK (cache=0, ra=0)
+Files: 128 (expect 128)
+
+
+============================================
+ Round 1
+============================================
+[13:37:10] DROP ALL (clients + OSD)
+  192.168.11.12: OK
+  192.168.11.11: bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  192.168.11.13: bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  192.168.11.14: bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+[13:37:16] START FIO on all 3 clients
+[13:37:16] Waiting for all fio to finish...
