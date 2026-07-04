@@ -1,0 +1,224 @@
+============================================
+ V1: patched loadRange verify
+ Binary: /tmp/juicefs-patched-clean
+ Wed Jul  1 17:13:15 CST 2026
+============================================
+Workloads: randread seqread
+Rounds: 3
+
+[17:13:15] MOUNT (patched, cache=0, ra=0)
+2026/07/01 17:13:18.345671 juicefs[2957640] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+  MOUNT OK
+  FILES: 128 (expect 128)
+
+--- randread ---
+
+[17:13:21] rw=randread round=1
+[17:13:21] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [17:14:12] FIO START (randread, 60s)
+  OSD after: 6/6 OK
+  [17:15:44] FIO DONE (rc=0)
+  RESULT: read_bw=98.8 read_io=5958 write_bw=NA write_io=NA
+  NIC: rx_delta=7355649865B (7014.8 MiB)
+
+[17:15:44] rw=randread round=2
+[17:15:44] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [17:16:31] FIO START (randread, 60s)
+  OSD after: 6/6 OK
+  [17:18:04] FIO DONE (rc=0)
+  RESULT: read_bw=100 read_io=6040 write_bw=NA write_io=NA
+  NIC: rx_delta=7375215209B (7033.5 MiB)
+
+[17:18:04] rw=randread round=3
+[17:18:04] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [17:18:51] FIO START (randread, 60s)
+  OSD after: 6/6 OK
+  [17:20:23] FIO DONE (rc=0)
+  RESULT: read_bw=96.0 read_io=5803 write_bw=NA write_io=NA
+  NIC: rx_delta=7116677173B (6786.9 MiB)
+
+--- seqread ---
+
+[17:20:23] rw=seqread round=1
+[17:20:24] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [17:21:09] FIO START (seqread, 60s)
+  OSD after: 6/6 OK
+  [17:22:41] FIO DONE (rc=1)
+  RESULT: read_bw=NA read_io=NA write_bw=NA write_io=NA
+  NIC: rx_delta=921605B (.8 MiB)
+
+[17:22:41] rw=seqread round=2
+[17:22:41] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [17:23:29] FIO START (seqread, 60s)
+  OSD after: 6/6 OK
+  [17:25:01] FIO DONE (rc=1)
+  RESULT: read_bw=NA read_io=NA write_bw=NA write_io=NA
+  NIC: rx_delta=1145934B (1.0 MiB)
+
+[17:25:01] rw=seqread round=3
+[17:25:01] DROP ALL
+  client(.12): OK
+  osd(192.168.11.11): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.13): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  osd(192.168.11.14): bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+OK
+  DROP COMPLETE
+  OSD before: 6/6 OK
+  [17:25:47] FIO START (seqread, 60s)
+  OSD after: 6/6 OK
+  [17:27:18] FIO DONE (rc=1)
+  RESULT: read_bw=NA read_io=NA write_bw=NA write_io=NA
+  NIC: rx_delta=891129B (.8 MiB)
+
+============================================
+ Summary
+ Wed Jul  1 17:27:18 CST 2026
+============================================
+
+rw | round | read_bw | read_io | rx_mib
+---|---|---|---|---
+randread | 1 | 98.8 | 5958 | 7014.8
+randread | 2 | 100 | 6040 | 7033.5
+randread | 3 | 96.0 | 5803 | 6786.9
+seqread | 1 | NA | NA | .8
+seqread | 2 | NA | NA | 1.0
+seqread | 3 | NA | NA | .8
+
+============================================
+ ALL DONE Wed Jul  1 17:27:18 CST 2026
+============================================
+total 640K
+-rw-rw-r-- 1 turboai turboai  260 Jul  1 17:13 env.txt
+-rw-rw-r-- 1 turboai turboai  650 Jul  1 17:13 mount.log
+-rw-rw-r-- 1 turboai turboai 1.8K Jul  1 17:15 patched-randread-r1-fio.txt
+-rw-rw-r-- 1 turboai turboai  137 Jul  1 17:15 patched-randread-r1-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 17:15 patched-randread-r1-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 17:13 patched-randread-r1-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:15 patched-randread-r1-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 17:13 patched-randread-r1-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:15 patched-randread-r1-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:13 patched-randread-r1-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 17:15 patched-randread-r1-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 17:13 patched-randread-r1-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 17:15 patched-randread-r1-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 17:13 patched-randread-r1-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:15 patched-randread-r1-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:14 patched-randread-r1-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 1.8K Jul  1 17:17 patched-randread-r2-fio.txt
+-rw-rw-r-- 1 turboai turboai  136 Jul  1 17:18 patched-randread-r2-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 17:17 patched-randread-r2-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 17:15 patched-randread-r2-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:17 patched-randread-r2-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:15 patched-randread-r2-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:17 patched-randread-r2-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:16 patched-randread-r2-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 17:17 patched-randread-r2-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 17:16 patched-randread-r2-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 17:17 patched-randread-r2-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 17:16 patched-randread-r2-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:18 patched-randread-r2-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:16 patched-randread-r2-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 1.8K Jul  1 17:19 patched-randread-r3-fio.txt
+-rw-rw-r-- 1 turboai turboai  137 Jul  1 17:20 patched-randread-r3-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 17:19 patched-randread-r3-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 17:18 patched-randread-r3-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:19 patched-randread-r3-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:18 patched-randread-r3-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:19 patched-randread-r3-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:18 patched-randread-r3-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 17:19 patched-randread-r3-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 17:18 patched-randread-r3-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 17:20 patched-randread-r3-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 17:18 patched-randread-r3-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:20 patched-randread-r3-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:18 patched-randread-r3-osd5-before.json
+-rw-rw-r-- 1 turboai turboai  577 Jul  1 17:21 patched-seqread-r1-fio.txt
+-rw-rw-r-- 1 turboai turboai  125 Jul  1 17:22 patched-seqread-r1-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 17:22 patched-seqread-r1-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 17:20 patched-seqread-r1-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:22 patched-seqread-r1-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:20 patched-seqread-r1-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:22 patched-seqread-r1-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:20 patched-seqread-r1-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 17:22 patched-seqread-r1-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 17:20 patched-seqread-r1-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 17:22 patched-seqread-r1-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 17:20 patched-seqread-r1-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:22 patched-seqread-r1-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:21 patched-seqread-r1-osd5-before.json
+-rw-rw-r-- 1 turboai turboai  577 Jul  1 17:23 patched-seqread-r2-fio.txt
+-rw-rw-r-- 1 turboai turboai  127 Jul  1 17:25 patched-seqread-r2-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 17:24 patched-seqread-r2-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 17:22 patched-seqread-r2-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 17:24 patched-seqread-r2-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:22 patched-seqread-r2-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:24 patched-seqread-r2-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:22 patched-seqread-r2-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 17:24 patched-seqread-r2-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 17:23 patched-seqread-r2-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 17:24 patched-seqread-r2-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 17:23 patched-seqread-r2-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:25 patched-seqread-r2-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:23 patched-seqread-r2-osd5-before.json
+-rw-rw-r-- 1 turboai turboai  577 Jul  1 17:25 patched-seqread-r3-fio.txt
+-rw-rw-r-- 1 turboai turboai  125 Jul  1 17:27 patched-seqread-r3-nic.txt
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 17:26 patched-seqread-r3-osd0-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 17:25 patched-seqread-r3-osd0-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:26 patched-seqread-r3-osd1-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 17:25 patched-seqread-r3-osd1-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:26 patched-seqread-r3-osd2-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:25 patched-seqread-r3-osd2-before.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 17:26 patched-seqread-r3-osd3-after.json
+-rw-rw-r-- 1 turboai turboai 6.3K Jul  1 17:25 patched-seqread-r3-osd3-before.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 17:27 patched-seqread-r3-osd4-after.json
+-rw-rw-r-- 1 turboai turboai 6.6K Jul  1 17:25 patched-seqread-r3-osd4-before.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:27 patched-seqread-r3-osd5-after.json
+-rw-rw-r-- 1 turboai turboai 6.4K Jul  1 17:25 patched-seqread-r3-osd5-before.json
+-rw-rw-r-- 1 turboai turboai 4.3K Jul  1 17:27 test-script.log

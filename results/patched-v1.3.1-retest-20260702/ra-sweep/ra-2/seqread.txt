@@ -1,0 +1,32 @@
+# seqread: rw=read bs=256K size=4G (no direct=1)
+# mount: --cache-size 0 --max-readahead 2
+# date: Fri Jul  3 10:43:41 CST 2026
+seqread: (g=0): rw=read, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=psync, iodepth=1
+fio-3.28
+Starting 1 process
+seqread: Laying out IO file (1 file / 4096MiB)
+
+seqread: (groupid=0, jobs=1): err= 0: pid=3265201: Fri Jul  3 10:45:58 2026
+  read: IOPS=320, BW=80.1MiB/s (84.0MB/s)(4096MiB/51111msec)
+    clat (usec): min=161, max=412304, avg=3116.17, stdev=11783.53
+     lat (usec): min=162, max=412304, avg=3116.48, stdev=11783.53
+    clat percentiles (usec):
+     |  1.00th=[   208],  5.00th=[   241], 10.00th=[   253], 20.00th=[   269],
+     | 30.00th=[   281], 40.00th=[   306], 50.00th=[   351], 60.00th=[   758],
+     | 70.00th=[  2311], 80.00th=[  4359], 90.00th=[  7635], 95.00th=[ 11338],
+     | 99.00th=[ 21365], 99.50th=[ 28967], 99.90th=[223347], 99.95th=[248513],
+     | 99.99th=[287310]
+   bw (  KiB/s): min= 6144, max=110080, per=99.97%, avg=82040.47, stdev=30243.52, samples=102
+   iops        : min=   24, max=  430, avg=320.47, stdev=118.14, samples=102
+  lat (usec)   : 250=9.01%, 500=49.00%, 750=1.98%, 1000=1.86%
+  lat (msec)   : 2=6.07%, 4=10.54%, 10=15.27%, 20=5.07%, 50=0.78%
+  lat (msec)   : 100=0.12%, 250=0.26%, 500=0.05%
+  cpu          : usr=0.24%, sys=8.88%, ctx=12974, majf=0, minf=221
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=16384,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+   READ: bw=80.1MiB/s (84.0MB/s), 80.1MiB/s-80.1MiB/s (84.0MB/s-84.0MB/s), io=4096MiB (4295MB), run=51111-51111msec

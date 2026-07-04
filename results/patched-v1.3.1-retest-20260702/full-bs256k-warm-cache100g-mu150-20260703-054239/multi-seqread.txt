@@ -1,0 +1,52 @@
+# multi-seqread: rw=read bs=256K size=4G numjobs=16 fsync=0
+# mount: --cache-size 102400 --cache-dir /data/jfsCache --max-uploads 150
+# block-size: 256K, fio bs: 256K
+# date: Fri Jul  3 05:49:00 CST 2026
+multi-seqread: (g=0): rw=read, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=psync, iodepth=1
+...
+fio-3.28
+Starting 16 processes
+multi-seqread: Laying out IO file (1 file / 4096MiB)
+multi-seqread: Laying out IO file (1 file / 4096MiB)
+multi-seqread: Laying out IO file (1 file / 4096MiB)
+multi-seqread: Laying out IO file (1 file / 4096MiB)
+multi-seqread: Laying out IO file (1 file / 4096MiB)
+multi-seqread: Laying out IO file (1 file / 4096MiB)
+multi-seqread: Laying out IO file (1 file / 4096MiB)
+multi-seqread: Laying out IO file (1 file / 4096MiB)
+multi-seqread: Laying out IO file (1 file / 4096MiB)
+multi-seqread: Laying out IO file (1 file / 4096MiB)
+multi-seqread: Laying out IO file (1 file / 4096MiB)
+multi-seqread: Laying out IO file (1 file / 4096MiB)
+multi-seqread: Laying out IO file (1 file / 4096MiB)
+multi-seqread: Laying out IO file (1 file / 4096MiB)
+multi-seqread: Laying out IO file (1 file / 4096MiB)
+multi-seqread: Laying out IO file (1 file / 4096MiB)
+
+multi-seqread: (groupid=0, jobs=16): err= 0: pid=3240440: Fri Jul  3 06:27:24 2026
+  read: IOPS=411, BW=103MiB/s (108MB/s)(64.0GiB/637044msec)
+    clat (usec): min=49, max=10923k, avg=38763.27, stdev=113705.66
+     lat (usec): min=50, max=10923k, avg=38763.64, stdev=113705.65
+    clat percentiles (usec):
+     |  1.00th=[    208],  5.00th=[    249], 10.00th=[    269],
+     | 20.00th=[    297], 30.00th=[    359], 40.00th=[    478],
+     | 50.00th=[    562], 60.00th=[    660], 70.00th=[   4752],
+     | 80.00th=[  46924], 90.00th=[ 147850], 95.00th=[ 235930],
+     | 99.00th=[ 383779], 99.50th=[ 434111], 99.90th=[ 717226],
+     | 99.95th=[1027605], 99.99th=[3707765]
+   bw (  KiB/s): min= 8192, max=280064, per=100.00%, avg=109738.99, stdev=2188.55, samples=19553
+   iops        : min=   32, max= 1094, avg=428.59, stdev= 8.55, samples=19553
+  lat (usec)   : 50=0.01%, 100=0.11%, 250=5.01%, 500=36.97%, 750=21.89%
+  lat (usec)   : 1000=2.38%
+  lat (msec)   : 2=2.75%, 4=0.63%, 10=2.27%, 20=3.04%, 50=5.42%
+  lat (msec)   : 100=5.64%, 250=9.49%, 500=4.14%, 750=0.17%, 1000=0.04%
+  lat (msec)   : 2000=0.03%, >=2000=0.03%
+  cpu          : usr=0.02%, sys=0.73%, ctx=342369, majf=0, minf=3499
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=262144,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+   READ: bw=103MiB/s (108MB/s), 103MiB/s-103MiB/s (108MB/s-108MB/s), io=64.0GiB (68.7GB), run=637044-637044msec

@@ -1,0 +1,34 @@
+# randread round 3: rw=randread bs=256k iodepth=128 numjobs=128 direct=1 runtime=60s
+# mount: --cache-size 102400 --cache-dir /data/jfsCache --max-readahead 0
+# block-size: 256K, fio bs: 256K
+# date: Fri Jul  3 02:56:36 CST 2026
+storage_test: (g=0): rw=randread, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=libaio, iodepth=128
+...
+fio-3.28
+Starting 128 processes
+
+storage_test: (groupid=0, jobs=128): err= 0: pid=3219394: Fri Jul  3 02:57:38 2026
+  read: IOPS=624, BW=156MiB/s (164MB/s)(9466MiB/60591msec)
+    slat (usec): min=380, max=2090.0k, avg=203599.33, stdev=281420.16
+    clat (usec): min=12, max=45111k, avg=20187674.84, stdev=11324049.32
+     lat (msec): min=88, max=45111, avg=20391.28, stdev=11251.06
+    clat percentiles (msec):
+     |  1.00th=[  116],  5.00th=[ 2299], 10.00th=[ 4799], 20.00th=[ 9060],
+     | 30.00th=[12953], 40.00th=[16442], 50.00th=[17113], 60.00th=[17113],
+     | 70.00th=[17113], 80.00th=[17113], 90.00th=[17113], 95.00th=[17113],
+     | 99.00th=[17113], 99.50th=[17113], 99.90th=[17113], 99.95th=[17113],
+     | 99.99th=[17113]
+   bw (  KiB/s): min=64073, max=5549568, per=100.00%, avg=202564.80, stdev=6028.10, samples=6999
+   iops        : min=  245, max=21678, avg=791.12, stdev=23.55, samples=6999
+  lat (usec)   : 20=0.32%, 50=0.02%
+  lat (msec)   : 100=0.11%, 250=1.65%, 500=0.33%, 750=0.35%, 1000=0.20%
+  lat (msec)   : 2000=1.36%, >=2000=95.66%
+  cpu          : usr=0.01%, sys=0.08%, ctx=82332, majf=0, minf=1050546
+  IO depths    : 1=0.3%, 2=0.7%, 4=1.4%, 8=2.7%, 16=5.4%, 32=10.8%, >=64=78.7%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=99.4%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.6%
+     issued rwts: total=37865,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+   READ: bw=156MiB/s (164MB/s), 156MiB/s-156MiB/s (164MB/s-164MB/s), io=9466MiB (9926MB), run=60591-60591msec

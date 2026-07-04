@@ -1,0 +1,34 @@
+# randread round 2: rw=randread bs=256k iodepth=128 numjobs=128 direct=1 runtime=60s
+# mount: --cache-size 102400 --cache-dir /data/jfsCache --max-uploads 150
+# block-size: 256K, fio bs: 256K
+# date: Fri Jul  3 06:59:03 CST 2026
+storage_test: (g=0): rw=randread, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=libaio, iodepth=128
+...
+fio-3.28
+Starting 128 processes
+
+storage_test: (groupid=0, jobs=128): err= 0: pid=3244354: Fri Jul  3 07:00:05 2026
+  read: IOPS=320, BW=80.1MiB/s (84.0MB/s)(4882MiB/60950msec)
+    slat (usec): min=535, max=3973.4k, avg=395666.66, stdev=534282.40
+    clat (usec): min=9, max=59765k, avg=37908908.46, stdev=16216636.08
+     lat (msec): min=100, max=60396, avg=38304.58, stdev=16005.03
+    clat percentiles (msec):
+     |  1.00th=[  844],  5.00th=[ 5000], 10.00th=[10671], 20.00th=[17113],
+     | 30.00th=[17113], 40.00th=[17113], 50.00th=[17113], 60.00th=[17113],
+     | 70.00th=[17113], 80.00th=[17113], 90.00th=[17113], 95.00th=[17113],
+     | 99.00th=[17113], 99.50th=[17113], 99.90th=[17113], 99.95th=[17113],
+     | 99.99th=[17113]
+   bw (  KiB/s): min=66048, max=187904, per=100.00%, avg=89242.58, stdev=315.66, samples=2303
+   iops        : min=  258, max=  734, avg=348.60, stdev= 1.23, samples=2303
+  lat (usec)   : 10=0.02%, 20=0.62%, 50=0.02%
+  lat (msec)   : 250=0.02%, 500=0.10%, 750=0.15%, 1000=0.28%, 2000=0.96%
+  lat (msec)   : >=2000=97.84%
+  cpu          : usr=0.00%, sys=0.06%, ctx=44640, majf=1, minf=1050267
+  IO depths    : 1=0.7%, 2=1.3%, 4=2.6%, 8=5.2%, 16=10.5%, 32=21.0%, >=64=58.7%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=96.2%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=3.8%
+     issued rwts: total=19528,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+   READ: bw=80.1MiB/s (84.0MB/s), 80.1MiB/s-80.1MiB/s (84.0MB/s-84.0MB/s), io=4882MiB (5119MB), run=60950-60950msec

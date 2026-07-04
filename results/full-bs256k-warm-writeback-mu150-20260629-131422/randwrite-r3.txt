@@ -1,0 +1,34 @@
+# randwrite round 3: rw=randwrite bs=256k iodepth=128 numjobs=128 direct=1 runtime=60s
+# mount: --cache-size 102400 --cache-dir /data/jfsCache --max-uploads 150 --writeback
+# block-size: 256K, fio bs: 256K
+# date: Mon Jun 29 13:36:35 CST 2026
+storage_test: (g=0): rw=randwrite, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=libaio, iodepth=128
+...
+fio-3.28
+Starting 128 processes
+
+storage_test: (groupid=0, jobs=128): err= 0: pid=2201261: Mon Jun 29 13:38:40 2026
+  write: IOPS=2714, BW=679MiB/s (712MB/s)(39.9GiB/60175msec); 0 zone resets
+    slat (usec): min=174, max=725706, avg=47039.19, stdev=63565.04
+    clat (usec): min=7, max=14670k, avg=5906409.38, stdev=3770050.95
+     lat (msec): min=20, max=14792, avg=5953.45, stdev=3794.91
+    clat percentiles (msec):
+     |  1.00th=[ 1083],  5.00th=[ 1754], 10.00th=[ 2106], 20.00th=[ 2567],
+     | 30.00th=[ 2869], 40.00th=[ 3138], 50.00th=[ 3943], 60.00th=[ 6544],
+     | 70.00th=[ 9463], 80.00th=[10402], 90.00th=[11342], 95.00th=[11879],
+     | 99.00th=[12818], 99.50th=[12953], 99.90th=[13489], 99.95th=[13758],
+     | 99.99th=[14429]
+   bw (  KiB/s): min=87974, max=2371672, per=92.76%, avg=644546.85, stdev=4048.39, samples=14879
+   iops        : min=  310, max= 9254, avg=2509.14, stdev=15.82, samples=14879
+  lat (usec)   : 10=0.01%, 20=0.07%, 50=0.01%
+  lat (msec)   : 50=0.01%, 250=0.16%, 500=0.25%, 750=0.24%, 1000=0.21%
+  lat (msec)   : 2000=7.48%, >=2000=91.58%
+  cpu          : usr=0.10%, sys=0.13%, ctx=327553, majf=0, minf=1865
+  IO depths    : 1=0.1%, 2=0.2%, 4=0.3%, 8=0.6%, 16=1.3%, 32=2.5%, >=64=95.1%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=99.9%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.1%
+     issued rwts: total=0,163336,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+  WRITE: bw=679MiB/s (712MB/s), 679MiB/s-679MiB/s (712MB/s-712MB/s), io=39.9GiB (42.8GB), run=60175-60175msec

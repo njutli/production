@@ -1,0 +1,110 @@
+=== Mon Jun 29 06:19:20 PM CST 2026 ===
+Script: /home/turboai/production/tests/seqrand-osd-compare-v2.sh
+Output: /home/turboai/production/results/seqrand-osd-compare-v2-20260629
+
+============================================
+ MOUNT: --cache-size 0 (cache=0 confirmed)
+ LAYOUT: 128×1G (reused from repro-09)
+ FILES: 128
+============================================
+
+======== STEP: randread 3 rounds ========
+
+>> Round 1
+
+[18:19:20] DROP START
+[client] OK
+[ceph-node1] ceph-node1 SSH FAILED: ssh: Could not resolve hostname ceph-node1: Temporary failure in name resolution
+DROP FAILED at round 1
+=== Mon Jun 29 06:19:51 PM CST 2026 ===
+Script: /home/turboai/production/tests/seqrand-osd-compare-v2.sh
+Output: /home/turboai/production/results/seqrand-osd-compare-v2-20260629
+
+============================================
+ MOUNT: --cache-size 0 (cache=0 confirmed)
+ LAYOUT: 128×1G (reused from repro-09)
+ FILES: 128
+============================================
+
+======== STEP: randread 3 rounds ========
+
+>> Round 1
+
+[18:19:51] DROP START
+[client] OK
+[192.168.11.11] OK
+[192.168.11.13] OK
+[192.168.11.14] OK
+[18:19:52] DROP DONE
+  randread-r1: BW=33.7 MiB/s, io=2055MiB, NIC_RX=7109MiB, NIC/FIO=3.45
+
+>> Round 2
+
+[18:20:56] DROP START
+[client] OK
+[192.168.11.11] OK
+[192.168.11.13] OK
+[192.168.11.14] OK
+[18:21:01] DROP DONE
+  randread-r2: BW=33.7 MiB/s, io=2059MiB, NIC_RX=7121MiB, NIC/FIO=3.45
+
+>> Round 3
+
+[18:22:05] DROP START
+[client] OK
+[192.168.11.11] OK
+[192.168.11.13] OK
+[192.168.11.14] OK
+[18:22:09] DROP DONE
+  randread-r3: BW=34.5 MiB/s, io=2096MiB, NIC_RX=7106MiB, NIC/FIO=3.39
+
+======== STEP: seqread (direct=1, 128j) ========
+
+[18:23:13] DROP START
+[client] OK
+[192.168.11.11] OK
+[192.168.11.13] OK
+[192.168.11.14] OK
+[18:23:17] DROP DONE
+  seqread: BW=108 MiB/s, io=6572MiB, NIC_RX=7140MiB, NIC/FIO=1.08
+
+======== STEP: numjobs sweep ========
+
+>> nj=8
+
+[18:24:21] DROP START
+[client] OK
+[192.168.11.11] OK
+[192.168.11.13] OK
+[192.168.11.14] OK
+[18:24:26] DROP DONE
+  randread-nj8: BW=34.7 MiB/s, io=2084MiB, NIC_RX=6716MiB, NIC/FIO=3.22
+
+>> nj=32
+
+[18:25:28] DROP START
+[client] OK
+[192.168.11.11] OK
+[192.168.11.13] OK
+[192.168.11.14] OK
+[18:25:33] DROP DONE
+  randread-nj32: BW=36.7 MiB/s, io=2207MiB, NIC_RX=7016MiB, NIC/FIO=3.17
+
+>> nj=64
+
+[18:26:36] DROP START
+[client] OK
+[192.168.11.11] OK
+[192.168.11.13] OK
+[192.168.11.14] OK
+[18:26:39] DROP DONE
+  randread-nj64: BW=35.9 MiB/s, io=2169MiB, NIC_RX=7039MiB, NIC/FIO=3.24
+
+>> nj=256
+
+[18:27:43] DROP START
+[client] OK
+[192.168.11.11] OK
+[192.168.11.13] OK
+[192.168.11.14] OK
+[18:27:47] DROP DONE

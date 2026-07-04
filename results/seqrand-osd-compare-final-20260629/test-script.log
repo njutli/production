@@ -1,0 +1,102 @@
+=== Mon Jun 29 07:24:49 PM CST 2026 ===
+Script: /home/turboai/production/tests/seqrand-osd-compare-final.sh
+Output: /home/turboai/production/results/seqrand-osd-compare-final-20260629
+2026/06/29 19:24:52.533463 juicefs[2398937] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+MOUNT: cache=0 confirmed
+FILES: 128
+
+=== Setup historic_ops threshold ===
+{
+    "success": "osd_op_history_size = '' "
+}
+{
+    "success": "osd_op_history_duration = '' "
+}
+{
+    "success": "osd_delete_sleep = '' osd_delete_sleep_hdd = '' osd_delete_sleep_hybrid = '' osd_delete_sleep_ssd = '' osd_max_backfills = '' osd_op_history_size = '' osd_recovery_max_active = '' osd_recovery_max_active_hdd = '' osd_recovery_max_active_ssd = '' osd_recovery_sleep = '' osd_recovery_sleep_hdd = '' osd_recovery_sleep_hybrid = '' osd_recovery_sleep_ssd = '' osd_scrub_sleep = '' osd_snap_trim_sleep = '' osd_snap_trim_sleep_hdd = '' osd_snap_trim_sleep_hybrid = '' osd_snap_trim_sleep_ssd = '' "
+}
+{
+    "success": "osd_op_history_duration = '' "
+}
+{
+    "success": "osd_delete_sleep = '' osd_delete_sleep_hdd = '' osd_delete_sleep_hybrid = '' osd_delete_sleep_ssd = '' osd_max_backfills = '' osd_op_history_size = '' osd_recovery_max_active = '' osd_recovery_max_active_hdd = '' osd_recovery_max_active_ssd = '' osd_recovery_sleep = '' osd_recovery_sleep_hdd = '' osd_recovery_sleep_hybrid = '' osd_recovery_sleep_ssd = '' osd_scrub_sleep = '' osd_snap_trim_sleep = '' osd_snap_trim_sleep_hdd = '' osd_snap_trim_sleep_hybrid = '' osd_snap_trim_sleep_ssd = '' "
+}
+{
+    "success": "osd_op_history_duration = '' "
+}
+{
+    "success": "osd_delete_sleep = '' osd_delete_sleep_hdd = '' osd_delete_sleep_hybrid = '' osd_delete_sleep_ssd = '' osd_max_backfills = '' osd_op_history_size = '' osd_recovery_max_active = '' osd_recovery_max_active_hdd = '' osd_recovery_max_active_ssd = '' osd_recovery_sleep = '' osd_recovery_sleep_hdd = '' osd_recovery_sleep_hybrid = '' osd_recovery_sleep_ssd = '' osd_scrub_sleep = '' osd_snap_trim_sleep = '' osd_snap_trim_sleep_hdd = '' osd_snap_trim_sleep_hybrid = '' osd_snap_trim_sleep_ssd = '' "
+}
+{
+    "success": "osd_op_history_duration = '' "
+}
+{
+    "success": "osd_op_history_size = '' "
+}
+{
+    "success": "osd_op_history_duration = '' "
+}
+{
+    "success": "osd_op_history_size = '' "
+}
+{
+    "success": "osd_op_history_duration = '' "
+}
+Done
+
+============================================
+ STEP 1: Baseline bandwidth (no strace)
+============================================
+
+>> randread 3 rounds
+[19:26:15] DROP
+  client OK
+  192.168.11.11 OK
+  192.168.11.13 OK
+  192.168.11.14 OK
+  baseline-randread-r1 BW= io=2065MiB RX=7465829388 NIC/FIO=3.44
+[19:27:24] DROP
+  client OK
+  192.168.11.11 OK
+  192.168.11.13 OK
+  192.168.11.14 OK
+  baseline-randread-r2 BW= io=2063MiB RX=7453798386 NIC/FIO=3.44
+[19:28:32] DROP
+  client OK
+  192.168.11.11 OK
+  192.168.11.13 OK
+  192.168.11.14 OK
+  baseline-randread-r3 BW= io=2117MiB RX=7479845929 NIC/FIO=3.36
+
+>> seqread
+[19:29:41] DROP
+  client OK
+  192.168.11.11 OK
+  192.168.11.13 OK
+  192.168.11.14 OK
+  baseline-seqread BW=106 io=6497MiB RX=7470827339 NIC/FIO=1.09
+
+>> numjobs sweep
+[19:30:49] DROP
+  client OK
+  192.168.11.11 OK
+  192.168.11.13 OK
+  192.168.11.14 OK
+  baseline-nj8 BW= io=2057MiB RX=6965067229 NIC/FIO=3.22
+[19:31:56] DROP
+  client OK
+  192.168.11.11 OK
+  192.168.11.13 OK
+  192.168.11.14 OK
+  baseline-nj32 BW= io=1716MiB RX=6678621129 NIC/FIO=3.71
+[19:33:03] DROP
+  client OK
+  192.168.11.11 OK
+  192.168.11.13 OK
+  192.168.11.14 OK
+  baseline-nj64 BW= io=1984MiB RX=7292635130 NIC/FIO=3.50
+[19:34:11] DROP
+  client OK
+  192.168.11.11 OK
+  192.168.11.13 OK
+  192.168.11.14 OK

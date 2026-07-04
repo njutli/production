@@ -1,0 +1,34 @@
+# randread round 3: rw=randread bs=256k iodepth=128 numjobs=128 direct=1 runtime=60s
+# mount: --cache-size 102400 --cache-dir /data/jfsCache --max-uploads 150 --writeback
+# block-size: 256K, fio bs: 256K
+# date: Mon Jun 29 13:35:28 CST 2026
+storage_test: (g=0): rw=randread, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=libaio, iodepth=128
+...
+fio-3.28
+Starting 128 processes
+
+storage_test: (groupid=0, jobs=128): err= 0: pid=2200535: Mon Jun 29 13:36:32 2026
+  read: IOPS=3454, BW=864MiB/s (906MB/s)(53.4GiB/63260msec)
+    slat (usec): min=259, max=12459k, avg=35749.32, stdev=305737.21
+    clat (usec): min=13, max=35627k, avg=4381477.44, stdev=5677543.83
+     lat (msec): min=54, max=35627, avg=4417.23, stdev=5713.30
+    clat percentiles (msec):
+     |  1.00th=[   88],  5.00th=[  138], 10.00th=[  178], 20.00th=[  218],
+     | 30.00th=[  255], 40.00th=[  326], 50.00th=[  435], 60.00th=[ 3675],
+     | 70.00th=[ 6141], 80.00th=[ 9060], 90.00th=[12684], 95.00th=[15905],
+     | 99.00th=[17113], 99.50th=[17113], 99.90th=[17113], 99.95th=[17113],
+     | 99.99th=[17113]
+   bw (  MiB/s): min=   67, max=18967, per=100.00%, avg=2138.20, stdev=32.91, samples=5896
+   iops        : min=  264, max=75870, avg=8551.03, stdev=131.66, samples=5896
+  lat (usec)   : 20=0.06%, 50=0.01%
+  lat (msec)   : 100=1.20%, 250=27.94%, 500=20.97%, 750=0.35%, 1000=0.62%
+  lat (msec)   : 2000=2.96%, >=2000=45.90%
+  cpu          : usr=0.04%, sys=0.20%, ctx=442732, majf=0, minf=1050274
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.2%, 8=0.5%, 16=0.9%, 32=1.9%, >=64=96.3%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=99.9%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.1%
+     issued rwts: total=218561,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+   READ: bw=864MiB/s (906MB/s), 864MiB/s-864MiB/s (906MB/s-906MB/s), io=53.4GiB (57.3GB), run=63260-63260msec
