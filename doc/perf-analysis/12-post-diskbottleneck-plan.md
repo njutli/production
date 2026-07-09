@@ -1,0 +1,74 @@
+# 阶段 12 计划：磁盘瓶颈解除后的生产落地 + JuiceFS 随机读路径攻坚
+
+> 日期：2026-07-09 起　维护：opencode（规划/校验）/ GLM·deepseek（执行）
+> 承接：`11-next-stage-plan.md` §八（阶段 11 收尾）+ `11_1-step2-stall-compaction-branch.md`（写侧根因分支）。
+> 口径不变：256K block、单客户端、冷态、目标有效数据带宽 = 网卡带宽 50%（单千兆 = 59 MB/s）；多客户端按 N×59 缩放；只认 r1，不取 MAX。
+
+---
+
+## 〇、阶段 11 成果承接（一句话）
+
+**阶段 11 查清了写侧根因：不是 JuiceFS/mu/buffer/deferred/throttle（软件手段全部证伪），而是底层磁盘写路径——node2 的 PERC H730 RAID 控制器 WriteBack 缓存未生效（WriteThrough，DATA 写 73-99ms/op）+ WAL/DB/DATA 同盘竞争。** 分层内存盘对照坐实：WAL/DB 迁内存盘对 ≥256K 写零提升（墙在 DATA），DATA 也迁内存盘后墙消失、稳态写 55→112 打满网卡。**全内存盘 JuiceFS 冷态基线写类全面达标**（seqwrite 117/multi-seqwrite 69.8/randwrite 126/layout 104）。剩余未达标收窄为**纯 JuiceFS 随机读路径**（randread 54、randrw 读 48），后端/磁盘/网卡已排除。
+
+方法论沉淀（TESTING-GUIDE §5.4/§5.5）：rados 短测含缓冲暂态不可当稳态、切 config 后须等恢复、净态三确认、perf 用 delta、网卡 TX 用 /proc/net/dev 实测。
+
+---
+
+## 一、阶段 12 目标与两条主线
+
+阶段 12 分两条独立主线，可并行：
+
+### 主线 A（写侧）：把全内存盘验证出的能力落到真盘 —— 生产磁盘调优
+- **前提已知**：全内存盘证明写侧软件不背锅，瓶颈纯在底层磁盘。生产落地就是**让真盘也不成为瓶颈**。
+- **手段（不花钱优先）**：
+  1. **修 node2 RAID WriteBack**：拿到 perccli64 / Dell OMSA，查 node2 的 VD CachePolicy + BBU，若 WriteThrough 则开 WriteBack（BBU 降级则换电池）。这是**最大且最可能零成本**的一步。
+  2. **评估 WAL/DB 独立设备**：全内存盘证明 WAL/DB/DATA 同盘竞争存在；生产可评估独立 NVMe 做 WAL/DB（阶段 11 曾判"有 compact 纪律则非必须"，但那是针对 stall；此处是针对吞吐，需在真盘修好 RAID 后重新评估收益）。
+- **验证口径**：修一步测一步，用真盘（非内存盘）跑冷态基线，看写类在真盘上能否稳定达标。**内存盘数据只作上限参照，不是交付基线。**
+
+### 主线 B（读侧）：JuiceFS 随机读路径攻坚 —— 唯一软件硬骨头
+- **现状**：randread 54 未达标、randrw 读 48 未达标。这是在"后端不背锅"（全内存盘）下测出的，**纯 JuiceFS 读路径问题**。
+- **首要怀疑（第一步要坐实）**：本轮全内存盘冷态基线**只挂了 `--cache-size 0 --max-uploads 150`，漏了 `--max-readahead 0`**。历史已证 readahead 贡献 **1.73× 放大**，patch(loadRange) + `--max-readahead 0` 冷态 randread 可达 77-98（真盘时代已达标）。**所以 randread 54 极可能只是漏关预读，不是新放大源。**
+- **随机读放大历史账（阶段 10/11）**：
+  | 层 | 放大 | 手段 | 状态 |
+  |----|----|----|----|
+  | v1.3.1 `loadRange` bug | 客户端全量读 256K | 单行 patch | ✅ 已解（2.17→1.11×）|
+  | JuiceFS readahead 预读 | **1.73×** | `--max-readahead 0` | ✅ 手段已知 |
+  | 残余（EC 1.04× + messenger 协议帧 ~0.45×）| 1.51× | 架构固有 | 接受 |
+- **randrw**：阶段 11 全内存盘下读写各 48（真盘时代 13-19，已大幅改善但仍未达标），是历史唯一硬骨头，patch/调参全无效，需在干净环境下重新做根因诊断。
+
+---
+
+## 二、步骤规划
+
+| 步骤 | 主线 | 内容 | 优先级 |
+|----|----|----|----|
+| **12.1** | B | **随机读补证定位**（第一份任务书）：全内存盘 + 补 `--max-readahead 0` 重测 randread/randrw，同采网卡 RX + juicefs stats，坐实"是否只是漏关预读 / 有无新放大源"，确认 patch 生效 | **首要** |
+| 12.2 | A | node2 RAID 取证修复：拿 perccli/OMSA 查 CachePolicy+BBU，修 WriteBack，真盘复测写类 | 高（并行）|
+| 12.3 | A | WAL/DB 独立设备收益评估（真盘修好 RAID 后，是否还需独立 WAL/DB） | 中，视 12.2 |
+| 12.4 | B | randrw 根因诊断（若 12.1 后 randread 达标、randrw 仍不达标）：干净环境下拆读写混合放大 | 中 |
+| 12.5 | — | 阶段交付：真盘可达标配置 + 分负载最优挂载参数 + 演进表更新 | 收尾 |
+
+---
+
+## 三、关键判据与分支
+
+### 12.1 出结果后（决定读侧走向）
+- **补 `--max-readahead 0` 后 randread 冲到 77-98、网卡 RX 逼近线速** → 坐实：randread 未达标只是漏关预读，**无新放大源，randread 收工**；只剩 randrw。
+- **补了还是卡 ~54** → 有 patch/readahead 之外的新因素（patch 在新环境失效？全新瓶颈？）→ 深挖（pprof/strace/juicefs stats 分段）。
+
+### 12.2 出结果后（决定写侧生产落地）
+- **修 WriteBack 后真盘写类达标** → 写侧生产方案 = 修 RAID（可能零成本），交付。
+- **修了仍不达标（node1/3 的 DATA 写也慢/WAL 竞争）** → 评估独立 WAL/DB（12.3）。
+
+---
+
+## 四、不做 / 已排除（继承阶段 11，不重复）
+- ❌ 调 throttle_cost_per_io / 验 hdd 误判（已证对吞吐无效）。
+- ❌ deferred=0 纳入基线（+23% 是测量假象，无收益）。
+- ❌ 内存盘当交付基线（仅上限参照）。
+- ❌ 升万兆（验收线随网卡缩放，万兆下目标变 590，非解法）。
+- ❌ 改验收口径（256K/单客户端/59 由领导定）。
+- ❌ rados 短测均值 / 取 MAX 下结论（用稳态段中位数 / r1）。
+
+## 五、一句话
+**阶段 11 证明写侧瓶颈在底层磁盘（node2 RAID WriteThrough + WAL/DB/DATA 竞争），全内存盘下写类全达标。阶段 12 两条线：A 把能力落到真盘（修 node2 RAID WriteBack，可能零成本）；B 攻剩下的纯 JuiceFS 随机读路径——首先坐实 randread 54 是否只是漏挂 `--max-readahead 0`（历史 readahead 1.73× 放大），再决定 randrw 硬骨头是否单独攻坚。**

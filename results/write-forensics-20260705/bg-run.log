@@ -1,0 +1,65 @@
+============================================================
+Experiment 1: staircase write + layout paradox
+Start: Sun Jul  5 11:25:39 PM CST 2026
+============================================================
+
+========================================
+Step S1-8G (Sun Jul  5 11:25:39 PM CST 2026)
+2026/07/05 23:25:53.408134 juicefs[3639689] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/07/05 23:25:53.408326 juicefs[3639689] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/07/05 23:25:53.423112 juicefs[3639689] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:593]
+2026/07/05 23:25:53.449157 juicefs[3639689] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/07/05 23:25:53.955881 juicefs[3639689] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+  mount OK
+  backend snapshot: before
+  192.168.11.11 dropped
+  192.168.11.13 dropped
+  192.168.11.14 dropped
+  [health-check] OK — before S1-8G
+  iostat started on 3 nodes
+  S1-8G: WRITE=54.7 MiB/s RX=139.3MB TX=8508.0MB
+  perf_timeline stopped
+  iostat stopped and collected
+  backend snapshot: after
+  S1-8G DONE (Sun Jul  5 11:28:47 PM CST 2026)
+
+========================================
+Step S2-32G (Sun Jul  5 11:28:47 PM CST 2026)
+  restarting osd.3
+Scheduled to restart osd.3 on host 'ceph-node2'
+  backend snapshot: before
+  192.168.11.11 dropped
+  192.168.11.13 dropped
+  192.168.11.14 dropped
+  [health-check] OK — before S2-32G
+  iostat started on 3 nodes
+  S2-32G: WRITE=49.4 MiB/s RX=545.6MB TX=34035.1MB
+  perf_timeline stopped
+  iostat stopped and collected
+  backend snapshot: after
+  S2-32G DONE (Sun Jul  5 11:51:41 PM CST 2026)
+
+========================================
+Step S3-64G (Sun Jul  5 11:51:41 PM CST 2026)
+  restarting osd.3
+Scheduled to restart osd.3 on host 'ceph-node2'
+  restarting osd.4
+Scheduled to restart osd.4 on host 'ceph-node3'
+  backend snapshot: before
+  192.168.11.11 dropped
+  192.168.11.13 dropped
+  192.168.11.14 dropped
+  [health-check] OK — before S3-64G
+  iostat started on 3 nodes
+  S3-64G: WRITE=47.2 MiB/s RX=1076.1MB TX=68068.7MB
+  perf_timeline stopped
+  iostat stopped and collected
+  backend snapshot: after
+  S3-64G DONE (Mon Jul  6 12:27:14 AM CST 2026)
+
+========================================
+Step S4-128G (Mon Jul  6 12:27:14 AM CST 2026)
+  restarting osd.1
+Scheduled to restart osd.1 on host 'ceph-node1'
+  restarting osd.4
+Scheduled to restart osd.4 on host 'ceph-node3'

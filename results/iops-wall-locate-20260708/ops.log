@@ -1,0 +1,52 @@
+[2026-07-08 11:09:34] === SSD baseline injectargs ===
+[2026-07-08 11:09:34] deferred=0 throttle=4000 on all 6 OSDs
+[2026-07-08 11:09:34] === FIVE CONFIRMATIONS ===
+[2026-07-08 11:10:09] Five confirmations PASSED
+[2026-07-08 11:10:09] Pool cleanup + compact + health check
+[2026-07-08 11:13:27] === STARTING ORCHESTRATION ===
+[2026-07-08 11:13:27] Starting monitoring (duration=310s)...
+[2026-07-08 11:13:27]   client sar started (PID=4162618)
+[2026-07-08 11:13:27]   node1 monitoring started
+[2026-07-08 11:13:27]   node2 monitoring started
+[2026-07-08 11:13:27]   node3 monitoring started
+[2026-07-08 11:13:30] Monitoring initialized.
+[2026-07-08 11:13:30] perf t0 files verified.
+[2026-07-08 11:13:30] START rados bench: -p juicefs-data 300 write -b 256K -t 64 --no-cleanup
+[2026-07-08 11:18:31] END rados bench
+[2026-07-08 11:18:31]   osd.0 perf tend saved (35414 bytes)
+[2026-07-08 11:18:31]   osd.1 perf tend saved (35487 bytes)
+[2026-07-08 11:18:32]   osd.2 perf tend saved (35432 bytes)
+[2026-07-08 11:18:32]   osd.3 perf tend saved (35491 bytes)
+[2026-07-08 11:18:32]   osd.4 perf tend saved (35551 bytes)
+[2026-07-08 11:18:32]   osd.5 perf tend saved (35459 bytes)
+[2026-07-08 11:18:32] Cleaning pool...
+Removed 62327 objects
+[2026-07-08 11:18:55] Pool cleanup done.
+[2026-07-08 11:18:55] Waiting for monitoring to finish (max 20s)...
+[2026-07-08 11:19:10] Collecting monitoring files...
+bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+[2026-07-08 11:19:13] === ORCHESTRATION COMPLETE ===
+[2026-07-08 11:19:13] Files:
+-rw-rw-r-- 1 turboai turboai 895039 Jul  8 11:19 /home/turboai/production/results/iops-wall-locate-20260708/ceph11-iostat-sdb.txt
+-rw-rw-r-- 1 turboai turboai 254154 Jul  8 11:19 /home/turboai/production/results/iops-wall-locate-20260708/ceph11-nic.txt
+-rw-rw-r-- 1 turboai turboai  24868 Jul  8 11:19 /home/turboai/production/results/iops-wall-locate-20260708/ceph13-iostat-sdb.txt
+-rw-rw-r-- 1 turboai turboai  25178 Jul  8 11:19 /home/turboai/production/results/iops-wall-locate-20260708/ceph14-iostat-sdb.txt
+-rw-rw-r-- 1 turboai turboai    387 Jul  8 11:10 /home/turboai/production/results/iops-wall-locate-20260708/clean-confirm.txt
+-rw-rw-r-- 1 turboai turboai 256019 Jul  8 11:18 /home/turboai/production/results/iops-wall-locate-20260708/client-nic-eno1.txt
+-rw-rw-r-- 1 turboai turboai  35332 Jul  8 11:11 /home/turboai/production/results/iops-wall-locate-20260708/osd0-perf-t0.txt
+-rw-rw-r-- 1 turboai turboai  35414 Jul  8 11:18 /home/turboai/production/results/iops-wall-locate-20260708/osd0-perf-tend.txt
+-rw-rw-r-- 1 turboai turboai  35415 Jul  8 11:11 /home/turboai/production/results/iops-wall-locate-20260708/osd1-perf-t0.txt
+-rw-rw-r-- 1 turboai turboai  35487 Jul  8 11:18 /home/turboai/production/results/iops-wall-locate-20260708/osd1-perf-tend.txt
+-rw-rw-r-- 1 turboai turboai  35356 Jul  8 11:11 /home/turboai/production/results/iops-wall-locate-20260708/osd2-perf-t0.txt
+-rw-rw-r-- 1 turboai turboai  35432 Jul  8 11:18 /home/turboai/production/results/iops-wall-locate-20260708/osd2-perf-tend.txt
+-rw-rw-r-- 1 turboai turboai  35410 Jul  8 11:11 /home/turboai/production/results/iops-wall-locate-20260708/osd3-perf-t0.txt
+-rw-rw-r-- 1 turboai turboai  35491 Jul  8 11:18 /home/turboai/production/results/iops-wall-locate-20260708/osd3-perf-tend.txt
+-rw-rw-r-- 1 turboai turboai  35470 Jul  8 11:11 /home/turboai/production/results/iops-wall-locate-20260708/osd4-perf-t0.txt
+-rw-rw-r-- 1 turboai turboai  35551 Jul  8 11:18 /home/turboai/production/results/iops-wall-locate-20260708/osd4-perf-tend.txt
+-rw-rw-r-- 1 turboai turboai  35381 Jul  8 11:11 /home/turboai/production/results/iops-wall-locate-20260708/osd5-perf-t0.txt
+-rw-rw-r-- 1 turboai turboai  35459 Jul  8 11:18 /home/turboai/production/results/iops-wall-locate-20260708/osd5-perf-tend.txt
+-rw-rw-r-- 1 turboai turboai  26699 Jul  8 11:18 /home/turboai/production/results/iops-wall-locate-20260708/rados-write-256k-t64-300s.txt
+-rw-rw-r-- 1 turboai turboai   1230 Jul  8 11:10 /home/turboai/production/results/iops-wall-locate-20260708/recovery-confirm.txt

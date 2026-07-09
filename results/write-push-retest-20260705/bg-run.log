@@ -1,0 +1,147 @@
+============================================================
+Write Push Retest 20260705
+Start: Sun Jul  5 03:43:30 PM CST 2026
+============================================================
+
+=== Experiment A-idle ===
+Sun Jul  5 03:43:31 PM CST 2026
+============================================================
+Grid A-idle: --cache-size 0 --max-uploads 150
+Start: Sun Jul  5 03:43:31 PM CST 2026
+2026/07/05 15:43:35.197764 juicefs[3602442] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/07/05 15:43:35.197938 juicefs[3602442] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/07/05 15:43:35.213039 juicefs[3602442] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:593]
+2026/07/05 15:43:35.242055 juicefs[3602442] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/07/05 15:43:35.749228 juicefs[3602442] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+  mount OK
+  backend snapshot: before (Sun Jul  5 03:43:46 PM CST 2026)
+
+## Round 1 (Sun Jul  5 03:43:46 PM CST 2026)
+  192.168.11.11 cache dropped
+  192.168.11.13 cache dropped
+  192.168.11.14 cache dropped
+  [health-check] OK — before A-idle r1
+  seqwrite r1: WRITE=68.0 MiB/s RX=73.4MB TX=4255.5MB
+  randwrite r1: WRITE=62.6 MiB/s RX=89.0MB TX=4008.0MB
+
+## Round 2 (Sun Jul  5 03:46:19 PM CST 2026)
+  192.168.11.11 cache dropped
+  192.168.11.13 cache dropped
+  192.168.11.14 cache dropped
+  [health-check] OK — before A-idle r2
+  seqwrite r2: WRITE=47.3 MiB/s RX=71.2MB TX=4254.7MB
+  randwrite r2: WRITE=48.2 MiB/s RX=59.2MB TX=3126.5MB
+
+## Round 3 (Sun Jul  5 03:49:17 PM CST 2026)
+  192.168.11.11 cache dropped
+  192.168.11.13 cache dropped
+  192.168.11.14 cache dropped
+  [health-check] OK — before A-idle r3
+  seqwrite r3: WRITE=42.8 MiB/s RX=69.2MB TX=4254.8MB
+  randwrite r3: WRITE=48.3 MiB/s RX=82.8MB TX=3103.2MB
+
+## Round 4 (Sun Jul  5 03:52:26 PM CST 2026)
+  192.168.11.11 cache dropped
+  192.168.11.13 cache dropped
+  192.168.11.14 cache dropped
+  [health-check] OK — before A-idle r4
+  seqwrite r4: WRITE=40.1 MiB/s RX=71.3MB TX=4420.4MB
+  randwrite r4: WRITE=50.6 MiB/s RX=75.2MB TX=3260.5MB
+
+## Round 5 (Sun Jul  5 03:55:39 PM CST 2026)
+  192.168.11.11 cache dropped
+  192.168.11.13 cache dropped
+  192.168.11.14 cache dropped
+  [health-check] OK — before A-idle r5
+  seqwrite r5: WRITE=42.1 MiB/s RX=68.3MB TX=4254.5MB
+  randwrite r5: WRITE=48.7 MiB/s RX=69.6MB TX=3126.1MB
+  backend snapshot: after (Sun Jul  5 03:58:57 PM CST 2026)
+Grid A-idle DONE: Sun Jul  5 03:58:57 PM CST 2026
+  [15s] HEALTH_WARN 1 OSD(s) experiencing stalled read in db device of BlueFS (Sun Jul  5 03:59:23 PM CST 2026)
+  [30s] HEALTH_WARN 1 OSD(s) experiencing stalled read in db device of BlueFS (Sun Jul  5 03:59:39 PM CST 2026)
+  [45s] HEALTH_WARN 1 OSD(s) experiencing stalled read in db device of BlueFS (Sun Jul  5 03:59:55 PM CST 2026)
+  [60s] HEALTH_WARN 1 OSD(s) experiencing stalled read in db device of BlueFS (Sun Jul  5 04:00:12 PM CST 2026)
+  [75s] HEALTH_WARN 1 OSD(s) experiencing stalled read in db device of BlueFS (Sun Jul  5 04:00:28 PM CST 2026)
+  [90s] HEALTH_WARN 1 OSD(s) experiencing stalled read in db device of BlueFS (Sun Jul  5 04:00:44 PM CST 2026)
+  [105s] HEALTH_WARN 1 OSD(s) experiencing stalled read in db device of BlueFS (Sun Jul  5 04:01:00 PM CST 2026)
+  [120s] HEALTH_WARN 1 OSD(s) experiencing stalled read in db device of BlueFS (Sun Jul  5 04:01:16 PM CST 2026)
+  [135s] HEALTH_WARN 1 OSD(s) experiencing stalled read in db device of BlueFS (Sun Jul  5 04:01:32 PM CST 2026)
+  [150s] HEALTH_WARN 1 OSD(s) experiencing stalled read in db device of BlueFS (Sun Jul  5 04:01:48 PM CST 2026)
+  [165s] HEALTH_WARN 1 OSD(s) experiencing stalled read in db device of BlueFS (Sun Jul  5 04:02:05 PM CST 2026)
+  [180s] HEALTH_WARN 1 OSD(s) experiencing stalled read in db device of BlueFS (Sun Jul  5 04:02:21 PM CST 2026)
+  [195s] HEALTH_WARN 1 OSD(s) experiencing stalled read in db device of BlueFS (Sun Jul  5 04:02:37 PM CST 2026)
+  [210s] HEALTH_WARN 1 OSD(s) experiencing stalled read in db device of BlueFS (Sun Jul  5 04:02:53 PM CST 2026)
+  [225s] HEALTH_WARN 1 OSD(s) experiencing stalled read in db device of BlueFS (Sun Jul  5 04:03:09 PM CST 2026)
+  [240s] HEALTH_WARN 1 OSD(s) experiencing stalled read in db device of BlueFS (Sun Jul  5 04:03:25 PM CST 2026)
+  [255s] HEALTH_WARN 1 OSD(s) experiencing stalled read in db device of BlueFS (Sun Jul  5 04:03:41 PM CST 2026)
+  [270s] HEALTH_WARN 1 OSD(s) experiencing stalled read in db device of BlueFS (Sun Jul  5 04:03:57 PM CST 2026)
+  [285s] HEALTH_WARN 1 OSD(s) experiencing stalled read in db device of BlueFS (Sun Jul  5 04:04:13 PM CST 2026)
+  [300s] HEALTH_WARN 1 OSD(s) experiencing stalled read in db device of BlueFS (Sun Jul  5 04:04:29 PM CST 2026)
+  cooldown timeout 300s, restarting stalled OSDs (Sun Jul  5 04:04:29 PM CST 2026)
+  restarting osd.5 on 192.168.11.14
+Scheduled to restart osd.5 on host 'ceph-node3'
+  [restart+15s] HEALTH_WARN 1 OSD(s) experiencing stalled read in db device of BlueFS; 1 osds down; Degraded data redundancy: 42654/256230 objects degraded (16.647%), 52 pgs degraded (Sun Jul  5 04:05:15 PM CST 2026)
+  [restart+30s] HEALTH_OK (Sun Jul  5 04:05:31 PM CST 2026)
+  backend clean after restart+30s (Sun Jul  5 04:05:31 PM CST 2026)
+
+=== Experiment B1-nj1 ===
+Sun Jul  5 04:05:31 PM CST 2026
+============================================================
+Grid B1-nj1: nj=1 size=64G total=64G --cache-size 0 --max-uploads 150
+Start: Sun Jul  5 04:05:31 PM CST 2026
+2026/07/05 16:05:35.653335 juicefs[3607697] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/07/05 16:05:35.653641 juicefs[3607697] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/07/05 16:05:35.669439 juicefs[3607697] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:593]
+2026/07/05 16:05:35.695389 juicefs[3607697] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/07/05 16:05:36.202791 juicefs[3607697] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+  mount OK
+  backend snapshot: before (Sun Jul  5 04:05:46 PM CST 2026)
+
+## Round 1 (Sun Jul  5 04:05:46 PM CST 2026)
+  192.168.11.11 cache dropped
+  192.168.11.13 cache dropped
+  192.168.11.14 cache dropped
+  [health-check] OK — before B1-nj1 r1
+  multi r1: WRITE=41.5 MiB/s RX=1072.8MB TX=68076.3MB
+
+## Round 2 (Sun Jul  5 04:32:15 PM CST 2026)
+  192.168.11.11 cache dropped
+  192.168.11.13 cache dropped
+  192.168.11.14 cache dropped
+  [health-check] WARN: ceph health is 'HEALTH_WARN 1 OSD(s) experiencing slow operations in BlueStore; 2 OSD(s) experiencing stalled read in db device of BlueFS' — before B1-nj1 r2
+  [health-check] health detail:
+    HEALTH_WARN 1 OSD(s) experiencing slow operations in BlueStore; 2 OSD(s) experiencing stalled read in db device of BlueFS
+    [WRN] BLUESTORE_SLOW_OP_ALERT: 1 OSD(s) experiencing slow operations in BlueStore
+         osd.0 observed slow operation indications in BlueStore
+    [WRN] DB_DEVICE_STALLED_READ_ALERT: 2 OSD(s) experiencing stalled read in db device of BlueFS
+         osd.0 observed stalled read indications in DB device
+         osd.2 observed stalled read indications in DB device
+  [health-check] waiting up to 120s for recovery...
+  [health-check] still 'HEALTH_WARN 1 OSD(s) experiencing slow operations in BlueStore; 2 OSD(s) experiencing stalled read in db device of BlueFS' after 15s...
+  [health-check] still 'HEALTH_WARN 1 OSD(s) experiencing slow operations in BlueStore; 2 OSD(s) experiencing stalled read in db device of BlueFS' after 30s...
+  [health-check] still 'HEALTH_WARN 1 OSD(s) experiencing slow operations in BlueStore; 2 OSD(s) experiencing stalled read in db device of BlueFS' after 45s...
+  [health-check] still 'HEALTH_WARN 1 OSD(s) experiencing slow operations in BlueStore; 2 OSD(s) experiencing stalled read in db device of BlueFS' after 60s...
+  [health-check] still 'HEALTH_WARN 1 OSD(s) experiencing slow operations in BlueStore; 2 OSD(s) experiencing stalled read in db device of BlueFS' after 75s...
+  [health-check] still 'HEALTH_WARN 1 OSD(s) experiencing slow operations in BlueStore; 2 OSD(s) experiencing stalled read in db device of BlueFS' after 90s...
+  [health-check] still 'HEALTH_WARN 1 OSD(s) experiencing slow operations in BlueStore; 2 OSD(s) experiencing stalled read in db device of BlueFS' after 105s...
+  [health-check] still 'HEALTH_WARN 1 OSD(s) experiencing slow operations in BlueStore; 2 OSD(s) experiencing stalled read in db device of BlueFS' after 120s...
+  [health-check] FATAL: ceph health still non-OK after 120s — ABORTING TEST
+  [health-check] full health detail:
+    HEALTH_WARN 1 OSD(s) experiencing slow operations in BlueStore; 2 OSD(s) experiencing stalled read in db device of BlueFS
+    [WRN] BLUESTORE_SLOW_OP_ALERT: 1 OSD(s) experiencing slow operations in BlueStore
+         osd.0 observed slow operation indications in BlueStore
+    [WRN] DB_DEVICE_STALLED_READ_ALERT: 2 OSD(s) experiencing stalled read in db device of BlueFS
+         osd.0 observed stalled read indications in DB device
+         osd.2 observed stalled read indications in DB device
+  [health-check] osd tree:
+    ID  CLASS  WEIGHT   TYPE NAME            STATUS  REWEIGHT  PRI-AFF
+    -1         3.25839  root default                                  
+    -3         0.93100      host ceph-node1                           
+     0    hdd  0.46550          osd.0            up   1.00000  1.00000
+     1    hdd  0.46550          osd.1            up   1.00000  1.00000
+    -5         0.93100      host ceph-node2                           
+     2    hdd  0.46550          osd.2            up   1.00000  1.00000
+     3    hdd  0.46550          osd.3            up   1.00000  1.00000
+    -6         1.39639      host ceph-node3                           
+     4    hdd  0.93089          osd.4            up   1.00000  1.00000
+     5    hdd  0.46550          osd.5            up   1.00000  1.00000

@@ -1,0 +1,118 @@
+bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+[2026-07-08 22:23:27] ==============================================
+[2026-07-08 22:23:27] JuiceFS cold baseline on full memdisk START
+[2026-07-08 22:23:27] ==============================================
+[2026-07-08 22:23:27] === mount JuiceFS ===
+2026/07/08 22:23:29.339798 juicefs[3282606] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-memdisk [NewClient@interface.go:578]
+2026/07/08 22:23:29.339972 juicefs[3282606] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/07/08 22:23:29.354379 juicefs[3282606] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:593]
+2026/07/08 22:23:29.384317 juicefs[3282606] <INFO>: Data use ceph://juicefs-data/juicefs-memdisk/ [mount@mount.go:588]
+2026/07/08 22:23:29.891391 juicefs[3282606] <INFO>: [92mOK[0m, juicefs-memdisk is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+[2026-07-08 22:23:34]   JuiceFS PID: 3282693
+JuiceFS:juicefs-memdisk on /mnt/juicefs type fuse.juicefs (rw,nosuid,nodev,relatime,user_id=0,group_id=0,default_permissions,allow_other,max_read=131072)
+[2026-07-08 22:23:34] ==== SEQWRITE 4G 256K 1job ====
+before: objects=KiB used=1
+seqwrite: (g=0): rw=write, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=libaio, iodepth=64
+fio-3.28
+Starting 1 process
+seqwrite: Laying out IO file (1 file / 4096MiB)
+
+seqwrite: (groupid=0, jobs=1): err= 0: pid=3283508: Wed Jul  8 22:24:15 2026
+  write: IOPS=482, BW=121MiB/s (126MB/s)(4096MiB/33989msec); 0 zone resets
+    slat (usec): min=165, max=12176, avg=2067.78, stdev=3809.85
+    clat (usec): min=8, max=160200, avg=130596.50, stdev=31451.89
+     lat (usec): min=405, max=161766, avg=132665.00, stdev=31929.91
+    clat percentiles (msec):
+     |  1.00th=[   30],  5.00th=[   37], 10.00th=[  115], 20.00th=[  136],
+     | 30.00th=[  138], 40.00th=[  138], 50.00th=[  140], 60.00th=[  142],
+     | 70.00th=[  144], 80.00th=[  146], 90.00th=[  148], 95.00th=[  150],
+     | 99.00th=[  153], 99.50th=[  155], 99.90th=[  157], 99.95th=[  157],
+     | 99.99th=[  159]
+   bw (  KiB/s): min=110592, max=417280, per=99.77%, avg=123124.54, stdev=49494.11, samples=67
+   iops        : min=  432, max= 1630, avg=480.96, stdev=193.34, samples=67
+  lat (usec)   : 10=0.01%, 500=0.01%
+  lat (msec)   : 20=0.02%, 50=9.53%, 100=0.29%, 250=90.15%
+  cpu          : usr=1.33%, sys=1.78%, ctx=32769, majf=1, minf=12
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.2%, >=64=99.6%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,16384,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=121MiB/s (126MB/s), 121MiB/s-121MiB/s (126MB/s-126MB/s), io=4096MiB (4295MB), run=33989-33989msec
+after: objects=GiB used=15554
+[2026-07-08 22:24:17] ==== MULTI-SEQWRITE 2G×4 256K ====
+before: objects=GiB used=16055
+multi-seqwrite: (g=0): rw=write, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=libaio, iodepth=64
+...
+fio-3.28
+Starting 4 processes
+multi-seqwrite: Laying out IO file (1 file / 2048MiB)
+
+multi-seqwrite: (groupid=0, jobs=4): err= 0: pid=3287623: Wed Jul  8 22:25:33 2026
+  write: IOPS=450, BW=113MiB/s (118MB/s)(8192MiB/72816msec); 0 zone resets
+    slat (usec): min=198, max=2716.3k, avg=8596.71, stdev=32432.90
+    clat (usec): min=6, max=3585.7k, avg=541818.90, stdev=281823.62
+     lat (usec): min=273, max=3599.0k, avg=550416.53, stdev=284288.17
+    clat percentiles (msec):
+     |  1.00th=[   36],  5.00th=[  103], 10.00th=[  368], 20.00th=[  460],
+     | 30.00th=[  498], 40.00th=[  523], 50.00th=[  542], 60.00th=[  567],
+     | 70.00th=[  592], 80.00th=[  625], 90.00th=[  676], 95.00th=[  743],
+     | 99.00th=[ 1020], 99.50th=[ 2903], 99.90th=[ 3239], 99.95th=[ 3440],
+     | 99.99th=[ 3574]
+   bw (  KiB/s): min=42499, max=695296, per=100.00%, avg=120708.56, stdev=15820.15, samples=544
+   iops        : min=  166, max= 2716, avg=471.51, stdev=61.80, samples=544
+  lat (usec)   : 10=0.01%, 20=0.01%, 500=0.01%, 750=0.01%
+  lat (msec)   : 2=0.02%, 4=0.02%, 10=0.09%, 20=0.16%, 50=1.61%
+  lat (msec)   : 100=2.97%, 250=4.20%, 500=22.45%, 750=63.77%, 1000=3.57%
+  lat (msec)   : 2000=0.14%, >=2000=0.96%
+  cpu          : usr=0.43%, sys=0.83%, ctx=97951, majf=0, minf=63
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.2%, 32=0.4%, >=64=99.2%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=0,32768,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=113MiB/s (118MB/s), 113MiB/s-113MiB/s (118MB/s-118MB/s), io=8192MiB (8590MB), run=72816-72816msec
+after: objects=GiB used=47462
+[2026-07-08 22:25:36] ==== RANDREAD 4G 256K ====
+[2026-07-08 22:25:36]   prefilling...
+     issued rwts: total=0,16384,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+  WRITE: bw=120MiB/s (126MB/s), 120MiB/s-120MiB/s (126MB/s-126MB/s), io=4096MiB (4295MB), run=33995-33995msec
+randread: (g=0): rw=randread, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=libaio, iodepth=64
+fio-3.28
+Starting 1 process
+
+randread: (groupid=0, jobs=1): err= 0: pid=3297837: Wed Jul  8 22:28:44 2026
+  read: IOPS=110, BW=27.6MiB/s (28.9MB/s)(4096MiB/148447msec)
+    slat (usec): min=7467, max=15394, avg=9048.70, stdev=479.89
+    clat (usec): min=10, max=600872, avg=569606.00, stdev=23146.63
+     lat (msec): min=9, max=613, avg=578.66, stdev=23.20
+    clat percentiles (msec):
+     |  1.00th=[  542],  5.00th=[  558], 10.00th=[  558], 20.00th=[  558],
+     | 30.00th=[  567], 40.00th=[  567], 50.00th=[  567], 60.00th=[  575],
+     | 70.00th=[  575], 80.00th=[  584], 90.00th=[  584], 95.00th=[  592],
+     | 99.00th=[  592], 99.50th=[  592], 99.90th=[  600], 99.95th=[  600],
+     | 99.99th=[  600]
+   bw (  KiB/s): min=20992, max=29696, per=99.98%, avg=28250.25, stdev=705.89, samples=295
+   iops        : min=   82, max=  116, avg=110.35, stdev= 2.75, samples=295
+  lat (usec)   : 20=0.01%
+  lat (msec)   : 10=0.01%, 20=0.01%, 50=0.02%, 100=0.04%, 250=0.10%
+  lat (msec)   : 500=0.16%, 750=99.66%
+  cpu          : usr=0.18%, sys=0.71%, ctx=32921, majf=1, minf=4108
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.2%, >=64=99.6%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.1%, >=64=0.0%
+     issued rwts: total=16384,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=64
+
+Run status group 0 (all jobs):
+   READ: bw=27.6MiB/s (28.9MB/s), 27.6MiB/s-27.6MiB/s (28.9MB/s-28.9MB/s), io=4096MiB (4295MB), run=148447-148447msec
+[2026-07-08 22:28:45] ==============================================
+[2026-07-08 22:28:45] JuiceFS cold baseline COMPLETE
+[2026-07-08 22:28:45] ==============================================

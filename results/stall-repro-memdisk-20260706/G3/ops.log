@@ -1,0 +1,37 @@
+Tue Jul  7 08:59:57 CST 2026: G3 复刻 A3 完整序列（rados→seqwrite→multi-seqwrite, 全程无清无compact）
+=== 净态三确认 ===
+pool objects: 0
+compacting all OSDs...
+health: HEALTH_OK
+osd  commit_latency(ms)  apply_latency(ms)
+  4                   0                  0
+  3                   0                  0
+  2                   0                  0
+  5                   0                  0
+  0                   0                  0
+  1                   0                  0
+format + mount...
+mount OK
+starting monitoring (40min coverage)...
+monitoring started
+
+=== rados 3×60s (no clean between) ===
+Tue Jul  7 09:02:29 CST 2026: rados r1
+rados r1: 62.7694 MB/s
+Tue Jul  7 09:03:39 CST 2026: rados r2
+rados r2: 60.7113 MB/s
+Tue Jul  7 09:04:48 CST 2026: rados r3
+rados r3: 65.8599 MB/s
+
+=== seqwrite 3×4G (no clean between, no compact) ===
+Tue Jul  7 09:05:57 CST 2026: seqwrite r1
+seqwrite r1: 65.3 MiB/s
+Tue Jul  7 09:07:06 CST 2026: seqwrite r2
+seqwrite r2: 62.3 MiB/s
+Tue Jul  7 09:08:17 CST 2026: seqwrite r3
+seqwrite r3: 62.6 MiB/s
+
+=== multi-seqwrite 64G (紧接 seqwrite, no clean no compact) ===
+Tue Jul  7 09:09:29 CST 2026: starting multi-seqwrite
+fio PID=768555
+G3 test launched

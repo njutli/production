@@ -1,0 +1,61 @@
+### date: Sun Jul  5 11:51:38 PM CST 2026
+== ceph health detail ==
+HEALTH_WARN 2 OSD(s) experiencing stalled read in db device of BlueFS
+[WRN] DB_DEVICE_STALLED_READ_ALERT: 2 OSD(s) experiencing stalled read in db device of BlueFS
+     osd.3 observed stalled read indications in DB device
+     osd.4 observed stalled read indications in DB device
+== ceph -s ==
+  cluster:
+    id:     073f28e0-5fe0-11f1-8ce6-7369ee2be5a1
+    health: HEALTH_WARN
+            2 OSD(s) experiencing stalled read in db device of BlueFS
+ 
+  services:
+    mon: 3 daemons, quorum ceph-node1,ceph-node2,ceph-node3 (age 12d)
+    mgr: ceph-node2.zsiakr(active, since 12d), standbys: ceph-node1.alpmza
+    osd: 6 osds: 6 up (since 11m), 6 in (since 2w)
+    rgw: 3 daemons active (3 hosts, 1 zones)
+ 
+  data:
+    pools:   8 pools, 225 pgs
+    objects: 326.40k objects, 80 GiB
+    usage:   128 GiB used, 2.7 TiB / 2.8 TiB avail
+    pgs:     225 active+clean
+ 
+  io:
+    client:   26 MiB/s wr, 0 op/s rd, 556 op/s wr
+ 
+== ceph osd perf ==
+osd  commit_latency(ms)  apply_latency(ms)
+  4                   0                  0
+  3                  10                 10
+  2                  13                 13
+  5                   0                  0
+  0                   0                  0
+  1                   0                  0
+== ceph df detail ==
+--- RAW STORAGE ---
+CLASS     SIZE    AVAIL     USED  RAW USED  %RAW USED
+hdd    2.8 TiB  2.7 TiB  128 GiB   128 GiB       4.49
+TOTAL  2.8 TiB  2.7 TiB  128 GiB   128 GiB       4.49
+ 
+--- POOLS ---
+POOL                       ID  PGS   STORED   (DATA)   (OMAP)  OBJECTS     USED   (DATA)   (OMAP)  %USED  MAX AVAIL  QUOTA OBJECTS  QUOTA BYTES  DIRTY  USED COMPR  UNDER COMPR
+default.rgw.log            10   32  3.6 KiB  3.6 KiB      0 B      209  408 KiB  408 KiB      0 B      0    502 GiB            N/A          N/A    N/A         0 B          0 B
+.rgw.root                  12   32  1.5 KiB  1.5 KiB      0 B        4   48 KiB   48 KiB      0 B      0    502 GiB            N/A          N/A    N/A         0 B          0 B
+default.rgw.control        13   32      0 B      0 B      0 B        8      0 B      0 B      0 B      0    502 GiB            N/A          N/A    N/A         0 B          0 B
+default.rgw.meta           14   32  2.7 KiB    924 B  1.8 KiB        6   53 KiB   48 KiB  5.3 KiB      0    502 GiB            N/A          N/A    N/A         0 B          0 B
+.mgr                       15    1  598 KiB  598 KiB      0 B        2  1.8 MiB  1.8 MiB      0 B      0    502 GiB            N/A          N/A    N/A         0 B          0 B
+default.rgw.buckets.index  28   32  2.5 MiB      0 B  2.5 MiB       23  7.5 MiB      0 B  7.5 MiB      0    502 GiB            N/A          N/A    N/A         0 B          0 B
+default.rgw.buckets.data   36   32      0 B      0 B      0 B        0      0 B      0 B      0 B      0    502 GiB            N/A          N/A    N/A         0 B          0 B
+juicefs-data               43   32   80 GiB   80 GiB      0 B  326.15k  120 GiB  120 GiB      0 B   7.35   1005 GiB            N/A          N/A    N/A         0 B          0 B
+== ceph osd df ==
+ID  CLASS  WEIGHT   REWEIGHT  SIZE     RAW USE  DATA     OMAP     META     AVAIL    %USE  VAR   PGS  STATUS
+ 0    hdd  0.46550   1.00000  477 GiB   21 GiB   20 GiB    6 KiB  1.2 GiB  455 GiB  4.46  0.99  131      up
+ 1    hdd  0.46550   1.00000  477 GiB   22 GiB   20 GiB    8 KiB  2.1 GiB  455 GiB  4.64  1.03  126      up
+ 2    hdd  0.46550   1.00000  477 GiB   21 GiB   20 GiB  5.2 MiB  1.3 GiB  455 GiB  4.46  0.99  135      up
+ 3    hdd  0.46550   1.00000  477 GiB   21 GiB   20 GiB   11 KiB  651 MiB  456 GiB  4.33  0.96  122      up
+ 4    hdd  0.93089   1.00000  477 GiB   22 GiB   20 GiB  2.2 MiB  2.4 GiB  454 GiB  4.67  1.04  162      up
+ 5    hdd  0.46550   1.00000  477 GiB   21 GiB   20 GiB    6 KiB  1.1 GiB  456 GiB  4.40  0.98   95      up
+                       TOTAL  2.8 TiB  128 GiB  120 GiB  7.5 MiB  8.7 GiB  2.7 TiB  4.49                   
+MIN/MAX VAR: 0.96/1.04  STDDEV: 0.12

@@ -1,0 +1,82 @@
+## Experiment 4 ops log (Mon Jul  6 02:01:32 AM CST 2026)
+### Step 0: Pre-flight checks
+HEALTH_OK
+== osd.5 metadata ==
+    "bluefs": "1",
+    "bluefs_dedicated_db": "0",
+    "bluefs_dedicated_wal": "0",
+    "bluefs_single_shared_device": "1",
+    "bluestore_allocation_from_file": "0",
+    "bluestore_bdev_access_mode": "blk",
+    "bluestore_bdev_block_size": "4096",
+    "bluestore_bdev_dev_node": "/dev/dm-1",
+    "bluestore_bdev_devices": "sdb",
+    "bluestore_bdev_driver": "KernelDevice",
+    "bluestore_bdev_optimal_io_size": "0",
+    "bluestore_bdev_partition_path": "/dev/dm-1",
+    "bluestore_bdev_rotational": "1",
+    "bluestore_bdev_size": "511768002560",
+    "bluestore_bdev_support_discard": "0",
+    "bluestore_bdev_type": "hdd",
+    "bluestore_min_alloc_size": "4096",
+    "container_hostname": "ceph-node3",
+    "devices": "sdb",
+    "hostname": "ceph-node3",
+    "journal_rotational": "1",
+    "objectstore_numa_unknown_devices": "sdb",
+    "osd_objectstore": "bluestore",
+    "rotational": "1"
+== node3 disk ==
+NAME                           SIZE TYPE MOUNTPOINT        ROTA
+loop0                         63.9M loop /snap/core20/2318    1
+loop1                         63.8M loop /snap/core20/2866    1
+loop2                           87M loop /snap/lxd/29351      1
+loop3                         91.7M loop /snap/lxd/38800      1
+loop4                         38.8M loop /snap/snapd/21759    1
+loop5                         49.3M loop /snap/snapd/26865    1
+sda                          446.6G disk                      1
+├─sda1                           1G part /boot/efi            1
+├─sda2                           2G part                      1
+└─sda3                       443.6G part                      1
+  └─ubuntu--vg-lv--0         443.6G lvm  /                    1
+sdb                          953.3G disk                      1
+├─ceph--vg--ceph--node3-osd0 476.6G lvm                       1
+└─ceph--vg--ceph--node3-osd1 476.6G lvm                       1
+---
+---
+               total        used        free      shared  buff/cache   available
+Mem:           251Gi        10Gi       240Gi       6.0Mi       653Mi       239Gi
+### Step 1: Create tmpfs + set noout (Mon Jul  6 02:01:57 AM CST 2026)
+Filesystem      Size  Used Avail Use% Mounted on
+tmpfs            20G     0   20G   0% /mnt/osd5-memdb
+---
+noout is set
+### Step 2: Stop osd.5 (Mon Jul  6 02:02:05 AM CST 2026)
+Inferring fsid 073f28e0-5fe0-11f1-8ce6-7369ee2be5a1
+Inferring config /var/lib/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1/mon.ceph-node3/config
+Using ceph image with id 'a0f373aaaf5a' and tag 'v17.2.8' created on 2024-11-26 00:45:38 +0000 UTC
+quay.io/ceph/ceph@sha256:a0f373aaaf5a5ca5c4379c09da24c771b8266a09dc9e2181f90eacf423d7326f
+Scheduled to stop osd.5 on host 'ceph-node3'
+ 5    hdd  0.46550          osd.5          down   1.00000  1.00000
+### Step 3: Create loop device for DB on tmpfs (Mon Jul  6 02:02:44 AM CST 2026)
+1751121920 bytes (1.8 GB, 1.6 GiB) copied, 1 s, 1.8 GB/s3628072960 bytes (3.6 GB, 3.4 GiB) copied, 2 s, 1.8 GB/s5609881600 bytes (5.6 GB, 5.2 GiB) copied, 3 s, 1.9 GB/s7588544512 bytes (7.6 GB, 7.1 GiB) copied, 4 s, 1.9 GB/s9574547456 bytes (9.6 GB, 8.9 GiB) copied, 5 s, 1.9 GB/s11563696128 bytes (12 GB, 11 GiB) copied, 6 s, 1.9 GB/s 13542359040 bytes (14 GB, 13 GiB) copied, 7 s, 1.9 GB/s15526264832 bytes (16 GB, 14 GiB) copied, 8 s, 1.9 GB/s
+16384+0 records in
+16384+0 records out
+17179869184 bytes (17 GB, 16 GiB) copied, 8.83536 s, 1.9 GB/s
+NAME        SIZELIMIT OFFSET AUTOCLEAR RO BACK-FILE              DIO LOG-SEC
+/dev/loop10         0      0         0  0 /mnt/osd5-memdb/db.img   0     512
+### Step 4: Migrate DB to tmpfs loop device (Mon Jul  6 02:03:03 AM CST 2026)
+Inferring fsid 073f28e0-5fe0-11f1-8ce6-7369ee2be5a1
+Inferring config /var/lib/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1/mon.ceph-node3/config
+Using ceph image with id 'a0f373aaaf5a' and tag 'v17.2.8' created on 2024-11-26 00:45:38 +0000 UTC
+quay.io/ceph/ceph@sha256:a0f373aaaf5a5ca5c4379c09da24c771b8266a09dc9e2181f90eacf423d7326f
+inferring bluefs devices from bluestore path
+failed to add DB device:(2) No such file or directory
+2026-07-05T18:03:16.597+0000 7f31ff092780 -1 bluestore(/var/lib/ceph/osd/ceph-5/block) _read_bdev_label failed to open /var/lib/ceph/osd/ceph-5/block: (2) No such file or directory
+2026-07-05T18:03:16.597+0000 7f31ff092780 -1 bluestore(/var/lib/ceph/osd/ceph-5) _open_db_and_around failed to load os-type: (2) No such file or directory
+### Rollback: Start osd.5 + unset noout (Mon Jul  6 02:04:37 AM CST 2026)
+Using ceph image with id 'a0f373aaaf5a' and tag 'v17.2.8' created on 2024-11-26 00:45:38 +0000 UTC
+quay.io/ceph/ceph@sha256:a0f373aaaf5a5ca5c4379c09da24c771b8266a09dc9e2181f90eacf423d7326f
+Scheduled to start osd.5 on host 'ceph-node3'
+noout is unset
+cleaning tmpfs...

@@ -1,0 +1,44 @@
+storage_test: (g=0): rw=write, bs=(R) 4096KiB-4096KiB, (W) 4096KiB-4096KiB, (T) 4096KiB-4096KiB, ioengine=psync, iodepth=1
+...
+fio-3.28
+Starting 16 processes
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+storage_test: Laying out IO file (1 file / 1024MiB)
+
+storage_test: (groupid=0, jobs=16): err= 0: pid=3937164: Thu Jul  9 00:33:07 2026
+  write: IOPS=18, BW=72.7MiB/s (76.2MB/s)(16.0GiB/225456msec); 0 zone resets
+    clat (msec): min=9, max=77119, avg=854.48, stdev=4763.12
+     lat (msec): min=9, max=77119, avg=854.85, stdev=4763.13
+    clat percentiles (msec):
+     |  1.00th=[   23],  5.00th=[  347], 10.00th=[  347], 20.00th=[  447],
+     | 30.00th=[  447], 40.00th=[  542], 50.00th=[  550], 60.00th=[  550],
+     | 70.00th=[  651], 80.00th=[  651], 90.00th=[  751], 95.00th=[  852],
+     | 99.00th=[ 1045], 99.50th=[ 1150], 99.90th=[17113], 99.95th=[17113],
+     | 99.99th=[17113]
+   bw (  KiB/s): min=131072, max=524288, per=100.00%, avg=142193.89, stdev=2624.28, samples=3761
+   iops        : min=   32, max=  128, avg=34.70, stdev= 0.64, samples=3761
+  lat (msec)   : 10=0.12%, 20=0.66%, 50=0.39%, 250=0.39%, 500=37.79%
+  lat (msec)   : 750=49.02%, 1000=10.45%, 2000=0.78%, >=2000=0.39%
+  cpu          : usr=0.04%, sys=0.56%, ctx=131424, majf=0, minf=6396
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=0,4096,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+  WRITE: bw=72.7MiB/s (76.2MB/s), 72.7MiB/s-72.7MiB/s (76.2MB/s-76.2MB/s), io=16.0GiB (17.2GB), run=225456-225456msec

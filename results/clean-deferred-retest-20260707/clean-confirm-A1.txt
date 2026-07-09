@@ -1,0 +1,36 @@
+=== A1 净态三确认 (§1.3a) ===
+Date: Tue Jul  7 15:33:22 CST 2026
+
+--- ① 清池数据 ---
+POOL_NAME     USED  OBJECTS  CLONES  COPIES  MISSING_ON_PRIMARY  UNFOUND  DEGRADED  RD_OPS   RD  WR_OPS   WR  USED COMPR  UNDER COMPR
+juicefs-data   0 B        0       0       0                   0        0         0       0  0 B       0  0 B         0 B          0 B
+
+total_objects    252
+total_used       12 GiB
+total_avail      2.8 TiB
+total_space      2.8 TiB
+
+--- ② compact_queue_len=0 / compact_running=0 ---
+osd.0: compact_queue_len=0 compact_running=0
+osd.1: compact_queue_len=0 compact_running=0
+osd.2: compact_queue_len=0 compact_running=0
+osd.3: compact_queue_len=0 compact_running=0
+osd.4: compact_queue_len=0 compact_running=0
+osd.5: compact_queue_len=0 compact_running=0
+
+--- ③ iostat/diskstats idle + health OK ---
+Health: HEALTH_OK
+--- node 11 sdb diskstats (2 samples, 2s apart) ---
+  s1:    8      16 sdb 29662999 2558265 3765583260 367479244 522105255 280765805 20964196424 3165903433 0 300639556 3533382677 0 0 0 0 0 0
+  s2:    8      16 sdb 29662999 2558265 3765583260 367479244 522105255 280765805 20964196424 3165903433 0 300639556 3533382677 0 0 0 0 0 0
+  → IDLE ✓
+--- node 13 sdb diskstats (2 samples, 2s apart) ---
+  s1:    8      16 sdb 27101556 2165311 3434820404 349814180 483487701 280013886 20644532008 227451997 0 346071572 577266178 0 0 0 0 0 0
+  s2:    8      16 sdb 27101556 2165311 3434820404 349814180 483487701 280013886 20644532008 227451997 0 346071572 577266178 0 0 0 0 0 0
+  → IDLE ✓
+--- node 14 sdb diskstats (2 samples, 2s apart) ---
+  s1:    8      16 sdb 31953502 2845292 4160423868 319590750 583831349 279825952 21453299808 1138918641 0 243390036 1458509392 0 0 0 0 0 0
+  s2:    8      16 sdb 31953502 2845292 4160423868 319590750 583831349 279825952 21453299808 1138918641 0 243390036 1458509392 0 0 0 0 0 0
+  → IDLE ✓
+
+=== 确认完成 ===

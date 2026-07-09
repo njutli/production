@@ -1,0 +1,453 @@
+Tue Jul  7 15:28:00 CST 2026: 任务开始 — 前置确认
+Tue Jul  7 15:28:00 CST 2026: juicefs version: juicefs version 1.3.1+2025-12-02.e0032b2a
+Tue Jul  7 15:28:00 CST 2026: deferred_size_hdd=65536 throttle_hdd=670000
+Tue Jul  7 15:28:01 CST 2026: health: HEALTH_OK
+Tue Jul  7 15:30:23 CST 2026: === A1 净态三确认开始 ===
+Tue Jul  7 15:30:23 CST 2026: unmount juicefs
+Tue Jul  7 15:30:33 CST 2026: deleting+recreating juicefs-data pool
+Tue Jul  7 15:30:42 CST 2026: pool recreated
+Tue Jul  7 15:31:18 CST 2026: compact all OSDs
+Tue Jul  7 15:31:18 CST 2026: compact osd.0: Tue Jul  7 15:31:18 CST 2026: compact osd.1: Tue Jul  7 15:31:19 CST 2026: compact osd.2: Tue Jul  7 15:31:19 CST 2026: compact osd.3: Tue Jul  7 15:31:19 CST 2026: compact osd.4: Tue Jul  7 15:31:19 CST 2026: compact osd.5: Tue Jul  7 15:31:20 CST 2026: waiting 5s for compact to settle...
+
+=== compact_queue_len check ===
+osd.0: Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/usr/lib/python3.10/json/__init__.py", line 293, in load
+    return loads(fp.read(),
+  File "/usr/lib/python3.10/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+  File "/usr/lib/python3.10/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+  File "/usr/lib/python3.10/json/decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+osd.1: Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/usr/lib/python3.10/json/__init__.py", line 293, in load
+    return loads(fp.read(),
+  File "/usr/lib/python3.10/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+  File "/usr/lib/python3.10/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+  File "/usr/lib/python3.10/json/decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+osd.2: Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/usr/lib/python3.10/json/__init__.py", line 293, in load
+    return loads(fp.read(),
+  File "/usr/lib/python3.10/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+  File "/usr/lib/python3.10/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+  File "/usr/lib/python3.10/json/decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+osd.3: Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/usr/lib/python3.10/json/__init__.py", line 293, in load
+    return loads(fp.read(),
+  File "/usr/lib/python3.10/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+  File "/usr/lib/python3.10/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+  File "/usr/lib/python3.10/json/decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+osd.4: Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/usr/lib/python3.10/json/__init__.py", line 293, in load
+    return loads(fp.read(),
+  File "/usr/lib/python3.10/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+  File "/usr/lib/python3.10/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+  File "/usr/lib/python3.10/json/decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+osd.5: Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/usr/lib/python3.10/json/__init__.py", line 293, in load
+    return loads(fp.read(),
+  File "/usr/lib/python3.10/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+  File "/usr/lib/python3.10/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+  File "/usr/lib/python3.10/json/decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+=== compact_queue_len via ceph tell ===
+osd.0: compact_queue_len=0 compact_running=0
+osd.1: compact_queue_len=0 compact_running=0
+osd.2: compact_queue_len=0 compact_running=0
+osd.3: compact_queue_len=0 compact_running=0
+osd.4: compact_queue_len=0 compact_running=0
+osd.5: compact_queue_len=0 compact_running=0
+
+=== deferred counters ===
+osd.0: deferred_write_ops=None deferred_write_bytes=None
+osd.1: deferred_write_ops=None deferred_write_bytes=None
+osd.2: deferred_write_ops=None deferred_write_bytes=None
+osd.3: deferred_write_ops=None deferred_write_bytes=None
+osd.4: deferred_write_ops=None deferred_write_bytes=None
+osd.5: deferred_write_ops=None deferred_write_bytes=None
+Tue Jul  7 15:32:24 CST 2026: A1 净态三确认完成
+Tue Jul  7 15:34:17 CST 2026: A1 osd-perf t0
+=== A1 deferred counters t0 ===
+osd.0: issued_deferred_writes=171 issued_deferred_write_bytes=933888 submitted_deferred_writes=82 submitted_deferred_write_bytes=888832
+osd.1: issued_deferred_writes=3153 issued_deferred_write_bytes=13139968 submitted_deferred_writes=3070 submitted_deferred_write_bytes=13107200
+osd.2: issued_deferred_writes=131 issued_deferred_write_bytes=745472 submitted_deferred_writes=52 submitted_deferred_write_bytes=765952
+osd.3: issued_deferred_writes=3148 issued_deferred_write_bytes=13111296 submitted_deferred_writes=3067 submitted_deferred_write_bytes=13123584
+osd.4: issued_deferred_writes=3129 issued_deferred_write_bytes=13017088 submitted_deferred_writes=3057 submitted_deferred_write_bytes=13012992
+osd.5: issued_deferred_writes=3111 issued_deferred_write_bytes=12935168 submitted_deferred_writes=3048 submitted_deferred_write_bytes=12959744
+Tue Jul  7 15:34:18 CST 2026: A1 t0 done, starting rados bench
+Tue Jul  7 15:34:38 CST 2026: A1 rados bench r1 start
+Tue Jul  7 15:35:43 CST 2026: A1 rados bench r1 done
+Tue Jul  7 15:35:43 CST 2026: A1 r1: 68.4518 MB/s
+Tue Jul  7 15:35:46 CST 2026: A1 rados bench r2 start
+Tue Jul  7 15:36:51 CST 2026: A1 rados bench r2 done
+Tue Jul  7 15:36:51 CST 2026: A1 r2: 51.8273 MB/s
+Tue Jul  7 15:36:54 CST 2026: A1 rados bench r3 start
+Tue Jul  7 15:37:58 CST 2026: A1 rados bench r3 done
+Tue Jul  7 15:37:58 CST 2026: A1 r3: 51.8532 MB/s
+Tue Jul  7 15:38:01 CST 2026: A1 osd-perf tend
+=== A1 deferred counters tend ===
+osd.0: issued_deferred_writes=174 issued_deferred_write_bytes=946176 submitted_deferred_writes=85 submitted_deferred_write_bytes=901120
+osd.1: issued_deferred_writes=3156 issued_deferred_write_bytes=13152256 submitted_deferred_writes=3073 submitted_deferred_write_bytes=13119488
+osd.2: issued_deferred_writes=134 issued_deferred_write_bytes=757760 submitted_deferred_writes=55 submitted_deferred_write_bytes=778240
+osd.3: issued_deferred_writes=3151 issued_deferred_write_bytes=13123584 submitted_deferred_writes=3070 submitted_deferred_write_bytes=13135872
+osd.4: issued_deferred_writes=3132 issued_deferred_write_bytes=13029376 submitted_deferred_writes=3060 submitted_deferred_write_bytes=13025280
+osd.5: issued_deferred_writes=3114 issued_deferred_write_bytes=12947456 submitted_deferred_writes=3051 submitted_deferred_write_bytes=12972032
+Tue Jul  7 15:38:54 CST 2026: === A3 净态三确认开始 ===
+=== rados df ===
+POOL_NAME     USED  OBJECTS  CLONES  COPIES  MISSING_ON_PRIMARY  UNFOUND  DEGRADED  RD_OPS     RD  WR_OPS      WR  USED COMPR  UNDER COMPR
+juicefs-data   0 B        0       0       0                   0        0         0       3  3 KiB   82658  10 GiB         0 B          0 B
+
+total_objects    252
+total_used       12 GiB
+total_avail      2.8 TiB
+total_space      2.8 TiB
+Tue Jul  7 15:38:54 CST 2026: destroy old juicefs volume
+ERROR: This command requires at least 2 arguments
+USAGE:
+   juicefs destroy [command options] META-URL UUID
+Tue Jul  7 15:38:54 CST 2026: format new juicefs volume
+2026/07/07 15:38:54.791456 juicefs[2451455] <INFO>: Meta address: redis://juicefs-prod [NewClient@interface.go:578]
+2026/07/07 15:39:35.978757 juicefs[2451455] <WARNING>: parse info: dial tcp: lookup juicefs-prod on 127.0.0.53:53: server misbehaving [checkServerConfig@redis.go:3667]
+Tue Jul  7 15:41:50 CST 2026: juicefs mounted, cache-size=0, mu=150
+JuiceFS:juicefs-prod on /mnt/juicefs type fuse.juicefs (rw,nosuid,nodev,relatime,user_id=1000,group_id=1000,default_permissions,max_read=131072)
+seq_dir
+Tue Jul  7 15:42:09 CST 2026: juicefs mounted, cache-size=0, mu=150
+Tue Jul  7 15:42:42 CST 2026: A3 compact all OSDs
+Tue Jul  7 15:43:20 CST 2026: waiting 60s for background I/O to settle...
+Tue Jul  7 15:45:01 CST 2026: A3 净态三确认完成（含 re-check）
+Tue Jul  7 15:45:01 CST 2026: A3 osd-perf t0
+=== A3 deferred counters t0 ===
+osd.0: issued_deferred_writes=175 issued_deferred_write_bytes=950272
+osd.1: issued_deferred_writes=3157 issued_deferred_write_bytes=13156352
+osd.2: issued_deferred_writes=135 issued_deferred_write_bytes=761856
+osd.3: issued_deferred_writes=3152 issued_deferred_write_bytes=13127680
+osd.4: issued_deferred_writes=3133 issued_deferred_write_bytes=13033472
+osd.5: issued_deferred_writes=3115 issued_deferred_write_bytes=12951552
+Tue Jul  7 15:45:02 CST 2026: A3 t0 done
+Tue Jul  7 15:46:23 CST 2026: === A3 测试开始 ===
+Tue Jul  7 15:46:23 CST 2026: health timeline PID=2489533
+Tue Jul  7 15:46:23 CST 2026: A3 seqwrite r1 start
+Tue Jul  7 15:47:26 CST 2026: A3 seqwrite r1: 65.5 MiB/s
+Tue Jul  7 15:47:55 CST 2026: A3 seqwrite r2 start
+Tue Jul  7 15:49:02 CST 2026: A3 seqwrite r2: 60.8 MiB/s
+Tue Jul  7 15:49:26 CST 2026: A3 seqwrite r3 start
+Tue Jul  7 15:50:33 CST 2026: A3 seqwrite r3: 60.8 MiB/s
+Tue Jul  7 15:50:57 CST 2026: A3 multi-seqwrite start
+Tue Jul  7 16:09:58 CST 2026: A3 multi-seqwrite: 57.5 MiB/s
+Tue Jul  7 16:12:58 CST 2026: A3 osd-perf tend
+=== A3 deferred counters tend ===
+osd.0: issued_deferred_writes=2201 issued_deferred_write_bytes=67338240
+osd.1: issued_deferred_writes=5183 issued_deferred_write_bytes=79544320
+osd.2: issued_deferred_writes=2161 issued_deferred_write_bytes=67149824
+osd.3: issued_deferred_writes=5178 issued_deferred_write_bytes=79515648
+osd.4: issued_deferred_writes=5159 issued_deferred_write_bytes=79421440
+osd.5: issued_deferred_writes=5141 issued_deferred_write_bytes=79339520
+Tue Jul  7 16:12:59 CST 2026: A3 object size distribution
+Tue Jul  7 16:13:06 CST 2026: === A3 测试完成 ===
+Tue Jul  7 16:15:44 CST 2026: === SSD 阶段开始 ===
+Tue Jul  7 16:15:44 CST 2026: unmount juicefs
+unmounted OK
+Tue Jul  7 16:15:46 CST 2026: old config: deferred_hdd=65536 throttle_hdd=670000
+Tue Jul  7 16:15:48 CST 2026: new config: deferred_hdd=0 throttle_hdd=4000
+Tue Jul  7 16:15:49 CST 2026: stopping OSDs on all 3 nodes
+Tue Jul  7 16:15:50 CST 2026: all OSDs stopped
+Tue Jul  7 16:15:55 CST 2026: starting OSDs on all 3 nodes
+Tue Jul  7 16:15:55 CST 2026: all OSDs started
+Tue Jul  7 16:15:55 CST 2026: waiting for OSDs to come up...
+ID  CLASS  WEIGHT   TYPE NAME            STATUS  REWEIGHT  PRI-AFF
+-1         3.25839  root default                                  
+-3         0.93100      host ceph-node1                           
+ 0    hdd  0.46550          osd.0            up   1.00000  1.00000
+ 1    hdd  0.46550          osd.1            up   1.00000  1.00000
+-5         0.93100      host ceph-node2                           
+ 2    hdd  0.46550          osd.2            up   1.00000  1.00000
+ 3    hdd  0.46550          osd.3            up   1.00000  1.00000
+-6         1.39639      host ceph-node3                           
+ 4    hdd  0.93089          osd.4            up   1.00000  1.00000
+ 5    hdd  0.46550          osd.5            up   1.00000  1.00000
+HEALTH_OK
+Tue Jul  7 16:17:59 CST 2026: restarting OSDs with specific service names
+Tue Jul  7 16:17:59 CST 2026: restarting node1 osd.0, osd.1
+Tue Jul  7 16:17:59 CST 2026: restarting node2 osd.2, osd.3
+Tue Jul  7 16:17:59 CST 2026: restarting node3 osd.4, osd.5
+bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+Failed to restart ceph-osd@0.service: Unit ceph-osd@0.service not found.
+Failed to restart ceph-osd@1.service: Unit ceph-osd@1.service not found.
+bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+Failed to restart ceph-osd@2.service: Unit ceph-osd@2.service not found.
+Failed to restart ceph-osd@3.service: Unit ceph-osd@3.service not found.
+Failed to restart ceph-osd@4.service: Unit ceph-osd@4.service not found.
+Failed to restart ceph-osd@5.service: Unit ceph-osd@5.service not found.
+Tue Jul  7 16:17:59 CST 2026: all OSDs restarted
+=== OSD uptime after restart ===
+--- node 11 ---
+ 792503   19644 ceph-osd
+ 793495   19641 ceph-osd
+--- node 13 ---
+3979370   19638 ceph-osd
+3980374   19635 ceph-osd
+--- node 14 ---
+2720695   19626 ceph-osd
+2721370   19617 ceph-osd
+
+=== runtime config verify ===
+osd.0: {
+    "bluestore_prefer_deferred_size": "65536"
+}
+osd.0: {
+    "bluestore_throttle_cost_per_io": "670000"
+}
+
+=== ceph osd tree + health ===
+-3         0.93100      host ceph-node1                           
+ 0    hdd  0.46550          osd.0            up   1.00000  1.00000
+ 1    hdd  0.46550          osd.1            up   1.00000  1.00000
+-5         0.93100      host ceph-node2                           
+ 2    hdd  0.46550          osd.2            up   1.00000  1.00000
+ 3    hdd  0.46550          osd.3            up   1.00000  1.00000
+-6         1.39639      host ceph-node3                           
+ 4    hdd  0.93089          osd.4            up   1.00000  1.00000
+ 5    hdd  0.46550          osd.5            up   1.00000  1.00000
+HEALTH_OK
+Tue Jul  7 16:19:11 CST 2026: restarting OSDs with correct cephadm service names
+bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+Job for ceph-073f28e0-5fe0-11f1-8ce6-7369ee2be5a1@osd.2.service failed because the control process exited with error code.
+See "systemctl status ceph-073f28e0-5fe0-11f1-8ce6-7369ee2be5a1@osd.2.service" and "journalctl -xeu ceph-073f28e0-5fe0-11f1-8ce6-7369ee2be5a1@osd.2.service" for details.
+Job for ceph-073f28e0-5fe0-11f1-8ce6-7369ee2be5a1@osd.3.service failed because the control process exited with error code.
+See "systemctl status ceph-073f28e0-5fe0-11f1-8ce6-7369ee2be5a1@osd.3.service" and "journalctl -xeu ceph-073f28e0-5fe0-11f1-8ce6-7369ee2be5a1@osd.3.service" for details.
+Tue Jul  7 16:19:16 CST 2026: all OSDs restarted
+=== OSD uptime after restart ===
+node 11:      31 ceph-osd
+node 13:      22 ceph-osd
+node 14:      34 ceph-osd
+
+=== runtime config verify ===
+osd.0 deferred: {
+    "bluestore_prefer_deferred_size": "65536"
+}
+osd.0 throttle: {
+    "bluestore_throttle_cost_per_io": "670000"
+}
+
+=== health ===
+HEALTH_WARN Reduced data availability: 16 pgs inactive, 7 pgs down, 30 pgs peering; Degraded data redundancy: 134/1874616 objects degraded (0.007%), 22 pgs degraded
+ 0    hdd  0.46550          osd.0            up   1.00000  1.00000
+ 1    hdd  0.46550          osd.1            up   1.00000  1.00000
+ 2    hdd  0.46550          osd.2            up   1.00000  1.00000
+ 3    hdd  0.46550          osd.3            up   1.00000  1.00000
+ 4    hdd  0.93089          osd.4            up   1.00000  1.00000
+ 5    hdd  0.46550          osd.5            up   1.00000  1.00000
+Tue Jul  7 16:20:24 CST 2026: injecting config via ceph tell
+Tue Jul  7 16:20:24 CST 2026: inject osd.0
+{}
+bluestore_prefer_deferred_size = '' bluestore_throttle_cost_per_io = '' osd_delete_sleep = '' osd_delete_sleep_hdd = '' osd_delete_sleep_hybrid = '' osd_delete_sleep_ssd = '' osd_max_backfills = '' osd_recovery_max_active = '' osd_recovery_max_active_hdd = '' osd_recovery_max_active_ssd = '' osd_recovery_sleep = '' osd_recovery_sleep_hdd = '' osd_recovery_sleep_hybrid = '' osd_recovery_sleep_ssd = '' osd_scrub_sleep = '' osd_snap_trim_sleep = '' osd_snap_trim_sleep_hdd = '' osd_snap_trim_sleep_hybrid = '' osd_snap_trim_sleep_ssd = '' 
+Tue Jul  7 16:20:24 CST 2026: inject osd.1
+{}
+bluestore_prefer_deferred_size = '' bluestore_throttle_cost_per_io = '' osd_delete_sleep = '' osd_delete_sleep_hdd = '' osd_delete_sleep_hybrid = '' osd_delete_sleep_ssd = '' osd_max_backfills = '' osd_recovery_max_active = '' osd_recovery_max_active_hdd = '' osd_recovery_max_active_ssd = '' osd_recovery_sleep = '' osd_recovery_sleep_hdd = '' osd_recovery_sleep_hybrid = '' osd_recovery_sleep_ssd = '' osd_scrub_sleep = '' osd_snap_trim_sleep = '' osd_snap_trim_sleep_hdd = '' osd_snap_trim_sleep_hybrid = '' osd_snap_trim_sleep_ssd = '' 
+Tue Jul  7 16:20:24 CST 2026: inject osd.2
+{}
+bluestore_prefer_deferred_size = '' bluestore_throttle_cost_per_io = '' osd_delete_sleep = '' osd_delete_sleep_hdd = '' osd_delete_sleep_hybrid = '' osd_delete_sleep_ssd = '' osd_max_backfills = '' osd_recovery_max_active = '' osd_recovery_max_active_hdd = '' osd_recovery_max_active_ssd = '' osd_recovery_sleep = '' osd_recovery_sleep_hdd = '' osd_recovery_sleep_hybrid = '' osd_recovery_sleep_ssd = '' osd_scrub_sleep = '' osd_snap_trim_sleep = '' osd_snap_trim_sleep_hdd = '' osd_snap_trim_sleep_hybrid = '' osd_snap_trim_sleep_ssd = '' 
+Tue Jul  7 16:20:25 CST 2026: inject osd.3
+{}
+bluestore_prefer_deferred_size = '' bluestore_throttle_cost_per_io = '' osd_delete_sleep = '' osd_delete_sleep_hdd = '' osd_delete_sleep_hybrid = '' osd_delete_sleep_ssd = '' osd_max_backfills = '' osd_recovery_max_active = '' osd_recovery_max_active_hdd = '' osd_recovery_max_active_ssd = '' osd_recovery_sleep = '' osd_recovery_sleep_hdd = '' osd_recovery_sleep_hybrid = '' osd_recovery_sleep_ssd = '' osd_scrub_sleep = '' osd_snap_trim_sleep = '' osd_snap_trim_sleep_hdd = '' osd_snap_trim_sleep_hybrid = '' osd_snap_trim_sleep_ssd = '' 
+Tue Jul  7 16:20:25 CST 2026: inject osd.4
+{}
+bluestore_prefer_deferred_size = '' bluestore_throttle_cost_per_io = '' osd_delete_sleep = '' osd_delete_sleep_hdd = '' osd_delete_sleep_hybrid = '' osd_delete_sleep_ssd = '' osd_max_backfills = '' osd_recovery_max_active = '' osd_recovery_max_active_hdd = '' osd_recovery_max_active_ssd = '' osd_recovery_sleep = '' osd_recovery_sleep_hdd = '' osd_recovery_sleep_hybrid = '' osd_recovery_sleep_ssd = '' osd_scrub_sleep = '' osd_snap_trim_sleep = '' osd_snap_trim_sleep_hdd = '' osd_snap_trim_sleep_hybrid = '' osd_snap_trim_sleep_ssd = '' 
+Tue Jul  7 16:20:25 CST 2026: inject osd.5
+{}
+bluestore_prefer_deferred_size = '' bluestore_throttle_cost_per_io = '' osd_delete_sleep = '' osd_delete_sleep_hdd = '' osd_delete_sleep_hybrid = '' osd_delete_sleep_ssd = '' osd_max_backfills = '' osd_recovery_max_active = '' osd_recovery_max_active_hdd = '' osd_recovery_max_active_ssd = '' osd_recovery_sleep = '' osd_recovery_sleep_hdd = '' osd_recovery_sleep_hybrid = '' osd_recovery_sleep_ssd = '' osd_scrub_sleep = '' osd_snap_trim_sleep = '' osd_snap_trim_sleep_hdd = '' osd_snap_trim_sleep_hybrid = '' osd_snap_trim_sleep_ssd = '' 
+
+=== runtime config verify after injectargs ===
+osd.0 deferred: 0
+osd.0 throttle: 4000
+osd.1 deferred: 0
+osd.1 throttle: 4000
+osd.2 deferred: 0
+osd.2 throttle: 4000
+osd.3 deferred: 0
+osd.3 throttle: 4000
+osd.4 deferred: 0
+osd.4 throttle: 4000
+osd.5 deferred: 0
+osd.5 throttle: 4000
+Tue Jul  7 16:20:51 CST 2026: waiting for cluster recovery (五确认 + 10min)...
+Tue Jul  7 16:20:51 CST 2026: current health: HEALTH_OK
+Tue Jul  7 16:21:22 CST 2026: check 1: HEALTH_OK
+Tue Jul  7 16:21:22 CST 2026: HEALTH_OK reached after 30s
+
+=== ceph -s ===
+  cluster:
+    id:     073f28e0-5fe0-11f1-8ce6-7369ee2be5a1
+    health: HEALTH_OK
+ 
+  services:
+    mon: 3 daemons, quorum ceph-node1,ceph-node2,ceph-node3 (age 13d)
+    mgr: ceph-node2.zsiakr(active, since 13d), standbys: ceph-node1.alpmza
+    osd: 6 osds: 6 up (since 95s), 6 in (since 3w)
+    rgw: 3 daemons active (3 hosts, 1 zones)
+ 
+  data:
+    pools:   8 pools, 225 pgs
+    objects: 312.56k objects, 76 GiB
+    usage:   118 GiB used, 2.7 TiB / 2.8 TiB avail
+    pgs:     225 active+clean
+ 
+Tue Jul  7 16:21:49 CST 2026: compact all OSDs for SSD phase
+
+Tue Jul  7 16:22:10 CST 2026: 五确认完成，等待满 10min...
+Tue Jul  7 16:30:10 CST 2026: re-check idle after 10min wait
+node 11: IDLE ✓
+node 13: IDLE ✓
+node 14: IDLE ✓
+
+health: HEALTH_OK
+Tue Jul  7 16:31:14 CST 2026: === A2 净态三确认开始 ===
+Tue Jul  7 16:31:14 CST 2026: deleting+recreating juicefs-data pool
+pool 'juicefs-data' removed
+pool 'juicefs-data' created
+set pool 46 allow_ec_overwrites to true
+enabled application 'juicefs' on pool 'juicefs-data'
+Tue Jul  7 16:31:21 CST 2026: compact all OSDs
+Tue Jul  7 16:31:53 CST 2026: waiting 60s for background I/O...
+node 11: IDLE ✓
+node 13: IDLE ✓
+node 14: IDLE ✓
+Tue Jul  7 16:33:06 CST 2026: A2 净态三确认完成
+Tue Jul  7 16:34:54 CST 2026: A2 osd-perf t0
+=== A2 deferred counters t0 ===
+osd.0: issued_deferred_writes=78 issued_deferred_write_bytes=380928
+osd.1: issued_deferred_writes=3082 issued_deferred_write_bytes=12685312
+osd.2: issued_deferred_writes=70 issued_deferred_write_bytes=348160
+osd.3: issued_deferred_writes=3069 issued_deferred_write_bytes=12632064
+osd.4: issued_deferred_writes=3082 issued_deferred_write_bytes=12685312
+osd.5: issued_deferred_writes=3070 issued_deferred_write_bytes=12636160
+Tue Jul  7 16:34:56 CST 2026: A2 rados bench r1 start
+Tue Jul  7 16:36:00 CST 2026: A2 r1: 64.4257 MB/s
+Tue Jul  7 16:36:03 CST 2026: A2 rados bench r2 start
+Tue Jul  7 16:37:07 CST 2026: A2 r2: 55.0706 MB/s
+Tue Jul  7 16:37:10 CST 2026: A2 rados bench r3 start
+Tue Jul  7 16:38:16 CST 2026: A2 r3: 54.3233 MB/s
+Tue Jul  7 16:38:19 CST 2026: A2 osd-perf tend
+=== A2 deferred counters tend ===
+osd.0: issued_deferred_writes=78 issued_deferred_write_bytes=380928
+osd.1: issued_deferred_writes=3082 issued_deferred_write_bytes=12685312
+osd.2: issued_deferred_writes=70 issued_deferred_write_bytes=348160
+osd.3: issued_deferred_writes=3069 issued_deferred_write_bytes=12632064
+osd.4: issued_deferred_writes=3082 issued_deferred_write_bytes=12685312
+osd.5: issued_deferred_writes=3070 issued_deferred_write_bytes=12636160
+Tue Jul  7 16:39:24 CST 2026: === A4 净态三确认开始 ===
+POOL_NAME     USED  OBJECTS  CLONES  COPIES  MISSING_ON_PRIMARY  UNFOUND  DEGRADED  RD_OPS     RD  WR_OPS      WR  USED COMPR  UNDER COMPR
+juicefs-data   0 B        0       0       0                   0        0         0       3  3 KiB   83500  10 GiB         0 B          0 B
+
+total_objects    252
+total_used       12 GiB
+total_avail      2.8 TiB
+total_space      2.8 TiB
+Tue Jul  7 16:39:24 CST 2026: format juicefs volume
+2026/07/07 16:39:24.169674 juicefs[2759701] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/07/07 16:39:24.169821 juicefs[2759701] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/07/07 16:39:24.205950 juicefs[2759701] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [format@format.go:527]
+2026/07/07 16:39:24.225220 juicefs[2759701] <INFO>: Volume is formatted as {
+  "Name": "juicefs-prod",
+  "UUID": "e35bc2b1-9f75-4bf8-9129-d30d383c5fff",
+  "Storage": "ceph",
+  "Bucket": "ceph://juicefs-data",
+  "AccessKey": "ceph",
+  "SecretKey": "removed",
+  "BlockSize": 256,
+  "Compression": "none",
+  "EncryptAlgo": "aes256gcm-rsa",
+  "KeyEncrypted": true,
+  "TrashDays": 0,
+  "MetaVersion": 1,
+  "MinClientVersion": "1.1.0-A",
+  "DirStats": true,
+  "EnableACL": false
+} [format@format.go:564]
+Tue Jul  7 16:39:24 CST 2026: mount juicefs
+2026/07/07 16:39:24.309484 juicefs[2759746] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/07/07 16:39:24.309642 juicefs[2759746] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/07/07 16:39:24.321886 juicefs[2759746] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:593]
+2026/07/07 16:39:24.340048 juicefs[2759746] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/07/07 16:39:24.847276 juicefs[2759746] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+JuiceFS:juicefs-prod on /mnt/juicefs type fuse.juicefs (rw,nosuid,nodev,relatime,user_id=1000,group_id=1000,default_permissions,max_read=131072)
+Tue Jul  7 16:39:29 CST 2026: compact all OSDs
+Tue Jul  7 16:40:04 CST 2026: waiting 60s for A4 idle...
+node 11: IDLE
+node 13: IDLE
+node 14: IDLE
+Tue Jul  7 16:41:16 CST 2026: A4 净态三确认完成（全 idle）
+Tue Jul  7 16:41:45 CST 2026: === A4 测试开始 (SSD mode: deferred=0, throttle=4000) ===
+Tue Jul  7 16:41:45 CST 2026: health timeline PID=2772622
+Tue Jul  7 16:41:45 CST 2026: A4 osd-perf t0
+=== A4 deferred counters t0 ===
+osd.0: issued_deferred_writes=78 issued_deferred_write_bytes=380928
+osd.1: issued_deferred_writes=3082 issued_deferred_write_bytes=12685312
+osd.2: issued_deferred_writes=70 issued_deferred_write_bytes=348160
+osd.3: issued_deferred_writes=3069 issued_deferred_write_bytes=12632064
+osd.4: issued_deferred_writes=3082 issued_deferred_write_bytes=12685312
+osd.5: issued_deferred_writes=3070 issued_deferred_write_bytes=12636160
+Tue Jul  7 16:41:46 CST 2026: A4 seqwrite r1 start
+Tue Jul  7 16:42:50 CST 2026: A4 seqwrite r1: 64.7 MiB/s
+Tue Jul  7 16:43:17 CST 2026: A4 seqwrite r2 start
+Tue Jul  7 16:44:24 CST 2026: A4 seqwrite r2: 62.2 MiB/s
+Tue Jul  7 16:44:49 CST 2026: A4 seqwrite r3 start
+Tue Jul  7 16:45:54 CST 2026: A4 seqwrite r3: 62.6 MiB/s
+Tue Jul  7 16:46:20 CST 2026: A4 multi-seqwrite start
+Tue Jul  7 17:02:55 CST 2026: A4 multi-seqwrite: 65.9 MiB/s
+Tue Jul  7 17:08:21 CST 2026: A4 osd-perf tend
+=== A4 deferred counters tend ===
+osd.0: issued_deferred_writes=79 issued_deferred_write_bytes=385024
+osd.1: issued_deferred_writes=3083 issued_deferred_write_bytes=12689408
+osd.2: issued_deferred_writes=72 issued_deferred_write_bytes=356352
+osd.3: issued_deferred_writes=3070 issued_deferred_write_bytes=12636160
+osd.4: issued_deferred_writes=3083 issued_deferred_write_bytes=12689408
+osd.5: issued_deferred_writes=3071 issued_deferred_write_bytes=12640256
+Tue Jul  7 17:08:22 CST 2026: A4 object size distribution
+Tue Jul  7 17:08:29 CST 2026: === A4 测试完成 ===
+Tue Jul  7 17:11:56 CST 2026: === 回滚开始 ===
+bluestore_prefer_deferred_size = '' bluestore_throttle_cost_per_io = '' 
+bluestore_prefer_deferred_size = '' bluestore_throttle_cost_per_io = '' 
+bluestore_prefer_deferred_size = '' bluestore_throttle_cost_per_io = '' 
+bluestore_prefer_deferred_size = '' bluestore_throttle_cost_per_io = '' 
+bluestore_prefer_deferred_size = '' bluestore_throttle_cost_per_io = '' 
+bluestore_prefer_deferred_size = '' bluestore_throttle_cost_per_io = '' 
+=== verify rollback ===
+osd.0: deferred=65536 throttle=670000
+osd.1: deferred=65536 throttle=670000
+osd.2: deferred=65536 throttle=670000
+osd.3: deferred=65536 throttle=670000
+osd.4: deferred=65536 throttle=670000
+osd.5: deferred=65536 throttle=670000
+
+health: HEALTH_WARN 1 OSD(s) experiencing slow operations in BlueStore
+Tue Jul  7 17:12:01 CST 2026: === 回滚完成 ===

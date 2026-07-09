@@ -1,0 +1,162 @@
+bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+============================================================
+冷态全量基线复测（加强 stall 检查） 20260706-105817
+============================================================
+
+## 测试方法
+  脚本: tests/bench-cold-baseline-recheck.sh
+  口径: patched v1.3.1, cache=0, 无 mu 无 ra
+  fio bs: seq=256K / layout=4M / rand=256k（匹配旧基线）
+  目的: 复现旧基线流程,全程采集 stall,回答过去数据准不准
+  对照旧基线: results/full-bs256k-cold-r1-20260626-200742/
+
+## 环境快照
+  env snapshot -> results/cold-baseline-recheck-20260706/env-snapshot.txt
+
+## 启动后台监控
+### Starting background monitoring at Mon Jul  6 10:58:20 CST 2026 ###
+  health timeline PID=3987570
+344938
+  started osd.0 perf monitor on 192.168.11.11
+344998
+  started osd.1 perf monitor on 192.168.11.11
+3621287
+  started osd.2 perf monitor on 192.168.11.13
+3621341
+  started osd.3 perf monitor on 192.168.11.13
+2490879
+  started osd.4 perf monitor on 192.168.11.14
+2490933
+  started osd.5 perf monitor on 192.168.11.14
+345121
+  started iostat on 192.168.11.11 (ceph-node1)
+3621446
+  started iostat on 192.168.11.13 (ceph-node2)
+2491038
+  started iostat on 192.168.11.14 (ceph-node3)
+  monitoring started, sleep 5 to verify
+  health timeline verified (7 lines)
+  osd.0 perf monitor verified (1 lines)
+  osd.1 perf monitor verified (1 lines)
+  osd.2 perf monitor verified (1 lines)
+  osd.3 perf monitor verified (1 lines)
+  osd.4 perf monitor verified (1 lines)
+  osd.5 perf monitor verified (1 lines)
+
+## 格式化卷
+  STORAGE=ceph, pool=juicefs-data, block-size=256K
+2026/07/06 10:58:35.193405 juicefs[3987798] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/07/06 10:58:35.193595 juicefs[3987798] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/07/06 10:58:35.232035 juicefs[3987798] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [format@format.go:527]
+2026/07/06 10:58:35.840720 juicefs[3987798] <INFO>: Volume is formatted as {
+  "Name": "juicefs-prod",
+  "UUID": "f6d7e605-6b08-4064-8ac2-dc5d6c22870a",
+  "Storage": "ceph",
+  "Bucket": "ceph://juicefs-data",
+  "AccessKey": "ceph",
+  "SecretKey": "removed",
+  "BlockSize": 256,
+  "Compression": "none",
+  "EncryptAlgo": "aes256gcm-rsa",
+  "KeyEncrypted": true,
+  "TrashDays": 0,
+  "MetaVersion": 1,
+  "MinClientVersion": "1.1.0-A",
+  "DirStats": true,
+  "EnableACL": false
+} [format@format.go:564]
+
+## 挂载
+  --cache-size 0 (patched v1.3.1, 无 mu 无 ra)
+2026/07/06 10:58:37.944569 juicefs[3987871] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-prod [NewClient@interface.go:578]
+2026/07/06 10:58:37.944781 juicefs[3987871] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/07/06 10:58:40.597801 juicefs[3987871] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:593]
+2026/07/06 10:58:40.626159 juicefs[3987871] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:588]
+2026/07/06 10:58:41.132765 juicefs[3987871] <INFO>: [92mOK[0m, juicefs-prod is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+  mount OK
+
+## 顺序测试 (bs=256K, cache=0, 匹配旧基线口径)
+### seqread prep (write 4G)
+  snapshot_backend seqread-prep-before -> results/cold-baseline-recheck-20260706/backend/seqread-prep-before.txt
+  snapshot_backend seqread-prep-after -> results/cold-baseline-recheck-20260706/backend/seqread-prep-after.txt
+  snapshot_backend seqread-before -> results/cold-baseline-recheck-20260706/backend/seqread-before.txt
+  seqread: READ=78.9 WRITE=NA
+  snapshot_backend seqread-after -> results/cold-baseline-recheck-20260706/backend/seqread-after.txt
+  snapshot_backend seqwrite-before -> results/cold-baseline-recheck-20260706/backend/seqwrite-before.txt
+  seqwrite: READ=NA WRITE=55.3
+  snapshot_backend seqwrite-after -> results/cold-baseline-recheck-20260706/backend/seqwrite-after.txt
+  snapshot_backend multi-seqread-before -> results/cold-baseline-recheck-20260706/backend/multi-seqread-before.txt
+  multi-seqread: READ=109 WRITE=NA
+  snapshot_backend multi-seqread-after -> results/cold-baseline-recheck-20260706/backend/multi-seqread-after.txt
+  snapshot_backend multi-seqwrite-before -> results/cold-baseline-recheck-20260706/backend/multi-seqwrite-before.txt
+  multi-seqwrite: READ=NA WRITE=40.8
+  snapshot_backend multi-seqwrite-after -> results/cold-baseline-recheck-20260706/backend/multi-seqwrite-after.txt
+
+## 布局 (128 jobs x 1G = 128G, bs=4M)
+  snapshot_backend layout-before -> results/cold-baseline-recheck-20260706/backend/layout-before.txt
+  layout: WRITE=33.7
+  snapshot_backend layout-after -> results/cold-baseline-recheck-20260706/backend/layout-after.txt
+
+## layout 后 stall 检查
+  layout 后无 stall
+  等待 120s cooldown (匹配旧基线)...
+  snapshot_backend layout-cooldown-120s -> results/cold-baseline-recheck-20260706/backend/layout-cooldown-120s.txt
+
+## 随机测试 (reuse layout, cache=0, 3 rounds)
+### Round 1
+  snapshot_backend randread-r1-before -> results/cold-baseline-recheck-20260706/backend/randread-r1-before.txt
+  randread r1: READ=39.7 WRITE=NA
+  snapshot_backend randread-r1-after -> results/cold-baseline-recheck-20260706/backend/randread-r1-after.txt
+  snapshot_backend randwrite-r1-before -> results/cold-baseline-recheck-20260706/backend/randwrite-r1-before.txt
+  randwrite r1: READ=NA WRITE=43.0
+  snapshot_backend randwrite-r1-after -> results/cold-baseline-recheck-20260706/backend/randwrite-r1-after.txt
+  snapshot_backend randrw-r1-before -> results/cold-baseline-recheck-20260706/backend/randrw-r1-before.txt
+  randrw r1: READ=18.1 WRITE=17.7
+  snapshot_backend randrw-r1-after -> results/cold-baseline-recheck-20260706/backend/randrw-r1-after.txt
+### Round 2
+  snapshot_backend randread-r2-before -> results/cold-baseline-recheck-20260706/backend/randread-r2-before.txt
+  randread r2: READ=49.2 WRITE=NA
+  snapshot_backend randread-r2-after -> results/cold-baseline-recheck-20260706/backend/randread-r2-after.txt
+  snapshot_backend randwrite-r2-before -> results/cold-baseline-recheck-20260706/backend/randwrite-r2-before.txt
+  randwrite r2: READ=NA WRITE=25.3
+  snapshot_backend randwrite-r2-after -> results/cold-baseline-recheck-20260706/backend/randwrite-r2-after.txt
+  snapshot_backend randrw-r2-before -> results/cold-baseline-recheck-20260706/backend/randrw-r2-before.txt
+  randrw r2: READ=16.6 WRITE=16.3
+  snapshot_backend randrw-r2-after -> results/cold-baseline-recheck-20260706/backend/randrw-r2-after.txt
+### Round 3
+  snapshot_backend randread-r3-before -> results/cold-baseline-recheck-20260706/backend/randread-r3-before.txt
+  randread r3: READ=48.3 WRITE=NA
+  snapshot_backend randread-r3-after -> results/cold-baseline-recheck-20260706/backend/randread-r3-after.txt
+  snapshot_backend randwrite-r3-before -> results/cold-baseline-recheck-20260706/backend/randwrite-r3-before.txt
+  randwrite r3: READ=NA WRITE=41.5
+  snapshot_backend randwrite-r3-after -> results/cold-baseline-recheck-20260706/backend/randwrite-r3-after.txt
+  snapshot_backend randrw-r3-before -> results/cold-baseline-recheck-20260706/backend/randrw-r3-before.txt
+  randrw r3: READ=17.2 WRITE=16.8
+  snapshot_backend randrw-r3-after -> results/cold-baseline-recheck-20260706/backend/randrw-r3-after.txt
+
+## 停止监控
+### Stopping background monitoring at Mon Jul  6 13:27:27 CST 2026 ###
+  health timeline stopped
+  collected osd.0 perf timeline (1 lines)
+  collected osd.1 perf timeline (1 lines)
+  collected osd.2 perf timeline (1 lines)
+  collected osd.3 perf timeline (1 lines)
+  collected osd.4 perf timeline (1 lines)
+  collected osd.5 perf timeline (1 lines)
+  collected iostat from ceph-node1
+  collected iostat from ceph-node2
+  collected iostat from ceph-node3
+
+============================================================
+## 汇总
+============================================================
+
+所有原始 fio 输出保存在: results/cold-baseline-recheck-20260706/
+  - env-snapshot.txt / format.log / mount.log
+  - seqread.txt / seqwrite.txt / multi-seqread.txt / multi-seqwrite.txt
+  - layout.txt
+  - randread-r{1,2,3}.txt / randwrite-r{1,2,3}.txt / randrw-r{1,2,3}.txt
+  - backend/ (health-timeline, osd-perf-timelines, iostat, snapshots)
+  - stall-events.log / restart.log (如有)
+
+DONE

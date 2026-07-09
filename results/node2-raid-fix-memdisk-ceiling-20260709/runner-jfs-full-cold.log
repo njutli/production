@@ -1,0 +1,51 @@
+bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+[2026-07-08 23:39:28] ==============================================
+[2026-07-08 23:39:28] Full cold baseline on memdisk START (7 items)
+[2026-07-08 23:39:28] ==============================================
+[2026-07-08 23:39:31] ==== SEQUENTIAL TESTS (bs=256K) ====
+[2026-07-08 23:39:31] -- seqread prep --
+
+Run status group 0 (all jobs):
+  WRITE: bw=120MiB/s (126MB/s), 120MiB/s-120MiB/s (126MB/s-126MB/s), io=4096MiB (4295MB), run=34057-34057msec
+[2026-07-08 23:40:08] -- seqread --
+
+Run status group 0 (all jobs):
+   READ: bw=101MiB/s (106MB/s), 101MiB/s-101MiB/s (106MB/s-106MB/s), io=4096MiB (4295MB), run=40508-40508msec
+[2026-07-08 23:41:27] -- seqwrite --
+
+Run status group 0 (all jobs):
+  WRITE: bw=112MiB/s (117MB/s), 112MiB/s-112MiB/s (117MB/s-117MB/s), io=4096MiB (4295MB), run=36691-36691msec
+[2026-07-08 23:42:06] -- multi-seqread (16j) --
+
+Run status group 0 (all jobs):
+   READ: bw=111MiB/s (117MB/s), 111MiB/s-111MiB/s (117MB/s-117MB/s), io=64.0GiB (68.7GB), run=589571-589571msec
+[2026-07-09 00:01:54] -- multi-seqwrite (16j) --
+
+Run status group 0 (all jobs):
+  WRITE: bw=47.1MiB/s (49.4MB/s), 47.1MiB/s-47.1MiB/s (49.4MB/s-49.4MB/s), io=60.8GiB (65.3GB), run=1323099-1323099msec
+[2026-07-09 00:29:21] ==== LAYOUT (16G, bs=4M) ====
+
+Run status group 0 (all jobs):
+  WRITE: bw=72.7MiB/s (76.2MB/s), 72.7MiB/s-72.7MiB/s (76.2MB/s-76.2MB/s), io=16.0GiB (17.2GB), run=225456-225456msec
+[2026-07-09 00:33:07] ==== RANDOM TESTS (bs=256k, 16j×128, 60s) ====
+[2026-07-09 00:33:07] -- randread --
+     issued rwts: total=13338,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+   READ: bw=55.5MiB/s (58.2MB/s), 55.5MiB/s-55.5MiB/s (58.2MB/s-58.2MB/s), io=3335MiB (3496MB), run=60075-60075msec
+[2026-07-09 00:34:11] -- randwrite --
+     issued rwts: total=0,29145,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+  WRITE: bw=121MiB/s (127MB/s), 121MiB/s-121MiB/s (127MB/s-127MB/s), io=7286MiB (7640MB), run=60099-60099msec
+[2026-07-09 00:35:18] -- randrw --
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+   READ: bw=27.0MiB/s (28.3MB/s), 27.0MiB/s-27.0MiB/s (28.3MB/s-28.3MB/s), io=1626MiB (1704MB), run=60159-60159msec
+  WRITE: bw=27.5MiB/s (28.8MB/s), 27.5MiB/s-27.5MiB/s (28.8MB/s-28.8MB/s), io=1652MiB (1732MB), run=60159-60159msec
+[2026-07-09 00:36:22] ==============================================
+[2026-07-09 00:36:22] Full cold baseline on memdisk COMPLETE
+[2026-07-09 00:36:22] ==============================================

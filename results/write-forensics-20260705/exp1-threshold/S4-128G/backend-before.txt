@@ -1,0 +1,28 @@
+### date: Mon Jul  6 12:57:33 AM CST 2026
+== ceph health detail ==
+HEALTH_OK
+== ceph -s ==
+  cluster:
+    id:     073f28e0-5fe0-11f1-8ce6-7369ee2be5a1
+    health: HEALTH_OK
+ 
+  services:
+    mon: 3 daemons, quorum ceph-node1,ceph-node2,ceph-node3 (age 12d)
+    mgr: ceph-node2.zsiakr(active, since 12d), standbys: ceph-node1.alpmza
+    osd: 6 osds: 6 up (since 18m), 6 in (since 2w)
+    rgw: 3 daemons active (3 hosts, 1 zones)
+ 
+  data:
+    pools:   8 pools, 225 pgs
+    objects: 262.43k objects, 64 GiB
+    usage:   105 GiB used, 2.7 TiB / 2.8 TiB avail
+    pgs:     225 active+clean
+ 
+== ceph osd perf ==
+osd  commit_latency(ms)  apply_latency(ms)
+  4                   0                  0
+  3                   0                  0
+  2                   0                  0
+  5                   0                  0
+  0                   0                  0
+  1                   0                  0

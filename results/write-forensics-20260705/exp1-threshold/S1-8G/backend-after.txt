@@ -1,0 +1,60 @@
+### date: Sun Jul  5 11:28:44 PM CST 2026
+== ceph health detail ==
+HEALTH_WARN 1 OSD(s) experiencing stalled read in db device of BlueFS
+[WRN] DB_DEVICE_STALLED_READ_ALERT: 1 OSD(s) experiencing stalled read in db device of BlueFS
+     osd.3 observed stalled read indications in DB device
+== ceph -s ==
+  cluster:
+    id:     073f28e0-5fe0-11f1-8ce6-7369ee2be5a1
+    health: HEALTH_WARN
+            1 OSD(s) experiencing stalled read in db device of BlueFS
+ 
+  services:
+    mon: 3 daemons, quorum ceph-node1,ceph-node2,ceph-node3 (age 12d)
+    mgr: ceph-node2.zsiakr(active, since 12d), standbys: ceph-node1.alpmza
+    osd: 6 osds: 6 up (since 6m), 6 in (since 2w)
+    rgw: 3 daemons active (3 hosts, 1 zones)
+ 
+  data:
+    pools:   8 pools, 225 pgs
+    objects: 211.23k objects, 52 GiB
+    usage:   88 GiB used, 2.7 TiB / 2.8 TiB avail
+    pgs:     225 active+clean
+ 
+  io:
+    client:   43 MiB/s wr, 0 op/s rd, 171 op/s wr
+ 
+== ceph osd perf ==
+osd  commit_latency(ms)  apply_latency(ms)
+  4                   0                  0
+  3                   0                  0
+  2                   0                  0
+  5                   0                  0
+  0                   0                  0
+  1                   0                  0
+== ceph df detail ==
+--- RAW STORAGE ---
+CLASS     SIZE    AVAIL    USED  RAW USED  %RAW USED
+hdd    2.8 TiB  2.7 TiB  88 GiB    88 GiB       3.08
+TOTAL  2.8 TiB  2.7 TiB  88 GiB    88 GiB       3.08
+ 
+--- POOLS ---
+POOL                       ID  PGS   STORED   (DATA)   (OMAP)  OBJECTS     USED   (DATA)   (OMAP)  %USED  MAX AVAIL  QUOTA OBJECTS  QUOTA BYTES  DIRTY  USED COMPR  UNDER COMPR
+default.rgw.log            10   32  3.6 KiB  3.6 KiB      0 B      209  408 KiB  408 KiB      0 B      0    511 GiB            N/A          N/A    N/A         0 B          0 B
+.rgw.root                  12   32  1.5 KiB  1.5 KiB      0 B        4   48 KiB   48 KiB      0 B      0    511 GiB            N/A          N/A    N/A         0 B          0 B
+default.rgw.control        13   32      0 B      0 B      0 B        8      0 B      0 B      0 B      0    511 GiB            N/A          N/A    N/A         0 B          0 B
+default.rgw.meta           14   32  2.7 KiB    924 B  1.8 KiB        6   53 KiB   48 KiB  5.3 KiB      0    511 GiB            N/A          N/A    N/A         0 B          0 B
+.mgr                       15    1  598 KiB  598 KiB      0 B        2  1.8 MiB  1.8 MiB      0 B      0    511 GiB            N/A          N/A    N/A         0 B          0 B
+default.rgw.buckets.index  28   32  2.5 MiB      0 B  2.5 MiB       23  7.5 MiB      0 B  7.5 MiB      0    511 GiB            N/A          N/A    N/A         0 B          0 B
+default.rgw.buckets.data   36   32      0 B      0 B      0 B        0      0 B      0 B      0 B      0    511 GiB            N/A          N/A    N/A         0 B          0 B
+juicefs-data               43   32   52 GiB   52 GiB      0 B  210.98k   77 GiB   77 GiB      0 B   4.80   1021 GiB            N/A          N/A    N/A         0 B          0 B
+== ceph osd df ==
+ID  CLASS  WEIGHT   REWEIGHT  SIZE     RAW USE  DATA    OMAP     META     AVAIL    %USE  VAR   PGS  STATUS
+ 0    hdd  0.46550   1.00000  477 GiB   14 GiB  13 GiB    6 KiB  1.2 GiB  463 GiB  2.96  0.96  131      up
+ 1    hdd  0.46550   1.00000  477 GiB   15 GiB  13 GiB    7 KiB  2.3 GiB  461 GiB  3.19  1.04  126      up
+ 2    hdd  0.46550   1.00000  477 GiB   14 GiB  13 GiB  5.2 MiB  1.3 GiB  462 GiB  2.98  0.97  135      up
+ 3    hdd  0.46550   1.00000  477 GiB   15 GiB  13 GiB    9 KiB  2.0 GiB  462 GiB  3.12  1.01  122      up
+ 4    hdd  0.93089   1.00000  477 GiB   15 GiB  13 GiB  2.2 MiB  2.3 GiB  461 GiB  3.18  1.03  162      up
+ 5    hdd  0.46550   1.00000  477 GiB   15 GiB  13 GiB    5 KiB  1.7 GiB  462 GiB  3.06  0.99   95      up
+                       TOTAL  2.8 TiB   88 GiB  77 GiB  7.5 MiB   11 GiB  2.7 TiB  3.08                   
+MIN/MAX VAR: 0.96/1.04  STDDEV: 0.09

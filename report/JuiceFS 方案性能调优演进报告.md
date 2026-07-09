@@ -100,7 +100,7 @@ mu=150 的作用机制：max-uploads 控制并发上传 goroutine 数。128 个 
 | 方向 | 排除依据 |
 |------|---------|
 | 磁盘介质（HDD→SSD） | 裸盘实测 4K 随机读 92,500 IOPS，确认为 SSD |
-| WAL/DB 换更快介质 | 内存盘测试仅 +4.8%，无效 |
+| WAL/DB 换更快介质 | 内存盘测试仅 +4.8%，无效¹ |
 | 全内存盘集群 | 纯 RAM 替换 SSD 后吞吐不变（106.6 vs 106.4） |
 | BlueStore 引擎参数 | 三组参数全部无效 |
 | EC→副本（size=3） | 实测反而慢 16%（写放大 3× > EC 1.5×） |
@@ -113,6 +113,10 @@ mu=150 的作用机制：max-uploads 控制并发上传 goroutine 数。128 个 
 | EC 2+1 / MTU jumbo / overwrites | L1=1.04× 已证 EC/网络非放大源 |
 | JuiceFS v1.4 升级 | 单客户端反而 -3.3%（但 v1.4 含 loadRange 修复，需重评随机读净收益） |
 | CephFS 内核态对照 | 读 3.6× 但写触发 EC RMW 反降 |
+
+> ¹ **BlueFS stall / 独立 NVMe 的定位订正（2026-07-06，详见 `doc/perf-analysis/11_1-step2-stall-compaction-branch.md`）**：
+> 高强度写期间出现的 `DB_DEVICE_STALLED_READ_ALERT` 经 GLM 干净基线复核确认为**可管理现象、非硬瓶颈**——干净态（`compact_queue_len=0`）下 layout 128G + 64G 多 job 写全程零 stall；触发需"单流持续写 + OSD 已有 compaction 积压"两条件同时满足，`compact` 命令可秒级清除积压（restart OSD 不行）。因此**独立 NVMe 做 DB/WAL 从"生产必须"降为"可选优化"**（仅在无法控制写入模式且 compaction 长期跟不上的场景才必要）。此结论与本行"WAL/DB 换介质收益有限"一致。
+> 另注：Ceph 因 RAID 卡（PERC H730）不透传介质而将 SSD 误判为 HDD，导致 `bluestore_prefer_deferred_size=65536`（256K 写的 64K 分片走 deferred 双写）。rados 直打池改回 SSD 行为（=0）后端 **+23%**（72.3 vs 58.6），但经 JuiceFS 端到端未显化——**JuiceFS 写路径吞吐才是写侧真实瓶颈，待查（见 11_1 待办 A）**。
 | 多客户端聚合 | 有效但验收线同步抬高，治标不治本 |
 
 ### 3.4 本周新发现（2026-07-03）
@@ -253,3 +257,9 @@ writeback 通过将 FUSE 层的写操作缓存到本地磁盘、异步上传至 
 - **randrw 瓶颈部分来自 upload 并发度不足**：mu=150 冷态 randrw +86%（14.3→26.6）。但最优 26.6 仍距 59 差 2.2 倍，读写竞争机制需进一步诊断。
 - **多客户端聚合（2026-07-04）**：patched + mu=150 + default ra 下，3 客户端冷态聚合 randread 74.2 MiB/s，randrw 总带宽 76.6 MiB/s。后端带宽是共享瓶颈，P2→P3 基本持平。
 - **修复落地路径**：patch 是验证手段，生产落地需升级到含 eaf3d21f 的 v1.4.x 或向 release-1.3 backport。
+
+**本周进展（2026-07-06，写侧根因订正，详见 `doc/perf-analysis/11_1-step2-stall-compaction-branch.md`）：**
+
+- **写类未达标核心 = JuiceFS 写路径吞吐，不是 mu/buffer 参数**：rados 直打 EC 池 256K 裸能力均值 52.7，而 JuiceFS multi-seqwrite 仅 40.8（约 -23% JuiceFS 层损耗）；顺序写/随机写在 mu=150 是贴 59 上下浮动（运行间方差），扫 mu/buffer 未坐实达标。写侧下一步转 JuiceFS 写路径根因追查（11_1 待办 A）。
+- **BlueFS stall 是可管理现象、非硬瓶颈**：经 GLM 干净基线复核（4998 采样点），干净态 layout 128G + 64G 多 job 写全程零 stall；触发需"单流持续写 + OSD 已有 compaction 积压（`compact_queue_len>0`）"，`compact` 命令可秒级清除（restart OSD 不清磁盘 LSM 积压）。**过去冷态基线数据可信，不必重测**；独立 NVMe 降为可选优化。
+- **SSD 被误判为 HDD（RAID 卡不透传）→ deferred 双写**：改回 SSD 行为后端 +23%，但经 JuiceFS 端到端未显化（并入待办 A 追查）；是否纳入基线待端到端证据后再定。

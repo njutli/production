@@ -1,0 +1,57 @@
+### date: Mon Jul  6 11:03:41 CST 2026
+== ceph health detail ==
+HEALTH_OK
+== ceph status ==
+  cluster:
+    id:     073f28e0-5fe0-11f1-8ce6-7369ee2be5a1
+    health: HEALTH_OK
+ 
+  services:
+    mon: 3 daemons, quorum ceph-node1,ceph-node2,ceph-node3 (age 12d)
+    mgr: ceph-node2.zsiakr(active, since 12d), standbys: ceph-node1.alpmza
+    osd: 6 osds: 6 up (since 8h), 6 in (since 2w)
+    rgw: 3 daemons active (3 hosts, 1 zones)
+ 
+  data:
+    pools:   8 pools, 225 pgs
+    objects: 49.41k objects, 12 GiB
+    usage:   28 GiB used, 2.8 TiB / 2.8 TiB avail
+    pgs:     225 active+clean
+ 
+  io:
+    client:   29 MiB/s wr, 0 op/s rd, 117 op/s wr
+ 
+== osd perf ==
+osd  commit_latency(ms)  apply_latency(ms)
+  4                   0                  0
+  3                   0                  0
+  2                   0                  0
+  5                   0                  0
+  0                   0                  0
+  1                   0                  0
+== ceph df detail ==
+--- RAW STORAGE ---
+CLASS     SIZE    AVAIL    USED  RAW USED  %RAW USED
+hdd    2.8 TiB  2.8 TiB  28 GiB    28 GiB       0.98
+TOTAL  2.8 TiB  2.8 TiB  28 GiB    28 GiB       0.98
+ 
+--- POOLS ---
+POOL                       ID  PGS   STORED   (DATA)   (OMAP)  OBJECTS     USED   (DATA)   (OMAP)  %USED  MAX AVAIL  QUOTA OBJECTS  QUOTA BYTES  DIRTY  USED COMPR  UNDER COMPR
+default.rgw.log            10   32  3.6 KiB  3.6 KiB      0 B      209  408 KiB  408 KiB      0 B      0    524 GiB            N/A          N/A    N/A         0 B          0 B
+.rgw.root                  12   32  1.5 KiB  1.5 KiB      0 B        4   48 KiB   48 KiB      0 B      0    524 GiB            N/A          N/A    N/A         0 B          0 B
+default.rgw.control        13   32      0 B      0 B      0 B        8      0 B      0 B      0 B      0    524 GiB            N/A          N/A    N/A         0 B          0 B
+default.rgw.meta           14   32  2.7 KiB    924 B  1.8 KiB        6   53 KiB   48 KiB  5.3 KiB      0    524 GiB            N/A          N/A    N/A         0 B          0 B
+.mgr                       15    1  598 KiB  598 KiB      0 B        2  1.8 MiB  1.8 MiB      0 B      0    524 GiB            N/A          N/A    N/A         0 B          0 B
+default.rgw.buckets.index  28   32  2.5 MiB      0 B  2.5 MiB       23  7.5 MiB      0 B  7.5 MiB      0    524 GiB            N/A          N/A    N/A         0 B          0 B
+default.rgw.buckets.data   36   32      0 B      0 B      0 B        0      0 B      0 B      0 B      0    524 GiB            N/A          N/A    N/A         0 B          0 B
+juicefs-data               43   32   12 GiB   12 GiB      0 B   49.15k   18 GiB   18 GiB      0 B   1.13    1.0 TiB            N/A          N/A    N/A         0 B          0 B
+== osd df ==
+ID  CLASS  WEIGHT   REWEIGHT  SIZE     RAW USE  DATA     OMAP     META     AVAIL    %USE  VAR   PGS  STATUS
+ 0    hdd  0.46550   1.00000  477 GiB  5.3 GiB  3.0 GiB    6 KiB  2.3 GiB  471 GiB  1.12  1.14  131      up
+ 1    hdd  0.46550   1.00000  477 GiB  4.0 GiB  3.0 GiB    7 KiB  993 MiB  473 GiB  0.83  0.85  126      up
+ 2    hdd  0.46550   1.00000  477 GiB  5.3 GiB  3.0 GiB  5.2 MiB  2.3 GiB  471 GiB  1.12  1.14  135      up
+ 3    hdd  0.46550   1.00000  477 GiB  5.3 GiB  3.0 GiB    9 KiB  2.3 GiB  471 GiB  1.11  1.13  122      up
+ 4    hdd  0.93089   1.00000  477 GiB  4.0 GiB  3.0 GiB  2.2 MiB  994 MiB  473 GiB  0.84  0.85  162      up
+ 5    hdd  0.46550   1.00000  477 GiB  4.2 GiB  3.0 GiB    5 KiB  1.2 GiB  472 GiB  0.88  0.90   95      up
+                       TOTAL  2.8 TiB   28 GiB   18 GiB  7.5 MiB   10 GiB  2.8 TiB  0.98                   
+MIN/MAX VAR: 0.85/1.14  STDDEV: 0.13

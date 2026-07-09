@@ -1,0 +1,97 @@
+bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+[2026-07-09 15:05:52] ==============================================
+[2026-07-09 15:05:52] Full cold baseline mu=150 on memdisk START
+[2026-07-09 15:05:52] ==============================================
+[2026-07-09 15:05:52] === remount with mu=150 ===
+2026/07/09 15:05:54.262871 juicefs[4018047] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:593]
+2026/07/09 15:05:54.289864 juicefs[4018047] <INFO>: Data use ceph://juicefs-data/juicefs-memdisk/ [mount@mount.go:588]
+2026/07/09 15:05:54.796064 juicefs[4018047] <INFO>: [92mOK[0m, juicefs-memdisk is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+[2026-07-09 15:06:01] ==== SEQUENTIAL TESTS (bs=256K) ====
+[2026-07-09 15:06:01] -- seqread prep --
+
+Run status group 0 (all jobs):
+  WRITE: bw=120MiB/s (126MB/s), 120MiB/s-120MiB/s (126MB/s-126MB/s), io=4096MiB (4295MB), run=33994-33994msec
+[2026-07-09 15:06:38] -- seqread --
+
+Run status group 0 (all jobs):
+   READ: bw=101MiB/s (106MB/s), 101MiB/s-101MiB/s (106MB/s-106MB/s), io=4096MiB (4295MB), run=40614-40614msec
+[2026-07-09 15:07:58] -- seqwrite --
+
+Run status group 0 (all jobs):
+  WRITE: bw=112MiB/s (117MB/s), 112MiB/s-112MiB/s (117MB/s-117MB/s), io=4096MiB (4295MB), run=36679-36679msec
+[2026-07-09 15:08:36] -- multi-seqread (16j) --
+
+Run status group 0 (all jobs):
+   READ: bw=111MiB/s (116MB/s), 111MiB/s-111MiB/s (116MB/s-116MB/s), io=64.0GiB (68.7GB), run=590441-590441msec
+[2026-07-09 15:28:23] -- multi-seqwrite (16j) --
+
+Run status group 0 (all jobs):
+  WRITE: bw=66.6MiB/s (69.8MB/s), 66.6MiB/s-66.6MiB/s (69.8MB/s-69.8MB/s), io=62.9GiB (67.6GB), run=968461-968461msec
+[2026-07-09 15:49:42] -- cleanup seq_dir --
+[2026-07-09 15:49:56] ==== LAYOUT (128j × 512M = 64G, bs=4M) ====
+
+Run status group 0 (all jobs):
+  WRITE: bw=99.6MiB/s (104MB/s), 99.6MiB/s-99.6MiB/s (104MB/s-104MB/s), io=64.0GiB (68.7GB), run=658286-658286msec
+[2026-07-09 16:00:56] -- layout cooldown (compact + wait) --
+[2026-07-09 16:02:58]   cooldown done
+[2026-07-09 16:02:58] ==== RANDOM TESTS (bs=256k, 128j×128, 3 rounds) ====
+[2026-07-09 16:02:58] -- Round 1 --
+[2026-07-09 16:02:58]   randread r1
+     issued rwts: total=12313,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+   READ: bw=50.7MiB/s (53.1MB/s), 50.7MiB/s-50.7MiB/s (53.1MB/s-53.1MB/s), io=3078MiB (3228MB), run=60762-60762msec
+[2026-07-09 16:04:09]   randwrite r1
+     issued rwts: total=0,29062,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+  WRITE: bw=120MiB/s (126MB/s), 120MiB/s-120MiB/s (126MB/s-126MB/s), io=7266MiB (7618MB), run=60309-60309msec
+[2026-07-09 16:05:16]   randrw r1
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+   READ: bw=45.6MiB/s (47.8MB/s), 45.6MiB/s-45.6MiB/s (47.8MB/s-47.8MB/s), io=2765MiB (2899MB), run=60630-60630msec
+  WRITE: bw=45.2MiB/s (47.4MB/s), 45.2MiB/s-45.2MiB/s (47.4MB/s-47.4MB/s), io=2742MiB (2875MB), run=60630-60630msec
+[2026-07-09 16:06:18] -- Round 2 --
+[2026-07-09 16:06:18]   randread r2
+     issued rwts: total=12510,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+   READ: bw=51.6MiB/s (54.1MB/s), 51.6MiB/s-51.6MiB/s (54.1MB/s-54.1MB/s), io=3128MiB (3279MB), run=60636-60636msec
+[2026-07-09 16:07:20]   randwrite r2
+     issued rwts: total=0,28491,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+  WRITE: bw=118MiB/s (124MB/s), 118MiB/s-118MiB/s (124MB/s-124MB/s), io=7123MiB (7469MB), run=60299-60299msec
+[2026-07-09 16:08:27]   randrw r2
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+   READ: bw=45.9MiB/s (48.1MB/s), 45.9MiB/s-45.9MiB/s (48.1MB/s-48.1MB/s), io=2785MiB (2920MB), run=60728-60728msec
+  WRITE: bw=45.4MiB/s (47.6MB/s), 45.4MiB/s-45.4MiB/s (47.6MB/s-47.6MB/s), io=2758MiB (2891MB), run=60728-60728msec
+[2026-07-09 16:09:30] -- Round 3 --
+[2026-07-09 16:09:30]   randread r3
+     issued rwts: total=12498,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+   READ: bw=51.6MiB/s (54.1MB/s), 51.6MiB/s-51.6MiB/s (54.1MB/s-54.1MB/s), io=3125MiB (3276MB), run=60610-60610msec
+[2026-07-09 16:10:32]   randwrite r3
+     issued rwts: total=0,28694,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+  WRITE: bw=119MiB/s (125MB/s), 119MiB/s-119MiB/s (125MB/s-125MB/s), io=7174MiB (7522MB), run=60340-60340msec
+[2026-07-09 16:11:39]   randrw r3
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+   READ: bw=45.7MiB/s (47.9MB/s), 45.7MiB/s-45.7MiB/s (47.9MB/s-47.9MB/s), io=2776MiB (2911MB), run=60765-60765msec
+  WRITE: bw=45.4MiB/s (47.6MB/s), 45.4MiB/s-45.4MiB/s (47.6MB/s-47.6MB/s), io=2758MiB (2892MB), run=60765-60765msec
+[2026-07-09 16:12:47] ==============================================
+[2026-07-09 16:12:47] Full cold baseline mu=150 on memdisk COMPLETE
+[2026-07-09 16:12:47] ==============================================

@@ -27,24 +27,52 @@ sudo ceph health detail | grep -i bluefs
 # 如果有 stalled read in db device of BlueFS，需要重启对应 OSD
 ```
 
-### 1.3 OSD Compaction 状态检查
+### 1.3 OSD Compaction 状态检查（admin socket 直采）
 
-高强度写后（如 128G layout），RocksDB LSM tree 可能膨胀。检查方法：
+高强度写后（如 128G layout），RocksDB LSM tree 可能膨胀，compaction 积压会导致 BlueFS stall。
+**restart OSD 不会清除积压**——LSM tree 状态在磁盘上，restart 只清内存缓存，compaction 在 restart 后继续但不加速。
+
+使用 admin socket 直采（不用 cephadm shell，后者开销大且输出混入日志）：
 
 ```bash
-# 检查每个 OSD 的 RocksDB 状态
-for osd in 0 1 2 3 4 5; do
-  echo "--- osd. ---"
-  sudo ceph daemon osd. perf dump 2>&1 | python3 -c "
+FSID=$(sudo ceph fsid)
+# OSD 映射：node1(.11)=osd0,1 / node2(.13)=osd2,3 / node3(.14)=osd4,5
+# 在对应 OSD 节点上执行：
+for osd_id in 0 1 2 3 4 5; do
+  ASOK="/var/run/ceph/${FSID}/ceph-osd.${osd_id}.asok"
+  echo "--- osd.${osd_id} ---"
+  sudo ceph --admin-daemon "$ASOK" perf dump | python3 -c "
 import sys,json
 d=json.load(sys.stdin)
-b=d.get('bluestore_rocksdb',{})
-print('compact:', b.get('compact_sum','N/A'), 'compact_count:', b.get('compact_count','N/A'))
-o=d.get('osd',{})
-print('op_latency:', o.get('op_latency',{}).get('sum','N/A'))
+r=d.get(rocksdb,{})
+bs=d.get(bluestore,{})
+print( compact_queue_len:, r.get(compact_queue_len,N/A))
+print( compact_running:, r.get(compact_running,N/A))
+kv=bs.get(kv_sync_lat,{})
+print( kv_sync_lat avg:, round(kv.get(avgtime,0)*1000,3), ms)
 "
 done
 ```
+
+**干净态判据**：
+- `compact_queue_len` = 0（无等待 compaction）
+- `compact_running` = 0（无进行中 compaction）
+- `kv_sync_lat avg` < 2ms（无 KV 压力）
+
+**如果积压未消除，强制 compaction**：
+
+```bash
+# 对每个 OSD 执行强制 compaction（秒级完成）
+for osd_id in 0 1 2 3 4 5; do
+  ASOK="/var/run/ceph/${FSID}/ceph-osd.${osd_id}.asok"
+  echo "compacting osd.${osd_id}..."
+  sudo ceph --admin-daemon "$ASOK" compact
+done
+# 轮询直到全部 compact_running=0
+```
+
+> ⚠️ `compact` 命令会短暂增加 OSD 负载（WARNING: Compaction probably slows your requests），
+> 但通常秒级完成。完成后 OSD 处于真正的干净态，比 restart OSD 可靠得多。
 
 ### 1.4 磁盘空间检查
 
@@ -104,19 +132,36 @@ export CEPH_HEALTH_WAIT_SEC=300  # 等 5 分钟
 
 ### 3.2 规避方法
 
-layout 写完后，**不要立即开始随机测试**，等待 compaction 完成：
+layout 写完后，**不要立即开始随机测试**，确保 compaction 完成：
 
 ```bash
 # layout 写完后
 log "## Layout cooldown: 等待 compaction 完成"
 
-# 方法 1：等 health 恢复 OK（最少 60s）
-sleep 60
-check_ceph_health "after layout cooldown"
+# 方法 1（推荐）：强制 compact + 轮询确认
+for osd_id in 0 1 2 3 4 5; do
+  ASOK="/var/run/ceph/${FSID}/ceph-osd.${osd_id}.asok"
+  sudo ceph --admin-daemon "$ASOK" compact
+done
+# 轮询直到全部 compact_running=0 且 compact_queue_len=0
+while true; do
+  all_done=true
+  for osd_id in 0 1 2 3 4 5; do
+    ASOK="/var/run/ceph/${FSID}/ceph-osd.${osd_id}.asok"
+    running=$(sudo ceph --admin-daemon "$ASOK" perf dump | python3 -c "import sys,json;print(json.load(sys.stdin).get(rocksdb,{}).get(compact_running,1))")
+    [ "$running" != "0" ] && all_done=false
+  done
+  $all_done && break
+  sleep 5
+done
 
-# 方法 2（更精确）：轮询 RocksDB compact 指标
-# 等到 compact_sum 不再增长（compaction 停止）
+# 方法 2（简单）：等 health 恢复 OK + sleep
+sleep 120
+check_ceph_health "after layout cooldown"
 ```
+
+> **重要**：restart OSD **不能**替代 compact。restart 不清除磁盘上的 LSM tree 积压，
+> compaction 在 restart 后继续但不加速。必须用 `compact` 命令或等待自然 compaction 完成。
 
 ### 3.3 推荐等待时间
 
@@ -133,9 +178,13 @@ check_ceph_health "after layout cooldown"
 
 ### 4.1 当前环境问题
 
-所有 6 个 OSD 的 `db=none wal=none`，即 WAL/DB 和 Data 共用同一块 SSD 的同一个 LV。长时间高强度写会导致：
+所有 6 个 OSD 的 `db=none wal=none`，即 WAL/DB 和 Data 共用同一块 SSD 的同一个 LV。长时间高强度单流写 + OSD 已有 compaction 积压时会导致：
 - RocksDB compaction 和 Data IO 争抢磁盘带宽
 - DB 读延迟飙升 → BlueFS DB 读停滞告警 → 写性能降 50%+
+
+> **订正（2026-07-06）**：此 stall 是**可管理现象、非硬瓶颈**——干净态（`compact` 后积压清零）下 128G 多 job 写零 stall，触发需"单流持续写 + 已有积压"。用 §3.2 的 `compact` + cooldown 即可规避。独立 NVMe 为可选优化，非必须（见 `doc/perf-analysis/11_1-step2-stall-compaction-branch.md`）。
+>
+> **进一步坐实（2026-07-07，净态对照 `results/stall-repro-memdisk-20260706/`）**：stall 根因是**多轮实验累积的 BlueFS 残余状态**，不是当前测试负载本身。净态对照 G1/G2/G3（从干净态起跑，分别叠加"无 / rados / rados+seqwrite"前置负载，完整复刻此前触发 stall 的负载序列）**三组自身 fio 窗口内全部零 stall**；只有在多轮实验累积、未 `compact` 的残余态下才复现出 stall。**结论：`compact` 清除残余状态即可完全防护，独立 WAL/DB（内存盘/NVMe）在有 compact 纪律的前提下不需要（P5 维持"不需要"）。**
 
 ### 4.2 物理设备 vs 逻辑设备
 
@@ -147,10 +196,10 @@ check_ceph_health "after layout cooldown"
 ### 4.3 测试环境规避
 
 当前环境无法加独立物理设备，只能通过以下方式规避：
-1. layout 后加 cooldown 等待 compaction 完成
-2. 每项 fio 前检查 ceph health
-3. 避免连续长时间高压力写（分段写、中间休息）
-4. 如果再次出现 BlueFS stall，重启对应 OSD 后再继续
+1. layout 后加 cooldown + `compact` 命令确保 compaction 完成（见 §3.2）
+2. 每项 fio 前检查 `compact_queue_len=0` + `compact_running=0`（见 §1.3）
+3. 避免连续长时间高压力单 job 写（分段写、中间 `compact`）
+4. 如果再次出现 BlueFS stall，用 `compact` 命令清除积压（restart 不够）
 
 ---
 
@@ -182,6 +231,44 @@ check_ceph_health "after layout cooldown"
 - cache 大小（暖态）
 - NIC RX 字节量（用于交叉验证带宽）
 
+### 5.4 切换 OSD config 模式后必须等集群完全恢复再测（重要）
+
+做 HDD/SSD 对比（改 `bluestore_prefer_deferred_size` / `throttle_cost_per_io` 等 OSD 全局参数）时，
+改参数通常需 **重启相关 OSD** 生效。**OSD 重启后集群会进入退化态**（`HEALTH_WARN slow ops` + `Degraded data redundancy: N pgs degraded`），
+此时后端带宽会被恢复 I/O 严重拖累，测出的数据不可用。
+
+> **教训（2026-07-06/07）**：`write-jfs-path` 与 `stall-repro-memdisk` 两轮的 SSD 侧（A2/A4）都在
+> 冷重启后 ~3min 的退化态就开测，A2 rados 仅测得 27.6 MB/s（干净态应 ~72），**SSD/deferred 数据全部作废**，
+> 导致"deferred 端到端收益"至今拿不到可靠对比。
+
+**切模式后开测前，必须（逐条落盘确认）**：
+1. `ceph health detail` = **HEALTH_OK**（不是 WARN）；
+2. **`degraded` pgs 清零**（`ceph -s` 无 `Degraded data redundancy`，无 `pgs degraded`）；
+3. 所有 OSD `up`/`in`（`ceph osd tree`）；
+4. `iostat -x 1` 观察各节点 sdb 几秒确认 `%util≈0`（无后台恢复/compaction I/O）；
+5. 起跑前照例 `compact` 到 `compact_queue_len=0`（见 §1.3/§3.2）。
+
+经验上冷重启后需等 **10+ min** 恢复才稳。**HDD/SSD 两组必须在同等干净态下测，否则对比无效。**
+
+### 5.5 rados bench 短测均值含缓冲暂态，不可当"后端稳态写能力"（重要）
+
+`rados bench 60 write -b 256K -t 16` 的逐秒曲线是**"缓冲加速→跌落到稳态"的两段式**，不是随机抖动：
+
+```
+sec  cur MB/s
+ 1-17   ~112      ← BlueStore write buffer / RocksDB memtable / deferred 队列未满，写进内存就返回，吞吐虚高（近网卡线速）
+ 18     64  ↓     ← 缓冲填满，断崖
+ 19-60  ~48-53    ← 被磁盘真实落盘 + compaction/flush 节流，这才是持续稳态真值
+```
+
+实例（`results/clean-deferred-retest-20260707/A1/rados-bench-r1.txt`）：Max 112.75 / Min 44.5 / **Stddev 27.9 / 均值 68.45**——巨大波动**全部来自这一次缓冲跌落**，前 17s 稳定期本身 stddev 极小。
+
+**后果与纪律**：
+- **60s 短测的 `Bandwidth (MB/sec)` 均值偏高且不稳**（缓冲暂态占了近 1/3 时长）；r1（冷缓冲）往往明显高于 r2/r3（缓冲已被 r1 占用、暂态更短）。
+- **绝对值不可当"后端稳态写能力"**。要测稳态：**用长测（≥300s）让稳态段主导，或截尾只算跌落后的后段（如后 40s cur MB/s 均值）**。
+- **60s 短测仅可做「同口径相对对比」**（如 HDD vs SSD 同样都有缓冲暂态、大致抵消，横向差值仍可用）。
+- ⚠️ **历史踩坑**：`cold-baseline-recheck-20260706` 那个孤立单次 rados 72.3 MB/s（曾被当作"deferred +23% 后端收益"依据）很可能就是"60s 短测恰好缓冲暂态占比更大"的一次采样；干净态 3 轮均值重测（`clean-deferred-retest-20260707`）HDD 57.4 vs SSD 57.9 = +0.9%，**+23% 不可复现**（另一层原因是上轮改 OSD crush class 引入 PG 重映射假象，见 `doc/perf-analysis/11_1-step2-stall-compaction-branch.md`）。
+
 ---
 
 ## 六、测试中遇到的问题及处理方法
@@ -204,9 +291,13 @@ sudo ceph health
 ```
 
 **规避**：
-- layout 后加 cooldown（见第三节）
-- 每项 fio 前检查 ceph health（见第二节）
-- 生产环境必须用独立 NVMe 做 DB/WAL 设备
+- layout 后加 cooldown + `compact` 命令确保 compaction 完成（见第三节）
+- 每项 fio 前检查 ceph health + `compact_queue_len`（见 §1.3）
+- **restart OSD 不能清除 compaction 积压/残余状态**——必须用 `compact` 命令或等待自然完成
+- stall 的触发条件（2026-07-07 净态对照坐实）：**多轮实验累积的 BlueFS 残余状态 + 高并发写入**，不是当前负载本身；干净态（`compact` 后）即使复刻此前触发 stall 的完整负载序列也零 stall
+- **每轮/每格测试前 `compact` 清残余状态是最有效的防护**（比控制负载模式更根本）
+- 多 job 分散写给 OSD compaction 喘息空间，不易触发 stall
+- 独立 NVMe 做 DB/WAL 为**可选优化**（非必须）：干净态（compact 后 `compact_queue_len=0`）下 128G 多 job 写零 stall，`compact` 命令即可管理积压；仅在无法控制写入模式且 compaction 长期跟不上时，独立 NVMe 才有必要（详见 `doc/perf-analysis/11_1-step2-stall-compaction-branch.md`）
 
 ### 6.2 OSD down
 
@@ -294,7 +385,7 @@ sleep 2
 详见 `ceph-production-deployment-notes.md`
 
 核心要点：
-1. 每台 Ceph 节点配独立 NVMe SSD 做 DB/WAL
+1. 每台 Ceph 节点配独立 NVMe SSD 做 DB/WAL（**可选优化**：可显著缓解高强度单流写下的 compaction 争抢；若能通过定期 `compact` + 控制写入模式管理，非硬性必须）
 2. Public/Cluster 网络分离
 3. MTU 9000
 4. EC 4+2（3节点）或 8+4（6+节点）

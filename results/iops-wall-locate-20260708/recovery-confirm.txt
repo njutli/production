@@ -1,0 +1,28 @@
+=== 1. HEALTH ===
+HEALTH_OK
+=== 2. degraded check ===
+no degraded
+=== 3. OSD tree ===
+ID  CLASS  WEIGHT   TYPE NAME            STATUS  REWEIGHT  PRI-AFF
+-1         3.25839  root default                                  
+-3         0.93100      host ceph-node1                           
+ 0    hdd  0.46550          osd.0            up   1.00000  1.00000
+ 1    hdd  0.46550          osd.1            up   1.00000  1.00000
+-5         0.93100      host ceph-node2                           
+ 2    hdd  0.46550          osd.2            up   1.00000  1.00000
+ 3    hdd  0.46550          osd.3            up   1.00000  1.00000
+-6         1.39639      host ceph-node3                           
+ 4    hdd  0.93089          osd.4            up   1.00000  1.00000
+ 5    hdd  0.46550          osd.5            up   1.00000  1.00000
+=== 4. compact queue_len ===
+osd.0: queue_len=0 running=0
+osd.1: queue_len=0 running=0
+osd.2: queue_len=0 running=0
+osd.3: queue_len=0 running=0
+osd.4: queue_len=0 running=0
+osd.5: queue_len=0 running=0
+=== 5. diskstats idle (3 nodes) ===
+node1(.11) sdb: 2s sample identical = idle
+node2(.13) sdb: 2s sample identical = idle
+node3(.14) sdb: 2s sample identical = idle
+=== FIVE CONFIRMATIONS: ALL PASSED ===

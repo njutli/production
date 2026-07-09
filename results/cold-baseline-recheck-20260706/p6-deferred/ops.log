@@ -1,0 +1,30 @@
+=== 记录当前 config（回滚用）===
+date: Mon Jul  6 13:39:49 CST 2026
+
+--- 当前 config 值 ---
+bluestore_prefer_deferred_size_hdd: 65536
+bluestore_prefer_deferred_size_ssd: 0
+bluestore_throttle_cost_per_io_hdd: 670000
+bluestore_throttle_cost_per_io_ssd: 4000
+
+Mon Jul  6 13:40:38 CST 2026: starting control test (32G single-job write, HDD mode)
+Mon Jul  6 13:57:56 CST 2026: setting SSD mode config (deferred_size=0, throttle_cost=4000)
+Mon Jul  6 13:57:58 CST 2026: restarting all OSDs to apply config
+restarting osd.0...
+Scheduled to restart osd.0 on host 'ceph-node1'
+restarting osd.1...
+Scheduled to restart osd.1 on host 'ceph-node1'
+restarting osd.2...
+Scheduled to restart osd.2 on host 'ceph-node2'
+restarting osd.3...
+Scheduled to restart osd.3 on host 'ceph-node2'
+restarting osd.4...
+Scheduled to restart osd.4 on host 'ceph-node3'
+restarting osd.5...
+Scheduled to restart osd.5 on host 'ceph-node3'
+Mon Jul  6 13:58:00 CST 2026: waiting for HEALTH_OK...
+Mon Jul  6 13:58:01 CST 2026: HEALTH_OK after 5s
+Mon Jul  6 13:58:30 CST 2026: starting experiment test (32G single-job write, SSD mode)
+Mon Jul  6 14:16:30 CST 2026: starting experiment2 test (32G single-job write, SSD mode, OSDs stable)
+Mon Jul  6 14:34:00 CST 2026: rolling back config to defaults
+Mon Jul  6 14:37:17 CST 2026: rollback complete, HEALTH_OK

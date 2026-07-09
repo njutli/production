@@ -1,0 +1,58 @@
+=== 净态三确认 ===
+date: Mon Jul  6 20:11:54 CST 2026
+
+① 清集群数据
+unmounted
+destroying volume 28525e6f-dbc6-4408-b6a4-8f102857c0e9...
+cleaning pool...
+pool objects before: 0
+pool objects after: 0
+
+rados df:
+POOL_NAME     USED  OBJECTS  CLONES  COPIES  MISSING_ON_PRIMARY  UNFOUND  DEGRADED    RD_OPS       RD     WR_OPS      WR  USED COMPR  UNDER COMPR
+juicefs-data   0 B        0       0       0                   0        0         0  73452484  5.6 TiB  107272369  14 TiB         0 B          0 B
+
+total_objects    252
+total_used       5.4 GiB
+total_avail      2.8 TiB
+total_space      2.8 TiB
+
+② compact 全部 OSD
+  compacting osd.0 on 192.168.11.11...
+  compacting osd.1 on 192.168.11.11...
+  compacting osd.2 on 192.168.11.13...
+  compacting osd.3 on 192.168.11.13...
+  compacting osd.4 on 192.168.11.14...
+  compacting osd.5 on 192.168.11.14...
+waiting for compact_running=0...
+  all compact_running=0 after 5s
+
+③ 空闲确认
+ceph health: HEALTH_OK
+osd perf:
+osd  commit_latency(ms)  apply_latency(ms)
+  4                   0                  0
+  3                   0                  0
+  2                   0                  0
+  5                   0                  0
+  0                   0                  0
+  1                   0                  0
+
+compact_queue_len 确认:
+  osd.0: 
+  osd.1: 
+  osd.2: 
+  osd.3: 
+  osd.4: 
+  osd.5: 
+
+iostat sdb (3s sample):
+  ceph-node1:
+Device            r/s     rkB/s   rrqm/s  %rrqm r_await rareq-sz     w/s     wkB/s   wrqm/s  %wrqm w_await wareq-sz     d/s     dkB/s   drqm/s  %drqm d_await dareq-sz     f/s f_await  aqu-sz  %util
+sdb              0.00      0.00     0.00   0.00    0.00     0.00    0.00      0.00     0.00   0.00    0.00     0.00    0.00      0.00     0.00   0.00    0.00     0.00    0.00    0.00    0.00   0.00
+
+
+  ceph-node2:
+  ceph-node3:
+
+=== 净态三确认完成 Mon Jul  6 20:13:52 CST 2026 ===

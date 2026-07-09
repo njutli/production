@@ -1,0 +1,45 @@
+=== SSD 阶段 五确认 (§1.3b) ===
+Date: Tue Jul  7 16:21:55 CST 2026
+Config: deferred_size=0 (injectargs), throttle=4000 (injectargs)
+
+--- ① ceph health detail ---
+HEALTH_OK
+
+--- ② degraded pgs check ---
+    pgs:     225 active+clean
+
+--- ③ all OSDs up/in ---
+ 0    hdd  0.46550          osd.0            up   1.00000  1.00000
+ 1    hdd  0.46550          osd.1            up   1.00000  1.00000
+ 2    hdd  0.46550          osd.2            up   1.00000  1.00000
+ 3    hdd  0.46550          osd.3            up   1.00000  1.00000
+ 4    hdd  0.93089          osd.4            up   1.00000  1.00000
+ 5    hdd  0.46550          osd.5            up   1.00000  1.00000
+
+--- ④ diskstats idle ---
+--- node 11 sdb ---
+  s1:    8      16 sdb 29669844 2558265 3768376476 367499460 524191679 281757201 21074246488 3212281046 5 302059684 3579780506 0 0 0 0 0 0
+  s2:    8      16 sdb 29669845 2558265 3768376500 367499715 524192243 281780778 21074440128 3212296459 3 302062928 3579796174 0 0 0 0 0 0
+  → NOT IDLE ✗
+--- node 13 sdb ---
+  s1:    8      16 sdb 27108499 2165312 3437669500 349823830 485714526 281038352 20755975752 265776798 0 347409152 615600628 0 0 0 0 0 0
+  s2:    8      16 sdb 27108499 2165312 3437669500 349823830 485714526 281038352 20755975752 265776798 0 347409152 615600628 0 0 0 0 0 0
+  → IDLE ✓
+--- node 14 sdb ---
+  s1:    8      16 sdb 31961487 2845292 4163757156 319608042 586870891 280850427 21572040112 1141156158 0 244317488 1460764201 0 0 0 0 0 0
+  s2:    8      16 sdb 31961487 2845292 4163757156 319608042 586870891 280850427 21572040112 1141156158 0 244317488 1460764201 0 0 0 0 0 0
+  → IDLE ✓
+
+--- ⑤ compact_queue_len=0 / compact_running=0 ---
+osd.0: compact_queue_len=0 compact_running=0
+osd.1: compact_queue_len=0 compact_running=0
+osd.2: compact_queue_len=0 compact_running=0
+osd.3: compact_queue_len=0 compact_running=0
+osd.4: compact_queue_len=0 compact_running=0
+osd.5: compact_queue_len=0 compact_running=0
+
+--- re-check after 10min wait (Tue Jul  7 16:30:23 CST 2026) ---
+All nodes: see ops.log for latest idle check
+Health: HEALTH_OK
+
+=== 五确认完成（含 10min 等待）===

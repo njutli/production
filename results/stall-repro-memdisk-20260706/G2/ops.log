@@ -1,0 +1,31 @@
+Mon Jul  6 20:51:42 CST 2026: G2 连续-A1→A3 开始
+=== 净态三确认 ===
+destroying volume...
+pool objects: 0
+compacting all OSDs...
+compact done
+health: HEALTH_OK
+osd  commit_latency(ms)  apply_latency(ms)
+  4                   0                  0
+  3                   0                  0
+  2                   0                  0
+  5                   0                  0
+  0                   0                  0
+  1                   0                  0
+formatting + mounting...
+mount OK
+starting monitoring...
+monitoring started
+
+=== A1: rados bench 3×60s (no clean between rounds) ===
+Mon Jul  6 20:54:04 CST 2026: rados bench r1
+rados r1: 59.0009 MB/s
+Mon Jul  6 20:55:14 CST 2026: rados bench r2
+rados r2: 54.821 MB/s
+Mon Jul  6 20:56:23 CST 2026: rados bench r3
+rados r3: 63.1515 MB/s
+
+=== A3: JuiceFS multi-seqwrite 64G (紧接 A1, no clean) ===
+Mon Jul  6 20:57:32 CST 2026: starting multi-seqwrite
+fio PID=194712
+G2 test launched, monitoring with sleep
