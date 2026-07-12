@@ -1,0 +1,62 @@
+# ops.log — 任务 12.1-步骤2重测 v3（定位gc失效 + A/B全量干净重测）
+
+## 阶段A：gc --delete 失效根因诊断
+22:59 集群检查：HEALTH_WARN(cosmetic), 6 OSD up, 池空 170G, 无BlueFS stall
+22:59 挂载 A组(--cache-size 0 --max-uploads 150), BlockSize=256, TrashDays=0 确认
+23:00 Exp1: 写1G+randwrite60s, 不删文件, gc --delete → 0 deleted, 33391 skipped, 池不变
+23:02 Exp2: 删文件+等5s, gc --delete → Deleted 5555 pending slices, 5554 skipped, 池5.7→4.5→0(后台清理~1min)
+23:03 Exp4: 多次gc → 第2次 0 scanned 0 skipped (池已空, 后台清理完成)
+23:06 Exp5: compact(mount point) → 超时(>5min) 不可用
+结论: gc skip 是正常语义(slices有引用时正确skip), 不是bug. 删文件后gc生效.
+方案: 每轮rand后删test_dir→gc→等2min→重建layout
+
+## 阶段B：A组全量重测（一次连续，全180s）
+23:17 清理残留文件, 池空
+23:18 A组脚本启动(PID=923263)
+
+## 阶段 B 完整时间线（据 fio 时间戳 + 脚本日志重建，事后补录）
+
+### A 组
+23:20:54 A_group_v3.sh 启动（seq 阶段）
+23:20:54-23:47:31 seq 全部完成（prep/seqread/seqwrite/multi-seqread/multi-seqwrite，全 180s rc=0）
+23:47:31-23:48:07 seq cleanup（rm + gc --delete，"stop deleting slice" 速率限制）
+23:48:37 clean-seq-A.txt 落盘（pool 30 GiB/18%，后台清理未完成）
+23:48:37 SCRIPT CRASH（set -e + ceph health 返回 1）
+23:48:37-00:12:52 Gap 24 min（后台清理 30G→5.3MiB；写 part2 脚本；上传启动）
+00:12:52 A_group_v3_part2.sh 启动（layout+rand 阶段，无 set -e）
+00:13:11-00:33:23 layout 128G (rc=0) — A-layout BEFORE: 5.3 MiB/0%（干净 ✅）
+00:33:46-00:43:42 rand round r1（randread/randwrite/randrw 全 180s rc=0）
+00:43:42-01:07:42 cleanup + relayout（pool→5.3 MiB 干净）
+01:08:05-01:18:02 rand round r2（全 180s rc=0）
+01:18:02-01:42:03 cleanup + relayout（pool→5.7 MiB 干净）
+01:42:26-01:52:23 rand round r3（全 180s rc=0）
+01:52:23 A GROUP ALL DONE
+
+### 网络中断
+~02:00-14:35 网络中断约 12.5h（A 组已完成，B 组未开始，未打断任何 180s）
+
+### A→B 切换
+14:36:57 umount + 删池重建（pool 59→60）+ reformat BlockSize=256 + mount --max-readahead 0
+14:40:46 clean-between-AB.txt 落盘（pool 0B/170G）
+
+### B 组
+14:40:47 B_group_v3.sh 首次启动（有 set -e）
+14:41:24 seqread precreate 20G 开始
+~14:44:30 CRASH（set -e，仅 prep+precreate 完成，无 fio 数据）
+15:17:01 B_group_v3.sh 第二次启动（set -e 已移除，B 目录已清空，pool 已 gc 清理）
+15:17:01-15:43:35 seq 全部完成（全 180s rc=0）
+15:43:35-15:44:40 seq cleanup（gc，clean-seq-B.txt 落盘 33G/20%）
+15:45:00-16:05:13 layout 128G — B-layout BEFORE: 13 GiB/7.53%（残留，但远低于 80%）
+16:05:36-16:15:32 rand round r1（全 180s rc=0）
+16:15:32-16:39:46 cleanup + relayout r1（pool→1.6 MiB 干净 ✅）
+16:40:09-16:50:05 rand round r2（全 180s rc=0）
+16:50:05-17:13:47 cleanup + relayout r2（pool→1.6 MiB 干净 ✅）
+17:14:46-17:24:41 rand round r3（全 180s rc=0）
+17:24:41 B GROUP ALL DONE
+
+### 补证要点
+- B 组 rand %USE 未采集（sudo 会话过期或 ceph 超时），但 layout-r1/r2 BEFORE = 1.6 MiB/0% 落盘证明每轮干净起跑
+- 30G/33G 残留是 gc 快照（后台清理未完成），layout 实际起跑时 pool 为 5.3 MiB(A)/13 GiB(B)
+- randrw 三段分析：12 组全无 nearfull 降级（后段≥前段）
+- 详见 evidence-supplement.md
+

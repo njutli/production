@@ -1,0 +1,43 @@
+=== cap-96g: ceph osd df ===
+ID  CLASS  WEIGHT   REWEIGHT  SIZE     RAW USE  DATA     OMAP    META     AVAIL    %USE   VAR   PGS  STATUS
+ 0    ssd  0.04779   1.00000   49 GiB   28 GiB   24 GiB   4 KiB  847 MiB   21 GiB  57.17  1.00   96      up
+ 1    ssd  0.04779   1.00000   49 GiB   28 GiB   24 GiB   4 KiB  866 MiB   21 GiB  57.17  1.00   97      up
+ 2    ssd  0.04779   1.00000   49 GiB   28 GiB   24 GiB   4 KiB  852 MiB   21 GiB  57.17  1.00   95      up
+ 3    ssd  0.04779   1.00000   49 GiB   28 GiB   24 GiB   4 KiB  864 MiB   21 GiB  57.17  1.00   98      up
+ 4    ssd  0.04779   1.00000   49 GiB   28 GiB   24 GiB   4 KiB  872 MiB   21 GiB  57.17  1.00  101      up
+ 5    ssd  0.04779   1.00000   49 GiB   28 GiB   24 GiB   4 KiB  868 MiB   21 GiB  57.17  1.00   92      up
+                       TOTAL  294 GiB  168 GiB  144 GiB  27 KiB  5.0 GiB  126 GiB  57.17                   
+MIN/MAX VAR: 1.00/1.00  STDDEV: 0
+
+=== cap-96g: ceph df ===
+--- RAW STORAGE ---
+CLASS     SIZE    AVAIL     USED  RAW USED  %RAW USED
+ssd    294 GiB  126 GiB  168 GiB   168 GiB      57.17
+TOTAL  294 GiB  126 GiB  168 GiB   168 GiB      57.17
+ 
+--- POOLS ---
+POOL                 ID  PGS   STORED  OBJECTS     USED  %USED  MAX AVAIL
+.rgw.root            48   32  3.0 KiB        6   72 KiB      0     37 GiB
+default.rgw.log      49   32  3.6 KiB      209  408 KiB      0     37 GiB
+default.rgw.control  50   32      0 B        8      0 B      0     37 GiB
+default.rgw.meta     51   32      0 B        0      0 B      0     37 GiB
+juicefs-data         54   32   96 GiB  393.25k  144 GiB  56.43     74 GiB
+.mgr                 55    1  748 KiB        2  2.2 MiB      0     37 GiB
+
+=== cap-96g: ceph health ===
+HEALTH_OK
+
+=== cap-96g: node1 free -g ===
+               total        used        free      shared  buff/cache   available
+Mem:             251           5         182          54          63         189
+=== cap-96g: node2 free -g ===
+               total        used        free      shared  buff/cache   available
+Mem:             251           5         183          54          62         189
+=== cap-96g: node3 free -g ===
+               total        used        free      shared  buff/cache   available
+Mem:             251           4         183          54          63         190
+
+=== cap-96g: dmesg OOM/OSD check ===
+--- 192.168.11.11 ---
+--- 192.168.11.13 ---
+--- 192.168.11.14 ---

@@ -1,0 +1,89 @@
+[18:11:13] ============================================================
+[18:11:13] Phase A: 基线（cache=0 mu=150，无 max-readahead）start Thu Jul  9 18:11:13 CST 2026
+[18:11:13] ============================================================
+[18:11:13] juicefs version: juicefs version 1.3.1+2025-12-02.e0032b2a
+[18:11:13] mount: JuiceFS:juicefs-memdisk on /mnt/juicefs type fuse.juicefs (rw,nosuid,nodev,relatime,user_id=0,group_id=0,default_permissions,allow_other,max_read=131072)
+[18:11:13] jfs proc: 4018153 /usr/local/bin/juicefs.v1.3.1 mount -d --cache-size 0 --max-uploads 150 tikv://192.168.11.12:2379/juicefs-memdisk /mnt/juicefs
+[18:11:13] cleaning test dirs
+[18:11:13] writing layout L_A (128x512M=64G, bs=4M, end_fsync=1)
+[18:21:04] layout L_A done: WRITE=112MiB/s
+[18:21:04] A randread r1 start
+[18:21:14] 采集 A-randread-r1 start (jfs_pid=4018153, rt=60s)
+[18:22:16] 采集 stop
+[18:22:16] A randread r1 done: READ=50.7MiB/s
+[18:22:21] A randread r2 start
+[18:22:23] 采集 A-randread-r2 start (jfs_pid=4018153, rt=60s)
+[18:23:25] 采集 stop
+[18:23:25] A randread r2 done: READ=50.8MiB/s
+[18:23:30] A randread r3 start
+[18:23:31] 采集 A-randread-r3 start (jfs_pid=4018153, rt=60s)
+[18:24:33] 采集 stop
+[18:24:33] A randread r3 done: READ=51.0MiB/s
+[18:24:38] A randrw r1 start
+[18:24:39] 采集 A-randrw-r1 start (jfs_pid=4018153, rt=60s)
+[18:25:41] 采集 stop
+[18:25:41] A randrw r1 done: READ=45.3MiB/s WRITE=44.9MiB/s
+[18:25:46] A randrw r2 start
+[18:25:48] 采集 A-randrw-r2 start (jfs_pid=4018153, rt=60s)
+[18:26:50] 采集 stop
+[18:26:50] A randrw r2 done: READ=46.1MiB/s WRITE=45.6MiB/s
+[18:26:55] A randrw r3 start
+[18:26:56] 采集 A-randrw-r3 start (jfs_pid=4018153, rt=60s)
+[18:27:58] 采集 stop
+[18:27:58] A randrw r3 done: READ=45.8MiB/s WRITE=45.4MiB/s
+[18:28:03] A seqread prep (write 4G)
+[18:28:44] A seqread start
+[18:28:46] 采集 A-seqread start (jfs_pid=4018153, rt=45s)
+[18:30:04] 采集 stop
+[18:30:04] A seqread done: READ=101MiB/s
+[18:30:04] ============================================================
+[18:30:04] Phase A COMPLETE Thu Jul  9 18:30:04 CST 2026
+[18:30:04] ============================================================
+[18:31:41] ============================================================
+[18:31:41] Phase B: 变体（cache=0 mu=150 + max-readahead 0）start Thu Jul  9 18:31:41 CST 2026
+[18:31:41] ============================================================
+[18:31:41] umount old mount (Phase A baseline)
+[18:31:45] mount with --cache-size 0 --max-uploads 150 --max-readahead 0
+2026/07/09 18:31:45.845125 juicefs[824418] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-memdisk [NewClient@interface.go:578]
+2026/07/09 18:31:45.845299 juicefs[824418] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/07/09 18:31:45.861445 juicefs[824418] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:593]
+2026/07/09 18:31:45.889056 juicefs[824418] <INFO>: Data use ceph://juicefs-data/juicefs-memdisk/ [mount@mount.go:588]
+2026/07/09 18:31:46.396124 juicefs[824418] <INFO>: [92mOK[0m, juicefs-memdisk is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+[18:31:51] remount OK
+[18:31:51] jfs proc:  824504 /usr/local/bin/juicefs.v1.3.1 mount -d --cache-size 0 --max-uploads 150 --max-readahead 0 tikv://192.168.11.12:2379/juicefs-memdisk /mnt/juicefs
+[18:31:51] mount line: JuiceFS:juicefs-memdisk on /mnt/juicefs type fuse.juicefs (rw,nosuid,nodev,relatime,user_id=0,group_id=0,default_permissions,allow_other,max_read=131072)
+[18:31:51] cleaning test dirs
+[18:31:52] writing layout L_B (128x512M=64G, bs=4M, end_fsync=1)
+[18:41:56] layout L_B done: WRITE=109MiB/s
+[18:41:56] B randread r1 start
+[18:42:07] 采集 B-randread-r1 start (jfs_pid=824504, rt=60s)
+[18:43:09] 采集 stop
+[18:43:09] B randread r1 done: READ=98.6MiB/s
+[18:43:14] B randread r2 start
+[18:43:15] 采集 B-randread-r2 start (jfs_pid=824504, rt=60s)
+[18:44:16] 采集 stop
+[18:44:16] B randread r2 done: READ=112MiB/s
+[18:44:21] B randread r3 start
+[18:44:23] 采集 B-randread-r3 start (jfs_pid=824504, rt=60s)
+[18:45:24] 采集 stop
+[18:45:24] B randread r3 done: READ=112MiB/s
+[18:45:29] B randrw r1 start
+[18:45:31] 采集 B-randrw-r1 start (jfs_pid=824504, rt=60s)
+[18:46:32] 采集 stop
+[18:46:32] B randrw r1 done: READ=73.8MiB/s WRITE=72.5MiB/s
+[18:46:37] B randrw r2 start
+[18:46:39] 采集 B-randrw-r2 start (jfs_pid=824504, rt=60s)
+[18:47:40] 采集 stop
+[18:47:40] B randrw r2 done: READ=75.3MiB/s WRITE=74.0MiB/s
+[18:47:45] B randrw r3 start
+[18:47:47] 采集 B-randrw-r3 start (jfs_pid=824504, rt=60s)
+[18:48:48] 采集 stop
+[18:48:48] B randrw r3 done: READ=74.9MiB/s WRITE=73.5MiB/s
+[18:48:53] B seqread prep (write 4G)
+[18:49:34] B seqread start
+[18:49:36] 采集 B-seqread start (jfs_pid=824504, rt=45s)
+[18:51:15] 采集 stop
+[18:51:15] B seqread done: READ=66.3MiB/s
+[18:51:15] ============================================================
+[18:51:15] Phase B COMPLETE Thu Jul  9 18:51:15 CST 2026
+[18:51:15] ============================================================

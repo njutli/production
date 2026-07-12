@@ -1,0 +1,135 @@
+=== ceph -s ===
+  cluster:
+    id:     073f28e0-5fe0-11f1-8ce6-7369ee2be5a1
+    health: HEALTH_OK
+ 
+  services:
+    mon: 3 daemons, quorum ceph-node1,ceph-node2,ceph-node3 (age 43h)
+    mgr: ceph-node2.zsiakr(active, since 2w), standbys: ceph-node1.alpmza
+    osd: 6 osds: 6 up (since 50s), 6 in (since 3w)
+    rgw: 3 daemons active (3 hosts, 1 zones)
+ 
+  data:
+    pools:   6 pools, 161 pgs
+    objects: 260 objects, 10 MiB
+    usage:   24 GiB used, 270 GiB / 294 GiB avail
+    pgs:     161 active+clean
+ 
+
+=== ceph osd df ===
+ID  CLASS  WEIGHT   REWEIGHT  SIZE     RAW USE  DATA    OMAP    META     AVAIL    %USE  VAR   PGS  STATUS
+ 0    ssd  0.04779   1.00000   49 GiB  4.0 GiB  13 MiB   1 KiB  312 MiB   45 GiB  8.18  1.00   96      up
+ 1    ssd  0.04779   1.00000   49 GiB  4.0 GiB  13 MiB   1 KiB  302 MiB   45 GiB  8.18  1.00   97      up
+ 2    ssd  0.04779   1.00000   49 GiB  4.0 GiB  13 MiB   1 KiB  302 MiB   45 GiB  8.18  1.00   95      up
+ 3    ssd  0.04779   1.00000   49 GiB  4.0 GiB  13 MiB   1 KiB  312 MiB   45 GiB  8.18  1.00   98      up
+ 4    ssd  0.04779   1.00000   49 GiB  4.0 GiB  13 MiB   1 KiB  307 MiB   45 GiB  8.18  1.00  101      up
+ 5    ssd  0.04779   1.00000   49 GiB  4.0 GiB  13 MiB   1 KiB  302 MiB   45 GiB  8.18  1.00   92      up
+                       TOTAL  294 GiB   24 GiB  79 MiB  10 KiB  1.8 GiB  270 GiB  8.18                   
+MIN/MAX VAR: 1.00/1.00  STDDEV: 0
+
+=== ceph df ===
+--- RAW STORAGE ---
+CLASS     SIZE    AVAIL    USED  RAW USED  %RAW USED
+ssd    294 GiB  270 GiB  24 GiB    24 GiB       8.18
+TOTAL  294 GiB  270 GiB  24 GiB    24 GiB       8.18
+ 
+--- POOLS ---
+POOL                 ID  PGS   STORED  OBJECTS     USED  %USED  MAX AVAIL
+.rgw.root            48   32  3.0 KiB        6   72 KiB      0     85 GiB
+default.rgw.log      49   32  3.6 KiB      209  408 KiB      0     85 GiB
+default.rgw.control  50   32      0 B        8      0 B      0     85 GiB
+default.rgw.meta     51   32      0 B        0      0 B      0     85 GiB
+juicefs-data         54   32  9.8 MiB       35   15 MiB      0    170 GiB
+.mgr                 55    1  748 KiB        2  2.2 MiB      0     85 GiB
+
+=== pool config ===
+erasure_code_profile: ec-prod
+pg_num: 32
+size: 6
+crush-device-class=
+crush-failure-domain=osd
+crush-root=default
+jerasure-per-chunk-alignment=false
+k=4
+m=2
+plugin=jerasure
+technique=reed_sol_van
+w=8
+
+=== all OSD metadata (bluefs_single_shared_device) ===
+--- osd.0 ---
+    "bluefs_db_devices": "loop30",
+    "bluefs_db_rotational": "0",
+    "bluefs_dedicated_db": "1",
+    "bluefs_single_shared_device": "0",
+    "bluestore_bdev_devices": "loop20",
+    "bluestore_bdev_rotational": "0",
+    "devices": "loop20,loop30",
+    "journal_rotational": "0",
+    "objectstore_numa_unknown_devices": "loop20,loop30",
+    "rotational": "0"
+--- osd.1 ---
+    "bluefs_db_devices": "loop31",
+    "bluefs_db_rotational": "0",
+    "bluefs_dedicated_db": "1",
+    "bluefs_single_shared_device": "0",
+    "bluestore_bdev_devices": "loop21",
+    "bluestore_bdev_rotational": "0",
+    "devices": "loop21,loop31",
+    "journal_rotational": "0",
+    "objectstore_numa_unknown_devices": "loop21,loop31",
+    "rotational": "0"
+--- osd.2 ---
+    "bluefs_db_devices": "loop30",
+    "bluefs_db_rotational": "0",
+    "bluefs_dedicated_db": "1",
+    "bluefs_single_shared_device": "0",
+    "bluestore_bdev_devices": "loop20",
+    "bluestore_bdev_rotational": "0",
+    "devices": "loop20,loop30",
+    "journal_rotational": "0",
+    "objectstore_numa_unknown_devices": "loop20,loop30",
+    "rotational": "0"
+--- osd.3 ---
+    "bluefs_db_devices": "loop31",
+    "bluefs_db_rotational": "0",
+    "bluefs_dedicated_db": "1",
+    "bluefs_single_shared_device": "0",
+    "bluestore_bdev_devices": "loop21",
+    "bluestore_bdev_rotational": "0",
+    "devices": "loop21,loop31",
+    "journal_rotational": "0",
+    "objectstore_numa_unknown_devices": "loop21,loop31",
+    "rotational": "0"
+--- osd.4 ---
+    "bluefs_db_devices": "loop30",
+    "bluefs_db_rotational": "0",
+    "bluefs_dedicated_db": "1",
+    "bluefs_single_shared_device": "0",
+    "bluestore_bdev_devices": "loop20",
+    "bluestore_bdev_rotational": "0",
+    "devices": "loop20,loop30",
+    "journal_rotational": "0",
+    "objectstore_numa_unknown_devices": "loop20,loop30",
+    "rotational": "0"
+--- osd.5 ---
+    "bluefs_db_devices": "loop31",
+    "bluefs_db_rotational": "0",
+    "bluefs_dedicated_db": "1",
+    "bluefs_single_shared_device": "0",
+    "bluestore_bdev_devices": "loop21",
+    "bluestore_bdev_rotational": "0",
+    "devices": "loop21,loop31",
+    "journal_rotational": "0",
+    "objectstore_numa_unknown_devices": "loop21,loop31",
+    "rotational": "0"
+
+=== ceph health detail ===
+HEALTH_OK
+
+=== loop device mapping ===
+node1 (.11):
+node2 (.13):
+node3 (.14):
+ceph-073f28e0-5fe0-11f1-8ce6-7369ee2be5a1-osd-5
+ceph-073f28e0-5fe0-11f1-8ce6-7369ee2be5a1-osd-4

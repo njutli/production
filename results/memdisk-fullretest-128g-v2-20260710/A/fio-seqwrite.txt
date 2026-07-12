@@ -1,0 +1,28 @@
+seqwrite: (g=0): rw=write, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=psync, iodepth=1
+fio-3.28
+Starting 1 process
+seqwrite: Laying out IO file (1 file / 4096MiB)
+
+seqwrite: (groupid=0, jobs=1): err= 0: pid=3522392: Fri Jul 10 18:02:57 2026
+  write: IOPS=446, BW=112MiB/s (117MB/s)(19.9GiB/182701msec); 0 zone resets
+    clat (usec): min=279, max=21359, avg=2064.87, stdev=3678.40
+     lat (usec): min=279, max=21359, avg=2065.32, stdev=3678.37
+    clat percentiles (usec):
+     |  1.00th=[  392],  5.00th=[  441], 10.00th=[  465], 20.00th=[  502],
+     | 30.00th=[  529], 40.00th=[  545], 50.00th=[  570], 60.00th=[  594],
+     | 70.00th=[  619], 80.00th=[  660], 90.00th=[10814], 95.00th=[11076],
+     | 99.00th=[11600], 99.50th=[11600], 99.90th=[11731], 99.95th=[11863],
+     | 99.99th=[12387]
+   bw (  KiB/s): min=77056, max=290304, per=100.00%, avg=116180.77, stdev=16723.64, samples=180
+   iops        : min=   96, max= 1230, avg=454.90, stdev=80.96, samples=359
+  lat (usec)   : 500=19.80%, 750=63.85%, 1000=1.69%
+  lat (msec)   : 2=0.26%, 4=0.02%, 10=0.01%, 20=14.37%, 50=0.01%
+  cpu          : usr=5.36%, sys=10.58%, ctx=163451, majf=0, minf=292
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=0,81654,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+  WRITE: bw=112MiB/s (117MB/s), 112MiB/s-112MiB/s (117MB/s-117MB/s), io=19.9GiB (21.4GB), run=182701-182701msec

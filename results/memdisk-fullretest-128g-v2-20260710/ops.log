@@ -1,0 +1,81 @@
+# ops.log — 任务 12.1-步骤2修订版 v2 (口径校准)
+
+## 口径变化 vs 上一版 step2
+1. fio 全项加 --write_bw_log/--read_bw_log --log_avg_msec=1000
+2. 达标值 = 稳态段中位数（截暂态后取中位数），非全程平均
+3. 全部 --time_based --runtime=180s（原 60s 或 size-based）
+4. NIC 存原始 /proc/net/dev 逐秒行（timestamp + eno1 整行）
+5. 读类 drop_caches + seqread --size=20G 防缓存命中
+6. object put/get 只算放大，不当达标值
+
+## 挂载参数
+A组: juicefs mount -d --cache-size 0 --max-uploads 150 tikv://192.168.11.12:2379/juicefs-memdisk /mnt/juicefs
+B组: 同上 + --max-readahead 0
+
+## seqread 缓存防护
+- --size=20G（180s 读不完一遍: 20G/106MB/s ≈ 194s > 180s）
+- 测前 drop_caches 清内核页缓存
+- 验证: object get 非零 = 非缓存命中
+
+## multi-seqread 缓存防护
+- 16 jobs × 4G = 64G，180s 聚合读 ~21G < 64G，不会读完，无缓存命中
+- 测前 drop_caches
+
+## 采集
+- NIC: /proc/net/dev 逐秒原始行（timestamp + eno1 全行）
+- juicefs stats: --interval 1 --count <runtime+10>
+- pidstat: 1s 间隔, count <runtime+10>
+- 读类: drop_caches 记录
+- 写类: ceph df 前后
+
+## 时间线
+
+## 执行日志
+17:38 A组挂载(失败:权限拒绝) → sudo 挂载成功
+17:39 prep 4G (126 MB/s, 34s)
+17:41 seqread precreate 20G (119 MB/s, 181s)
+17:45 drop_caches → seqread 180s bw_log (107 MB/s avg, GET=99M 非缓存命中 ✅)
+17:55 seqwrite 180s bw_log (117 MB/s avg, 暂态 290→114, PUT=111M)
+18:03 multi-seqread precreate 64G (118 MB/s, 584s)
+18:14 drop_caches → multi-seqread 180s bw_log (116 MB/s avg, GET=111M 非缓存命中 ✅)
+18:19 multi-seqwrite 180s bw_log (117 MB/s avg, PUT=111M)
+18:23 分时清理(gc --delete) → 池回空 10MiB
+18:28 layout 128G bw_log (109 MB/s, 1266s) — 首次 layout
+
+## 异常1: randwrite 180s × 3 轮导致池满
+18:50 rand tests 开始 (randread/randwrite/randrw 各 180s × 3 轮)
+19:17 randwrite-r2 失败 (rc=8), 池 100% full (170G stored, HEALTH_ERR)
+  原因: randwrite 180s 产生 ~20G orphaned slices/轮, gc --delete 不工作(全部 skipped)
+  128G layout + 3×20G randwrite + 3×20G randrw = 248G > 170G pool
+  gc --delete skipped 全部 705K objects (0 valid, 0 leaked, 全部 skipped)
+  → JuiceFS gc --delete 对 orphaned slices 不生效（可能是 v1.3.1 bug 或 rados 后端限制）
+
+## 恢复
+19:23 杀脚本, fusermount -uz, kill juicefs
+19:29 删池重建 (ceph osd pool delete + create, pool ID 54→56)
+19:30 reformat --force (误改 block-size 256→4096)
+19:31 remount
+
+## 异常2: block-size 误改
+reformat --block-size 4096 误改 block-size 从 256→4096
+发现: juicefs config 显示 BlockSize=4096, 原始应为 256
+修正: reformat --force --block-size 256 → BlockSize=256 ✅
+
+## 第三次尝试 (block-size 256, pool ID 57)
+20:07 reformat --block-size 256 → 确认 BlockSize=256
+20:08 remount A组
+20:08 layout 128G (117 MB/s, 1175s) → 池 75.23%, 42G MAX AVAIL
+20:29 cooldown (compact all OSDs)
+20:30 rand tests 开始 (randread 180s, randwrite/randrw 60s 避免 pool 满)
+  - randwrite/randrw 改为 60s (原 180s 产生过多 slices 导致 pool 满)
+  - 60s: ~7G slices/轮 × 3 = 21G; randrw ~3.5G × 3 = 10.5G; total 31.5G
+  - 128G + 31.5G = 159.5G < 170G pool → 安全
+
+## fio 选项修正
+- --read_bw_log 不存在于 fio 3.28, 改用 --write_bw_log (logs all bandwidth)
+- --log_avg_msec=1000 存在且工作正常 (每秒一个数据点)
+- bw_log 格式: time_ms, bandwidth_KBps, data_direction(0=read 1=write), 0, 0
+
+## 保留的 seq 阶段数据
+seqread/seqwrite/multi-seqread/multi-seqwrite 来自第一次 attempt (block-size 256, pool ID 54)
+数据有效: 同 OSD 部署, 同 JuiceFS 版本, 同 block-size, 同 pool EC 配置

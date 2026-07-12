@@ -1,0 +1,35 @@
+bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+[18:31:41] ============================================================
+[18:31:41] Phase B: 变体（cache=0 mu=150 + max-readahead 0）start Thu Jul  9 18:31:41 CST 2026
+[18:31:41] ============================================================
+[18:31:41] umount old mount (Phase A baseline)
+[18:31:45] mount with --cache-size 0 --max-uploads 150 --max-readahead 0
+2026/07/09 18:31:45.845125 juicefs[824418] <INFO>: Meta address: tikv://192.168.11.12:2379/juicefs-memdisk [NewClient@interface.go:578]
+2026/07/09 18:31:45.845299 juicefs[824418] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:87]
+2026/07/09 18:31:45.861445 juicefs[824418] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:593]
+2026/07/09 18:31:45.889056 juicefs[824418] <INFO>: Data use ceph://juicefs-data/juicefs-memdisk/ [mount@mount.go:588]
+2026/07/09 18:31:46.396124 juicefs[824418] <INFO>: [92mOK[0m, juicefs-memdisk is ready at /mnt/juicefs [checkMountpoint@mount_unix.go:235]
+[18:31:51] remount OK
+[18:31:51] jfs proc:  824504 /usr/local/bin/juicefs.v1.3.1 mount -d --cache-size 0 --max-uploads 150 --max-readahead 0 tikv://192.168.11.12:2379/juicefs-memdisk /mnt/juicefs
+[18:31:51] mount line: JuiceFS:juicefs-memdisk on /mnt/juicefs type fuse.juicefs (rw,nosuid,nodev,relatime,user_id=0,group_id=0,default_permissions,allow_other,max_read=131072)
+[18:31:51] cleaning test dirs
+[18:31:52] writing layout L_B (128x512M=64G, bs=4M, end_fsync=1)
+[18:41:56] layout L_B done: WRITE=109MiB/s
+[18:41:56] B randread r1 start
+[18:43:09] B randread r1 done: READ=98.6MiB/s
+[18:43:14] B randread r2 start
+[18:44:16] B randread r2 done: READ=112MiB/s
+[18:44:21] B randread r3 start
+[18:45:24] B randread r3 done: READ=112MiB/s
+[18:45:29] B randrw r1 start
+[18:46:32] B randrw r1 done: READ=73.8MiB/s WRITE=72.5MiB/s
+[18:46:37] B randrw r2 start
+[18:47:40] B randrw r2 done: READ=75.3MiB/s WRITE=74.0MiB/s
+[18:47:45] B randrw r3 start
+[18:48:48] B randrw r3 done: READ=74.9MiB/s WRITE=73.5MiB/s
+[18:48:53] B seqread prep (write 4G)
+[18:49:34] B seqread start
+[18:51:15] B seqread done: READ=66.3MiB/s
+[18:51:15] ============================================================
+[18:51:15] Phase B COMPLETE Thu Jul  9 18:51:15 CST 2026
+[18:51:15] ============================================================

@@ -1,0 +1,66 @@
+# ops.log — 任务 12.1-步骤1 全程操作记录
+
+## 时间线
+- 11:38 §1 现状摸底开始
+- 11:44 §3 osd.0 stop+purge
+- 11:45-11:53 osd.0 重建（LVM+loop+ceph-volume prepare+deploy+config fix+start）
+- 11:55-12:01 osd.1 stop+purge+重建（同流程，podman 直接 prepare）
+- 12:03-12:07 osd.2 stop+purge+重建（node2, podman）
+- 12:07-12:08 osd.3 stop+purge+重建（node2, podman）
+- 12:09-12:15 osd.4 stop+purge+重建（node3, docker 替代 podman）
+- 12:17-12:19 osd.5 stop+purge+重建（node3, docker）
+- 12:20 §4 挂 JuiceFS（cache=0 mu=150）
+- 12:21-12:26 写 32G（117 MB/s, 293s）
+- 12:32-12:37 写 64G（追加 32G, 293s）
+- 12:43-12:48 写 96G（追加 32G, 293s）
+- 12:54-12:59 写 128G（追加 32G, 293s）
+- 13:06 §5 删数据+juicefs gc
+- 13:08 池回空+HEALTH_OK
+
+## 每 OSD 重建步骤
+1. ceph orch daemon stop osd.X
+2. sleep 5-8 等待 down
+3. ceph osd purge X --force --yes-i-really-mean-it
+4. cephadm rm-daemon --fsid <fsid> --name osd.X --force
+5. 节点上:
+   a. lvremove 旧 LV, vgremove 旧 VG, pvremove/pvcreate 旧 loop
+   b. losetup -d, rm 旧 block file
+   c. mount -o remount,size=95G /tmp/memdisk（首 OSD per node）
+   d. truncate -s 45G 新 DATA block file
+   e. losetup /dev/loopXX 新 DATA block
+   f. truncate -s 4G 新 WAL/DB block file on /tmp/bs-db-osdY
+   g. losetup /dev/loopZZ 新 WAL/DB block
+   h. dd if=/dev/zero wipe 10MB
+   i. pvcreate + vgcreate ceph-vg-dataX + lvcreate osd-dataX (45G)
+   j. pvcreate + vgcreate ceph-vg-dbX + lvcreate osd-dbX (4G)
+6. ceph-volume lvm prepare --data <DATA LV> --block.db <DB LV>
+   - node1/2: podman run（挂载 bootstrap keyring + mon config）
+   - node3: docker run（同挂载）
+7. cephadm deploy --fsid <fsid> --name osd.X --osd-fsid <UUID>
+8. cp <mon or adjacent osd>/config → osd.X/config; chown 167:167; chmod 600
+   - node3 额外: rm -rf config 目录（Docker 自动创建的）再 cp 文件
+9. systemctl reset-failed + start
+10. 验证: ceph osd metadata | grep bluefs_single_shared_device=0
+
+## Loop 映射（每节点一致）
+- loop20 → /tmp/memdisk/osd0 (45G DATA) → ceph-vg-data0/osd-data0
+- loop21 → /tmp/memdisk/osd1 (45G DATA) → ceph-vg-data1/osd-data1
+- loop30 → /tmp/bs-db-osd{0,2,4}/db_device (4G WAL/DB) → ceph-vg-db0/osd-db0
+- loop31 → /tmp/bs-db-osd{1,3,5}/db_device (4G WAL/DB) → ceph-vg-db1/osd-db1
+
+## OSD→节点→设备映射
+| OSD | Node | DATA loop | DB loop | DATA LV | DB LV | OSD fsid |
+|-----|------|-----------|---------|---------|-------|----------|
+| 0 | .11 | loop20 | loop30 | ceph-vg-data0/osd-data0 | ceph-vg-db0/osd-db0 | f1e657b0-9439-4f71-ae70-dfe3499e592a |
+| 1 | .11 | loop21 | loop31 | ceph-vg-data1/osd-data1 | ceph-vg-db1/osd-db1 | d9bba935-22de-4fa8-851f-764080df8aae |
+| 2 | .13 | loop20 | loop30 | ceph-vg-data0/osd-data0 | ceph-vg-db0/osd-db0 | 569bc902-cc6f-45a6-abd2-cde041555472 |
+| 3 | .13 | loop21 | loop31 | ceph-vg-data1/osd-data1 | ceph-vg-db1/osd-db1 | 5db30517-c052-4bd1-a0cc-d36ffa1a2874 |
+| 4 | .14 | loop20 | loop30 | ceph-vg-data0/osd-data0 | ceph-vg-db0/osd-db0 | a704da1e-2c04-44e7-b61a-622e31e757a1 |
+| 5 | .14 | loop21 | loop31 | ceph-vg-data1/osd-data1 | ceph-vg-db1/osd-db1 | c13f608e-6181-421e-bb4f-d31671777b55 |
+
+## 清理
+1. rm /mnt/juicefs/probe-{32,64,96,128}g.bin
+2. juicefs gc --delete tikv://...
+3. ceph tell osd.{0-5} compact
+4. 池回空: STORED=9.9 MiB, USED=15 MiB, MAX AVAIL=170 GiB
+5. HEALTH_OK, 6 up/in, degraded=0

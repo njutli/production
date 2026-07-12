@@ -1,0 +1,19 @@
+=== clean-seq-B: ceph df ===
+--- RAW STORAGE ---
+CLASS     SIZE    AVAIL    USED  RAW USED  %RAW USED
+ssd    294 GiB  270 GiB  24 GiB    24 GiB       8.18
+TOTAL  294 GiB  270 GiB  24 GiB    24 GiB       8.18
+ 
+--- POOLS ---
+POOL                 ID  PGS   STORED  OBJECTS     USED  %USED  MAX AVAIL
+.rgw.root            48   32  3.0 KiB        6   72 KiB      0     85 GiB
+default.rgw.log      49   32  3.6 KiB      209  408 KiB      0     85 GiB
+default.rgw.control  50   32      0 B        8      0 B      0     85 GiB
+default.rgw.meta     51   32      0 B        0      0 B      0     85 GiB
+juicefs-data         54   32   10 MiB       39   15 MiB      0    170 GiB
+.mgr                 55    1  748 KiB        2  2.2 MiB      0     85 GiB
+
+=== clean-seq-B: ceph health ===
+HEALTH_OK
+
+Pool is clean. Ready for layout phase.

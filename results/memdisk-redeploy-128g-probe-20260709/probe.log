@@ -1,0 +1,94 @@
+========================================================================
+§1 现状摸底
+========================================================================
+
+--- 1.1 三节点内存 (free -g) ---
+node1 (.11): total=251 used=12 free=143 shared=83 buff/cache=95 available=153
+node2 (.13): total=251 used=13 free=143 shared=83 buff/cache=94 available=152
+node3 (.14): total=251 used=12 free=144 shared=83 buff/cache=95 available=153
+tikv-node (.12): total=251 used=9 free=238 shared=0 buff/cache=3 available=240
+
+--- 1.2 当前 6 OSD 部署形态 ---
+全部 6 OSD: bluefs_single_shared_device=1, bluefs_dedicated_db=0, bluefs_dedicated_wal=0
+→ WAL/DB/DATA 全在同一 tmpfs，需改部署为独立。
+OSD 映射:
+  osd.0 (node1 .11): devices=loop20 → /tmp/memdisk/osd0 (40G loop → ceph-vg-mem/osd-mem0 38G LVM)
+  osd.1 (node1 .11): devices=loop21 → /tmp/memdisk/osd1 (40G loop → ceph-vg-mem/osd-mem1 38G LVM)
+  osd.2 (node2 .13): devices=loop20 → /tmp/memdisk/osd0 (40G loop → ceph-vg-mem/osd-mem0 38G LVM)
+  osd.3 (node2 .13): devices=loop21 → /tmp/memdisk/osd1 (40G loop → ceph-vg-mem/osd-mem1 38G LVM)
+  osd.4 (node3 .14): devices=loop20 → /tmp/memdisk/osd0 (40G loop → ceph-vg-mem/osd-mem0 38G LVM)
+  osd.5 (node3 .14): devices=loop21 → /tmp/memdisk/osd1 (40G loop → ceph-vg-mem/osd-mem1 38G LVM)
+
+每节点现有 tmpfs:
+  /tmp/memdisk          80G  used 77G  (含 osd0+osd1 block 文件, 各 40G)
+  /tmp/bs-db-osd0        4G  used 4G   (已有但未实际用作独立 DB)
+  /tmp/bs-db-osd1        4G  used 4G   (已有但未实际用作独立 DB)
+  → 每节点当前 tmpfs 合计: 88G, shared=83G (free -g 报值)
+
+--- 1.3 Ceph 现状 ---
+ceph -s: HEALTH_OK, mon:3, mgr:ceph-node2(active), osd:6 up/6 in, rgw:3, pools:6, pgs:161 active+clean
+ceph df:
+  RAW: 228 GiB total, 18 GiB used (7.79%), 210 GiB avail
+  juicefs-data pool: 32 PGs, 9.8 MiB stored, 35 objects, 15 MiB used, MAX AVAIL 133 GiB
+ceph osd df:
+  每 OSD: 38 GiB size, ~3.0 GiB raw use (含 2.9 GiB META + 11-12 MiB DATA), 35 GiB avail, %USE=7.77-7.80%
+ceph osd dump ratios: full_ratio=0.95, backfillfull_ratio=0.9, nearfull_ratio=0.85
+ceph health detail: HEALTH_OK
+
+--- 1.4 tmpfs/loop 清单 ---
+三节点结构一致, 以 node1 为例:
+  loop20 → /tmp/memdisk/osd0 (40G) → LVM ceph-vg-mem/osd-mem0 (38G)
+  loop21 → /tmp/memdisk/osd1 (40G) → LVM ceph-vg-mem/osd-mem1 (38G)
+  tmpfs: /tmp/memdisk(80G) + /tmp/bs-db-osd0(4G) + /tmp/bs-db-osd1(4G)
+  物理盘: sda(446G, 系统盘) + sdb(953G, 含旧 OSD LVM, 未用于当前内存盘 OSD)
+
+========================================================================
+§2 容量测算
+========================================================================
+
+--- 2.1 目标 ---
+128G 有效数据 → EC 4+2 (冗余比 1.5×) → 192G raw → 均摊 6 OSD → 每 OSD 需 32G 纯数据
+BlueStore 元数据开销约 10-15% → 每 OSD 需 ~37G 实际空间
+加上余量防 nearfull(85%) → 每 OSD DATA tmpfs 定 45G
+
+--- 2.2 WAL/DB ---
+每 OSD 4G 独立 tmpfs（06_1 已证 2G spillover, 4G 够用）
+
+--- 2.3 每节点内存账 ---
+每节点 2 OSD × (DATA 45G + WAL/DB 4G) = 98G 新 tmpfs
+
+当前 available ≈ 152G (已扣当前 88G tmpfs)
+拆除旧 tmpfs(88G) + 建新 tmpfs(98G) → 净增 10G
+新 available ≈ 152 - 10 = 142G
+安全余量要求 ≥40G → 142G >> 40G ✓ 安全
+
+--- 2.4 DATA tmpfs 定值 ---
+DATA tmpfs = 45G / OSD
+理由:
+  1) 128G raw/OSD = 32G, 加 15% meta = 37G, 45G 给 8G(18%) 余量
+  2) 写满 128G 时 %USE = 37/45 = 82% < 85% nearfull ✓
+  3) 每节点 available 扣后 142G >> 40G ✓
+  4) 不贪大: 45G 已足够撑 128G, 留更多内存给系统/页缓存
+
+--- 2.5 每节点部署方案 ---
+每节点需:
+  DATA tmpfs × 2: /tmp/memdisk/osd0 (45G block file → loop → 45G)
+                  /tmp/memdisk/osd1 (45G block file → loop → 45G)
+  WAL/DB tmpfs × 2: /tmp/bs-db-osd0 (4G, 已有可复用)
+                    /tmp/bs-db-osd1 (4G, 已有可复用)
+  合计: 2×45 + 2×4 = 98G/节点
+
+部署方式: purge 重建（非在线拆分）
+理由: bluefs_single_shared_device=1 → 在线拆分 BlueFS 风险高（历史翻车: 删 symlink 致 CURRENT 损坏）;
+      purge 重建干净彻底, 指定 data=<DATA loop>, db_devices=<WAL/DB loop> 即可实现独立部署
+
+
+--- 1.5 池配置确认 ---
+EC profile: ec-prod, k=4, m=2 (EC 4+2), jerasure/reed_sol_van, w=8
+crush-failure-domain=osd, crush-root=default
+pool: pg_num=32, size=6, crush_rule=juicefs-data
+→ 与任务书要求一致 ✓
+
+--- 1.6 JuiceFS 挂载 ---
+当前挂载: /mnt/juicefs (pid 824504), cache=0 mu=150 max-readahead=0 (B组旧配置, 需 remount)
+残留数据: juicefs-data pool STORED=9.8 MiB (很小, 改部署 purge 后自动清空)

@@ -1,0 +1,28 @@
+bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+[18:11:13] ============================================================
+[18:11:13] Phase A: 基线（cache=0 mu=150，无 max-readahead）start Thu Jul  9 18:11:13 CST 2026
+[18:11:13] ============================================================
+[18:11:13] juicefs version: juicefs version 1.3.1+2025-12-02.e0032b2a
+[18:11:13] mount: JuiceFS:juicefs-memdisk on /mnt/juicefs type fuse.juicefs (rw,nosuid,nodev,relatime,user_id=0,group_id=0,default_permissions,allow_other,max_read=131072)
+[18:11:13] jfs proc: 4018153 /usr/local/bin/juicefs.v1.3.1 mount -d --cache-size 0 --max-uploads 150 tikv://192.168.11.12:2379/juicefs-memdisk /mnt/juicefs
+[18:11:13] cleaning test dirs
+[18:11:13] writing layout L_A (128x512M=64G, bs=4M, end_fsync=1)
+[18:21:04] layout L_A done: WRITE=112MiB/s
+[18:21:04] A randread r1 start
+[18:22:16] A randread r1 done: READ=50.7MiB/s
+[18:22:21] A randread r2 start
+[18:23:25] A randread r2 done: READ=50.8MiB/s
+[18:23:30] A randread r3 start
+[18:24:33] A randread r3 done: READ=51.0MiB/s
+[18:24:38] A randrw r1 start
+[18:25:41] A randrw r1 done: READ=45.3MiB/s WRITE=44.9MiB/s
+[18:25:46] A randrw r2 start
+[18:26:50] A randrw r2 done: READ=46.1MiB/s WRITE=45.6MiB/s
+[18:26:55] A randrw r3 start
+[18:27:58] A randrw r3 done: READ=45.8MiB/s WRITE=45.4MiB/s
+[18:28:03] A seqread prep (write 4G)
+[18:28:44] A seqread start
+[18:30:04] A seqread done: READ=101MiB/s
+[18:30:04] ============================================================
+[18:30:04] Phase A COMPLETE Thu Jul  9 18:30:04 CST 2026
+[18:30:04] ============================================================

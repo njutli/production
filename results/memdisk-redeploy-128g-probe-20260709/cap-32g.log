@@ -1,0 +1,54 @@
+=== cap-32g: ceph osd df ===
+ID  CLASS  WEIGHT   REWEIGHT  SIZE     RAW USE  DATA     OMAP    META     AVAIL    %USE   VAR   PGS  STATUS
+ 0    ssd  0.04779   1.00000   49 GiB   12 GiB  8.0 GiB   1 KiB  616 MiB   37 GiB  24.51  1.00   96      up
+ 1    ssd  0.04779   1.00000   49 GiB   12 GiB  8.0 GiB   1 KiB  893 MiB   37 GiB  24.51  1.00   97      up
+ 2    ssd  0.04779   1.00000   49 GiB   12 GiB  8.0 GiB   1 KiB  622 MiB   37 GiB  24.51  1.00   95      up
+ 3    ssd  0.04779   1.00000   49 GiB   12 GiB  8.0 GiB   1 KiB  901 MiB   37 GiB  24.51  1.00   98      up
+ 4    ssd  0.04779   1.00000   49 GiB   12 GiB  8.0 GiB   1 KiB  897 MiB   37 GiB  24.51  1.00  101      up
+ 5    ssd  0.04779   1.00000   49 GiB   12 GiB  8.0 GiB   1 KiB  896 MiB   37 GiB  24.51  1.00   92      up
+                       TOTAL  294 GiB   72 GiB   48 GiB  10 KiB  4.7 GiB  222 GiB  24.51                   
+MIN/MAX VAR: 1.00/1.00  STDDEV: 0
+
+=== cap-32g: ceph df ===
+--- RAW STORAGE ---
+CLASS     SIZE    AVAIL    USED  RAW USED  %RAW USED
+ssd    294 GiB  222 GiB  72 GiB    72 GiB      24.51
+TOTAL  294 GiB  222 GiB  72 GiB    72 GiB      24.51
+ 
+--- POOLS ---
+POOL                 ID  PGS   STORED  OBJECTS     USED  %USED  MAX AVAIL
+.rgw.root            48   32  3.0 KiB        6   72 KiB      0     69 GiB
+default.rgw.log      49   32  3.6 KiB      209  408 KiB      0     69 GiB
+default.rgw.control  50   32      0 B        8      0 B      0     69 GiB
+default.rgw.meta     51   32      0 B        0      0 B      0     69 GiB
+juicefs-data         54   32   32 GiB  131.11k   48 GiB  18.81    138 GiB
+.mgr                 55    1  748 KiB        2  2.2 MiB      0     69 GiB
+
+=== cap-32g: ceph health ===
+HEALTH_OK
+
+=== cap-32g: node1 (.11) free -g ===
+               total        used        free      shared  buff/cache   available
+Mem:             251           3         222          18          25         227
+Swap:              7           0           7
+=== cap-32g: node2 (.13) free -g ===
+               total        used        free      shared  buff/cache   available
+Mem:             251           4         223          18          24         227
+Swap:              7           0           7
+=== cap-32g: node3 (.14) free -g ===
+               total        used        free      shared  buff/cache   available
+Mem:             251           3         223          18          25         228
+Swap:              7           0           7
+
+=== cap-32g: node1 dmesg tail ===
+[1441250.695217] loop31: detected capacity change from 0 to 8388608
+[1441251.443009] blk_update_request: operation not supported error, dev loop21, sector 2048 op 0x9:(WRITE_ZEROES) flags 0x800800 phys_seg 0 prio class 0
+[1441252.112077] blk_update_request: operation not supported error, dev loop31, sector 2048 op 0x9:(WRITE_ZEROES) flags 0x800800 phys_seg 0 prio class 0
+=== cap-32g: node2 dmesg tail ===
+[1443430.406746] overlayfs: fs on '/home/turboai/.local/share/containers/storage/overlay/compat2525251222/lower1' does not support file handles, falling back to xino=off.
+[1443430.484925] overlayfs: fs on '/home/turboai/.local/share/containers/storage/overlay/metacopy-check651842762/l1' does not support file handles, falling back to xino=off.
+[1443430.488196] overlayfs: fs on '/home/turboai/.local/share/containers/storage/overlay/opaque-bug-check4045492413/l2' does not support file handles, falling back to xino=off.
+=== cap-32g: node3 dmesg tail ===
+[1442530.784313] loop31: detected capacity change from 0 to 8388608
+[1442531.583321] blk_update_request: operation not supported error, dev loop21, sector 2048 op 0x9:(WRITE_ZEROES) flags 0x800800 phys_seg 0 prio class 0
+[1442532.377312] blk_update_request: operation not supported error, dev loop31, sector 2048 op 0x9:(WRITE_ZEROES) flags 0x800800 phys_seg 0 prio class 0

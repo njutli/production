@@ -1,0 +1,33 @@
+# ops.log — 任务 12.1-步骤2 全量重测
+
+## 版本
+juicefs 1.3.1+2025-12-02.e0032b2a (patched)
+eno1: RX=col2 TX=col10 in /proc/net/dev
+
+## 挂载参数
+A组: juicefs mount -d --cache-size 0 --max-uploads 150 tikv://192.168.11.12:2379/juicefs-memdisk /mnt/juicefs
+B组: 同上 + --max-readahead 0
+
+## 时间线
+13:37 A组挂载
+13:38-13:42 A seq_dir: prep(38s) seqread(79s) seqwrite(38s)
+13:43-14:13 A multi-seqread(1187s) multi-seqwrite(588s)
+14:13-14:16 A 分时清理(gc+compact, 池回空)
+14:18-14:38 A layout 128G(1176s)
+14:38-14:50 A rand R1(80+68+63) R2(62+68+62) R3(63+68+63)
+14:51-14:55 A→B 切换(umount+gc+compact+remount ra0)
+14:56-14:59 B seq_dir: prep(38s) seqread(99s) seqwrite(38s)
+14:59-15:30 B multi-seqread(1186s) multi-seqwrite(588s)
+15:30-15:33 B 分时清理(池回空)
+15:33-15:53 B layout 128G(1176s)
+15:53-16:05 B rand R1(79+68+62) R2(62+67+63) R3(63+68+63)
+16:06-16:09 最终清理(删test_dir+gc+池回空+umount)
+
+## 净态复位记录
+clean-seq-A.txt: 顺序类后池回空 10MiB, 170GiB MAX AVAIL
+clean-between-AB.txt: A组全测完后池回空 10MiB, 170GiB MAX AVAIL, HEALTH_OK
+clean-seq-B.txt: B组顺序类后池回空 10MiB, 170GiB MAX AVAIL
+最终清理: 池回空 10MiB, HEALTH_OK, 6 up/in
+
+## 监控脚本
+/tmp/run_fio.sh: 自动采集 NIC(/proc/net/dev 差分) + juicefs stats + pidstat, 写入 A/ 或 B/ 子目录
