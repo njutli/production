@@ -1,0 +1,21 @@
+name = "__NODE_NAME__"
+data-dir = "/mnt/jfs-tikv/pd"
+
+client-urls = "http://0.0.0.0:2379"
+advertise-client-urls = "http://__NODE_IP__:2379"
+
+peer-urls = "http://0.0.0.0:2380"
+advertise-peer-urls = "http://__NODE_IP__:2380"
+
+# 3-node cluster — Raft group with 3 members.
+initial-cluster = "__INITIAL_CLUSTER__"
+initial-cluster-state = "new"
+
+[security]
+
+[log]
+level = "info"
+
+[replication]
+# 3 replicas across 3 TiKV nodes (Raft majority = 2, tolerates 1 node failure).
+max-replicas = 3
