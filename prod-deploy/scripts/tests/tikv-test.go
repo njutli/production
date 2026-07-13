@@ -11,7 +11,11 @@ import (
 )
 
 func main() {
-	pdAddrs := []string{"192.168.11.12:2379"}
+	pdAddr := os.Getenv("PD_ADDR")
+	if pdAddr == "" {
+		pdAddr = "127.0.0.1:2379"
+	}
+	pdAddrs := []string{pdAddr}
 
 	client, err := rawkv.NewClient(context.Background(), pdAddrs, config.Security{})
 	if err != nil {

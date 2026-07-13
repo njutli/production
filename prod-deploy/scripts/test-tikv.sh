@@ -93,12 +93,15 @@ echo "--- Part 2: RawKV Data Test (Go) ---"
 echo ""
 
 # Copy Go test to PRIMARY and run
-scp_to "${SCRIPT_DIR}/tests/tikv-test.go" "${FIRST}" "/tmp/tikv-test.go"
-scp_to "${SCRIPT_DIR}/tests/go.mod" "${FIRST}" "/tmp/go.mod"
-[ -f "${SCRIPT_DIR}/tests/go.sum" ] && scp_to "${SCRIPT_DIR}/tests/go.sum" "${FIRST}" "/tmp/go.sum" || true
+TEST_DIR="/home/${SSH_USER}/tikv-test"
+_run "${FIRST}" "mkdir -p ${TEST_DIR}" 2>/dev/null || true
+scp_to "${SCRIPT_DIR}/tests/tikv-test.go" "${FIRST}" "${TEST_DIR}/tikv-test.go"
+scp_to "${SCRIPT_DIR}/tests/go.mod" "${FIRST}" "${TEST_DIR}/go.mod"
+[ -f "${SCRIPT_DIR}/tests/go.sum" ] && scp_to "${SCRIPT_DIR}/tests/go.sum" "${FIRST}" "${TEST_DIR}/go.sum" || true
 
 result=$(_run "${FIRST}" "
-    cd /tmp
+    mkdir -p ${TEST_DIR}
+    cd ${TEST_DIR}
     # Ensure Go is available
     command -v go &>/dev/null || {
         echo '  Installing Go...'
@@ -111,12 +114,12 @@ result=$(_run "${FIRST}" "
     # Build
     echo 'Building test...'
     go mod tidy 2>&1 | tail -2 || true
-    go build -o /tmp/tikv-smoke-$$ tikv-test.go 2>&1 || { echo '  ERROR: build failed'; exit 1; }
+    go build -o ${TEST_DIR}/tikv-smoke tikv-test.go 2>&1 || { echo '  ERROR: build failed'; exit 1; }
 
     # Run
     unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
-    /tmp/tikv-smoke-$$; rc=\$?
-    rm -f /tmp/tikv-smoke-$$
+    PD_ADDR='${FIRST}:2379' ${TEST_DIR}/tikv-smoke; rc=\$?
+    rm -f ${TEST_DIR}/tikv-smoke
     exit \$rc
 " 2>/dev/null || echo "FAIL")
 
