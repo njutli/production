@@ -4,12 +4,14 @@ set -euo pipefail
 # ============================================================
 # Server Preparation
 #
-# Prepares a server for JuiceFS+TiKV+Ceph deployment:
-#   - Time sync (chrony)
-#   - NOPASSWD sudo
-#   - Essential packages
-#   - Firewall rules (TiKV + Ceph ports)
-#   - Mount nvme1n1 for TiKV (slaves) or cache (157)
+# 当前集群架构（4 机混部）：
+#   150-152 (slave):  TiKV+PD on nvme1n1 + Ceph OSD on nvme2n1/nvme3n1
+#   157    (client):  JuiceFS FUSE 客户端，nvme1n1 → cache
+#
+# 因此只有两个角色：
+#   slave  — 装全部包（含 Ceph 前置）、开全部防火墙端口、
+#             nvme1n1 → /mnt/jfs-tikv、清旧挂载、tmpfs DB/WAL
+#   client — 装基础包、nvme1n1 → /mnt/jfs-cache、不动 Ceph/TiKV
 #
 # Disk layout:
 #   157 (client):  nvme1n1(894G ext4) → /mnt/jfs-cache (JuiceFS cache)
@@ -18,13 +20,17 @@ set -euo pipefail
 #                  nvme3n1(7T XFS)    → Ceph OSD (wipe before deploy)
 #
 # 不设 MTU：100GbE 已 4200（WekaIO 设），10GbE 1500（默认）。
-# 红线：不动 100GbE 网卡/驱动参数。
+# 红线：不动 100GbE 网卡/驱动参数；不动 157 内核（WekaIO 红线）。
 #
 # Run on EACH server individually (via prepare-all-servers.sh).
-# Usage: sudo bash prepare-servers.sh tikv|ceph|client
+# Usage: sudo bash prepare-servers.sh slave|client
 # ============================================================
 
-ROLE="${1:-all}"
+ROLE="${1:-}"
+if [ "${ROLE}" != "slave" ] && [ "${ROLE}" != "client" ]; then
+    echo "Usage: sudo bash prepare-servers.sh slave|client"
+    exit 1
+fi
 
 if [ "$(id -u)" -ne 0 ]; then
     echo "This script must be run as root."
@@ -41,6 +47,9 @@ echo "========================================"
 # ============================================================
 # 1. Time synchronisation
 # ============================================================
+# TiKV PD (Raft) 和 Ceph MON (Paxos) 都依赖单调时钟做 leader
+# election 和 heartbeat timeout。时钟偏移 > 数秒即可触发误选举 /
+# 误判 OSD down → 不必要的数据恢复。chrony 优先，fallback ntp。
 
 echo ""
 echo ">>> Time synchronisation..."
@@ -72,18 +81,20 @@ fi
 echo "  Done."
 
 # ============================================================
-# 3. Install essential packages
+# 3. Install packages
 # ============================================================
 
 echo ""
-echo ">>> Installing essential packages..."
+echo ">>> Installing packages..."
 
+# Common packages (all nodes)
 DEBIAN_FRONTEND=noninteractive apt-get install -y \
     curl wget tar gzip build-essential \
     htop iotop iftop sysstat fio \
     >/dev/null 2>&1 || echo "  (some packages unavailable, continuing)"
 
-if [ "${ROLE}" = "ceph" ] || [ "${ROLE}" = "all" ]; then
+# Slave-only: Ceph prerequisites (cephadm/podman/root-SSH handled by deploy-ceph.sh)
+if [ "${ROLE}" = "slave" ]; then
     DEBIAN_FRONTEND=noninteractive apt-get install -y gdisk parted lvm2 podman >/dev/null 2>&1 || \
         echo "  (some ceph prerequisites unavailable, deploy-ceph.sh will retry)"
 fi
@@ -93,68 +104,58 @@ echo "  Packages installed."
 # ============================================================
 # 4. Firewall
 # ============================================================
+# 157 是客户端，FUSE 挂载是本地操作，不需要入站端口。
+# 150-152 同时提供 TiKV 和 Ceph 服务，需要全部端口。
 
 echo ""
 echo ">>> Configuring firewall (role=${ROLE})..."
 
-configure_firewall() {
-    local role=$1
-
-    if command -v ufw &>/dev/null && ufw status | grep -q 'Status: active'; then
-        echo "  Using UFW..."
-        if [ "${role}" = "tikv" ] || [ "${role}" = "all" ]; then
-            ufw allow 2379/tcp comment 'PD client'
-            ufw allow 2380/tcp comment 'PD peer'
-            ufw allow 20160/tcp comment 'TiKV server'
-            ufw allow 20180/tcp comment 'TiKV status'
-        fi
-        if [ "${role}" = "ceph" ] || [ "${role}" = "all" ]; then
-            ufw allow 3300/tcp comment 'Ceph MON'
-            ufw allow 6789/tcp comment 'Ceph MON v2'
-            ufw allow 6800:7300/tcp comment 'Ceph OSD'
-        fi
-    elif command -v firewall-cmd &>/dev/null; then
-        echo "  Using firewalld..."
-        if [ "${role}" = "tikv" ] || [ "${role}" = "all" ]; then
-            firewall-cmd --permanent --add-port=2379/tcp 2>/dev/null || true
-            firewall-cmd --permanent --add-port=2380/tcp 2>/dev/null || true
-            firewall-cmd --permanent --add-port=20160/tcp 2>/dev/null || true
-            firewall-cmd --permanent --add-port=20180/tcp 2>/dev/null || true
-        fi
-        if [ "${role}" = "ceph" ] || [ "${role}" = "all" ]; then
-            firewall-cmd --permanent --add-port=3300/tcp 2>/dev/null || true
-            firewall-cmd --permanent --add-port=6789/tcp 2>/dev/null || true
-            firewall-cmd --permanent --add-port=6800-7300/tcp 2>/dev/null || true
-        fi
-        firewall-cmd --reload 2>/dev/null || true
-    else
-        echo "  No firewall detected. Ports: TiKV(2379/2380/20160/20180) Ceph(3300/6789/6800-7300)"
+if command -v ufw &>/dev/null && ufw status | grep -q 'Status: active'; then
+    echo "  Using UFW..."
+    if [ "${ROLE}" = "slave" ]; then
+        ufw allow 2379/tcp comment 'PD client'
+        ufw allow 2380/tcp comment 'PD peer'
+        ufw allow 20160/tcp comment 'TiKV server'
+        ufw allow 20180/tcp comment 'TiKV status'
+        ufw allow 3300/tcp comment 'Ceph MON'
+        ufw allow 6789/tcp comment 'Ceph MON v2'
+        ufw allow 6800:7300/tcp comment 'Ceph OSD'
     fi
-}
-
-configure_firewall "${ROLE}"
+elif command -v firewall-cmd &>/dev/null; then
+    echo "  Using firewalld..."
+    if [ "${ROLE}" = "slave" ]; then
+        firewall-cmd --permanent --add-port=2379/tcp 2>/dev/null || true
+        firewall-cmd --permanent --add-port=2380/tcp 2>/dev/null || true
+        firewall-cmd --permanent --add-port=20160/tcp 2>/dev/null || true
+        firewall-cmd --permanent --add-port=20180/tcp 2>/dev/null || true
+        firewall-cmd --permanent --add-port=3300/tcp 2>/dev/null || true
+        firewall-cmd --permanent --add-port=6789/tcp 2>/dev/null || true
+        firewall-cmd --permanent --add-port=6800-7300/tcp 2>/dev/null || true
+    fi
+    firewall-cmd --reload 2>/dev/null || true
+else
+    if [ "${ROLE}" = "slave" ]; then
+        echo "  No firewall detected. Needed: TiKV(2379/2380/20160/20180) Ceph(3300/6789/6800-7300)"
+    else
+        echo "  No firewall detected. Client needs no inbound ports."
+    fi
+fi
 
 # ============================================================
-# 5. Mount nvme1n1 (TiKV data or JuiceFS cache)
+# 5. Mount nvme1n1
 # ============================================================
 
 echo ""
 echo ">>> Preparing nvme1n1 mount..."
 
-# nvme1n1 (ext4). Mount for JuiceFS use.
 DEV="/dev/nvme1n1"
 
-if [ "${ROLE}" = "tikv" ]; then
+if [ "${ROLE}" = "slave" ]; then
     MNT="/mnt/jfs-tikv"
     SUBDIRS="tikv pd"
 elif [ "${ROLE}" = "client" ]; then
     MNT="/mnt/jfs-cache"
     SUBDIRS=""
-else
-    # ceph role: nvme1n1 not used (OSD uses nvme2n1/nvme3n1)
-    # But if tikv+ceph co-located, mount for tikv too
-    MNT="/mnt/jfs-tikv"
-    SUBDIRS="tikv pd"
 fi
 
 if [ ! -b "${DEV}" ]; then
@@ -162,14 +163,12 @@ if [ ! -b "${DEV}" ]; then
     echo "  Available NVMe devices:"
     lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINT | grep nvme || true
 else
-    # Check if already ext4
     cur_fs=$(blkid -s TYPE -o value "${DEV}" 2>/dev/null || echo "")
     if [ "${cur_fs}" != "ext4" ]; then
         echo "  Formatting ${DEV} as ext4..."
         mkfs.ext4 -F "${DEV}"
     fi
 
-    # Mount if not already mounted
     if ! mountpoint -q "${MNT}" 2>/dev/null; then
         mkdir -p "${MNT}"
         mount -o defaults,noatime "${DEV}" "${MNT}"
@@ -182,24 +181,23 @@ else
         echo "  ${MNT} already mounted."
     fi
 
-    # Create subdirs
     for d in ${SUBDIRS}; do
         mkdir -p "${MNT}/${d}"
     done
 
-    # Clean up old mount point if present
-    if [ "${ROLE}" = "tikv" ] && mountpoint -q /mnt/beegfs-meta 2>/dev/null; then
-        echo "  Unmounting old metadata mount..."
+    # Clean up old BeeFS mount (slaves only)
+    if [ "${ROLE}" = "slave" ] && mountpoint -q /mnt/beegfs-meta 2>/dev/null; then
+        echo "  Unmounting old BeeFS metadata mount..."
         umount /mnt/beegfs-meta 2>/dev/null || true
         sed -i '/beegfs-meta/d' /etc/fstab 2>/dev/null || true
     fi
 fi
 
 # ============================================================
-# 6. Unmount old storage disks (slaves only)
+# 6. Unmount old storage + tmpfs DB/WAL (slaves only)
 # ============================================================
 
-if [ "${ROLE}" = "tikv" ] || [ "${ROLE}" = "ceph" ] || [ "${ROLE}" = "all" ]; then
+if [ "${ROLE}" = "slave" ]; then
     echo ""
     echo ">>> Cleaning up old storage mounts (if present)..."
 
@@ -211,7 +209,6 @@ if [ "${ROLE}" = "tikv" ] || [ "${ROLE}" = "ceph" ] || [ "${ROLE}" = "all" ]; th
         fi
     done
 
-    # nvme2n1/nvme3n1 will be wiped by deploy-ceph.sh before OSD creation
     echo "  OSD disks (nvme2n1, nvme3n1) will be wiped by deploy-ceph.sh."
 
     # Mount tmpfs for DB/WAL (test env: data loss acceptable, rebuildable)
@@ -220,11 +217,11 @@ if [ "${ROLE}" = "tikv" ] || [ "${ROLE}" = "ceph" ] || [ "${ROLE}" = "all" ]; th
         echo "  Mounting tmpfs for DB/WAL at ${CEPH_DB_WAL_MOUNT:-/mnt/dbwal}..."
         mkdir -p "${CEPH_DB_WAL_MOUNT:-/mnt/dbwal}"
         if ! mountpoint -q "${CEPH_DB_WAL_MOUNT:-/mnt/dbwal}" 2>/dev/null; then
-            mount -t tmpfs -o size=${CEPH_DB_WAL_TMPFS_SIZE:-200}M tmpfs "${CEPH_DB_WAL_MOUNT:-/mnt/dbwal}"
+            mount -t tmpfs -o size=${CEPH_DB_WAL_TMPFS_SIZE:-200G} tmpfs "${CEPH_DB_WAL_MOUNT:-/mnt/dbwal}"
             if ! grep -q " ${CEPH_DB_WAL_MOUNT:-/mnt/dbwal} " /etc/fstab 2>/dev/null; then
-                echo "tmpfs ${CEPH_DB_WAL_MOUNT:-/mnt/dbwal} tmpfs size=${CEPH_DB_WAL_TMPFS_SIZE:-200}M,mode=1777 0 0" >> /etc/fstab
+                echo "tmpfs ${CEPH_DB_WAL_MOUNT:-/mnt/dbwal} tmpfs size=${CEPH_DB_WAL_TMPFS_SIZE:-200G},mode=1777 0 0" >> /etc/fstab
             fi
-            echo "  tmpfs mounted at ${CEPH_DB_WAL_MOUNT:-/mnt/dbwal} (size=${CEPH_DB_WAL_TMPFS_SIZE:-200}M)"
+            echo "  tmpfs mounted at ${CEPH_DB_WAL_MOUNT:-/mnt/dbwal} (size=${CEPH_DB_WAL_TMPFS_SIZE:-200G})"
         else
             echo "  ${CEPH_DB_WAL_MOUNT:-/mnt/dbwal} already mounted."
         fi
@@ -257,10 +254,9 @@ echo ""
 echo "Checks:"
 echo "  Time sync:    $(systemctl is-active chrony 2>/dev/null || systemctl is-active systemd-timesyncd 2>/dev/null || echo 'UNKNOWN')"
 echo "  NOPASSWD:     $(sudo -n true 2>/dev/null && echo 'OK' || echo 'FAILED')"
-if [ "${ROLE}" = "tikv" ] || [ "${ROLE}" = "all" ]; then
+if [ "${ROLE}" = "slave" ]; then
     echo "  TiKV mount:   $(mountpoint -q /mnt/jfs-tikv 2>/dev/null && echo 'OK' || echo 'NOT MOUNTED')"
     echo "  DB/WAL tmpfs: $(mountpoint -q /mnt/dbwal 2>/dev/null && echo 'OK' || echo 'NOT MOUNTED')"
-fi
-if [ "${ROLE}" = "client" ]; then
+elif [ "${ROLE}" = "client" ]; then
     echo "  Cache mount:  $(mountpoint -q /mnt/jfs-cache 2>/dev/null && echo 'OK' || echo 'NOT MOUNTED')"
 fi

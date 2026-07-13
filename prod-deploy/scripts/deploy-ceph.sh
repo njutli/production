@@ -266,7 +266,7 @@ for i in "${!CEPH_SERVERS[@]}"; do
             # Ensure tmpfs mounted
             mountpoint -q \${DBWAL_MNT} 2>/dev/null || {
                 mkdir -p \${DBWAL_MNT}
-                mount -t tmpfs -o size=${CEPH_DB_WAL_TMPFS_SIZE:-200}M tmpfs \${DBWAL_MNT}
+                mount -t tmpfs -o size=${CEPH_DB_WAL_TMPFS_SIZE:-200G} tmpfs \${DBWAL_MNT}
             }
 
             # Create DB + WAL files on tmpfs

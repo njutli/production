@@ -122,7 +122,7 @@ CEPH_OSD_DEVICES_PER_NODE=( "/dev/nvme2n1" "/dev/nvme3n1" )  # 2 × 7T NVMe
 # 节点重启 = tmpfs 清空 = OSD 死亡（可接受，重建即可）
 CEPH_DB_WAL_TMPFS=true
 CEPH_DB_WAL_MOUNT="/mnt/dbwal"
-CEPH_DB_WAL_TMPFS_SIZE="200"          # MiB 单位给 tmpfs（200G；每节点 2 OSD × 50G = 100G，余量）
+CEPH_DB_WAL_TMPFS_SIZE="200G"         # tmpfs 大小（200G；每节点 2 OSD × 50G = 100G，余量）
 CEPH_DB_SIZE="40G"                    # 每个 OSD 的 RocksDB DB 大小
 CEPH_WAL_SIZE="10G"                   # 每个 OSD 的 WAL 大小
 
