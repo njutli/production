@@ -19,13 +19,16 @@ set -euo pipefail
 #   2. NOPASSWD sudo on all TiKV nodes (prepare-servers.sh)
 #   3. nvme1n1 mounted at /mnt/jfs-tikv (prepare-servers.sh)
 #
-# Usage: bash deploy-tikv.sh
+# Usage: bash deploy-tikv.sh [--yes]
 # ============================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_DIR="${SCRIPT_DIR}/config/tikv"
 
 source "${SCRIPT_DIR}/../config.sh"
+
+AUTO_YES=false
+[ "${1:-}" = "--yes" ] && AUTO_YES=true
 
 # Build initial-cluster string: pd-1=http://IP1:2380,pd-2=http://IP2:2380,...
 INITIAL_CLUSTER=""
@@ -73,8 +76,12 @@ done
 ${all_ok} || { echo "ERROR: mount not ready on some nodes."; exit 1; }
 echo ""
 
-read -rp "Continue with deployment? [y/N] " confirm
-[[ "${confirm}" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 0; }
+if [ "${AUTO_YES}" = true ]; then
+    echo ">>> Auto-confirmed (--yes)"
+else
+    read -rp "Continue with deployment? [y/N] " confirm
+    [[ "${confirm}" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 0; }
+fi
 
 # ============================================================
 # Download binaries on each node (remote wget)
@@ -152,21 +159,21 @@ for i in "${!TIKV_SERVERS[@]}"; do
 
         # --- Install PD ---
         echo '>>> Installing PD...'
-        mkdir -p /opt/pd/bin /opt/pd/conf ${PD_DATA_DIR} /var/log/pd
+        sudo mkdir -p /opt/pd/bin /opt/pd/conf ${PD_DATA_DIR} /var/log/pd
         cd /tmp/tikv-deploy
         tar xzf ${PD_TAR}
-        mv -f pd-server /opt/pd/bin/
-        mv /tmp/pd.toml /opt/pd/conf/pd.toml
-        chown -R root:root /opt/pd ${PD_DATA_DIR} /var/log/pd
+        sudo mv -f pd-server /opt/pd/bin/
+        sudo mv /tmp/pd.toml /opt/pd/conf/pd.toml
+        sudo chown -R root:root /opt/pd ${PD_DATA_DIR} /var/log/pd
 
         # --- Install TiKV ---
         echo '>>> Installing TiKV...'
-        mkdir -p /opt/tikv/bin /opt/tikv/conf ${TIKV_DATA_DIR} /var/log/tikv
+        sudo mkdir -p /opt/tikv/bin /opt/tikv/conf ${TIKV_DATA_DIR} /var/log/tikv
         tar xzf ${TIKV_TAR}
-        mv -f tikv-server /opt/tikv/bin/
-        ln -sf /opt/tikv/bin/tikv-server /opt/tikv/bin/tikv-ctl
-        mv /tmp/tikv.toml /opt/tikv/conf/tikv.toml
-        chown -R root:root /opt/tikv ${TIKV_DATA_DIR} /var/log/tikv
+        sudo mv -f tikv-server /opt/tikv/bin/
+        sudo ln -sf /opt/tikv/bin/tikv-server /opt/tikv/bin/tikv-ctl
+        sudo mv /tmp/tikv.toml /opt/tikv/conf/tikv.toml
+        sudo chown -R root:root /opt/tikv ${TIKV_DATA_DIR} /var/log/tikv
         echo '  Binaries installed.'
     " || { echo "  ERROR: install failed on ${ip}"; exit 1; }
 done
@@ -180,7 +187,7 @@ echo ">>> Creating systemd units on all nodes..."
 
 for ip in "${TIKV_SERVERS[@]}"; do
     # PD service unit
-    _run "${ip}" "cat > /etc/systemd/system/pd.service <<'UNIT'
+    _run "${ip}" "sudo tee /etc/systemd/system/pd.service > /dev/null <<'UNIT'
 [Unit]
 Description=PD (Placement Driver)
 After=network.target
@@ -198,7 +205,7 @@ WantedBy=multi-user.target
 UNIT"
 
     # TiKV service unit
-    _run "${ip}" "cat > /etc/systemd/system/tikv.service <<'UNIT'
+    _run "${ip}" "sudo tee /etc/systemd/system/tikv.service > /dev/null <<'UNIT'
 [Unit]
 Description=TiKV Server
 After=network.target pd.service
@@ -216,7 +223,7 @@ LimitNOFILE=1000000
 WantedBy=multi-user.target
 UNIT"
 
-    _run "${ip}" "systemctl daemon-reload && systemctl enable pd tikv"
+    _run "${ip}" "sudo systemctl daemon-reload && sudo systemctl enable pd tikv"
 done
 
 # ============================================================
@@ -228,7 +235,7 @@ echo ">>> Starting PD on all 3 nodes..."
 
 for ip in "${TIKV_SERVERS[@]}"; do
     echo "  starting PD on ${ip}..."
-    _run "${ip}" "systemctl restart pd" 2>/dev/null || true
+    _run "${ip}" "sudo systemctl restart pd" 2>/dev/null || true
 done
 
 echo "  Waiting for PD Raft bootstrap (10s)..."
@@ -256,7 +263,7 @@ echo ">>> Starting TiKV on all 3 nodes..."
 
 for ip in "${TIKV_SERVERS[@]}"; do
     echo "  starting TiKV on ${ip}..."
-    _run "${ip}" "systemctl restart tikv" 2>/dev/null || true
+    _run "${ip}" "sudo systemctl restart tikv" 2>/dev/null || true
 done
 
 echo "  Waiting for TiKV to register with PD (15s)..."
