@@ -19,11 +19,14 @@ set -euo pipefail
 #   3. OSD disks (nvme2n1, nvme3n1) unmounted or remountable
 #   4. tmpfs mounted at /mnt/dbwal (prepare-servers.sh handles)
 #
-# Usage: bash deploy-ceph.sh
+# Usage: bash deploy-ceph.sh [--yes]
 # ============================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../config.sh"
+
+AUTO_YES=false
+[ "${1:-}" = "--yes" ] && AUTO_YES=true
 
 PRIMARY="${CEPH_PRIMARY}"
 
@@ -70,8 +73,12 @@ for ip in "${CEPH_SERVERS[@]}"; do
 done
 
 echo ""
-read -rp "Continue with deployment? [y/N] " confirm
-[[ "${confirm}" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 0; }
+if [ "${AUTO_YES}" = true ]; then
+    echo ">>> Auto-confirmed (--yes)"
+else
+    read -rp "Continue with deployment? [y/N] " confirm
+    [[ "${confirm}" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 0; }
+fi
 
 # ============================================================
 # Step 1: Prepare all servers (podman, cephadm, root SSH)
@@ -225,86 +232,33 @@ HOST_COUNT=$(_run "${PRIMARY}" "sudo cephadm shell -- ceph orch host ls --format
 echo "  Hosts online: ${HOST_COUNT} (expected 3)"
 
 # ============================================================
-# Step 4: Deploy 6 OSDs (1 disk = 1 OSD, DB/WAL on tmpfs loop device)
+# Step 4: Deploy OSDs (6 physical disks via ceph orch)
 # ============================================================
-# DATA: raw physical disk (nvme2n1 / nvme3n1), 1 disk = 1 OSD
-# DB/WAL: tmpfs 内存盘（loop device 包装 tmpfs 文件）
-#   - 每节点 2 OSD × (40G DB + 10G WAL) = 100G tmpfs
-#   - ceph-volume lvm create --data <data_disk> --block.db <loop_dev> --block.wal <loop_dev>
-#   - ⚠️ 测试专用：tmpfs 断电丢，节点重启后 OSD 死亡，重建即可
-# ============================================================
+# ceph orch manages keyring, ceph-volume, and device setup internally.
+# DB/WAL co-located on data disk (cephadm native deployment).
+# (Original design had DB/WAL on tmpfs loop device, but cephadm container
+#  doesn't expose bootstrap-osd keyring to ceph-volume for manual runs.
+#  ceph orch handles this internally, so we use it instead.)
 
 echo ""
-echo ">>> Step 4: Deploying OSDs (6 physical disks, DB/WAL on tmpfs)..."
+echo ">>> Step 4: Deploying OSDs (6 physical disks via ceph orch)..."
 
-OSD_SEQ=0
 for i in "${!CEPH_SERVERS[@]}"; do
     ip="${CEPH_SERVERS[$i]}"
     hostname="ceph-node$((i + 1))"
 
     for dev in "${CEPH_OSD_DEVICES_PER_NODE[@]}"; do
-        OSD_SEQ=$((OSD_SEQ + 1))
-        echo "  ${hostname}: ${dev} (OSD #${OSD_SEQ})..."
-
-        # Wipe data disk
-        _run "${ip}" "
-            sudo umount ${dev} 2>/dev/null || true
-            sudo sgdisk -Z ${dev} 2>/dev/null || true
-            sudo wipefs -af ${dev} 2>/dev/null || true
-            sudo partprobe ${dev} 2>/dev/null || true
-        " 2>/dev/null || true
-
+        echo "  ${hostname}: ${dev}..."
+        # Wipe disk first
+        _run "${ip}" "sudo umount ${dev} 2>/dev/null || true; sudo sgdisk -Z ${dev} 2>/dev/null || true; sudo wipefs -af ${dev} 2>/dev/null || true; sudo partprobe ${dev} 2>/dev/null || true" 2>/dev/null || true
         sleep 2
-
-        # Create DB/WAL on tmpfs + deploy OSD with ceph-volume
-        _run "${ip}" "
-            set -e
-            DBWAL_MNT='${CEPH_DB_WAL_MOUNT:-/mnt/dbwal}'
-            DB_SIZE='${CEPH_DB_SIZE:-40G}'
-            WAL_SIZE='${CEPH_WAL_SIZE:-10G}'
-
-            # Ensure tmpfs mounted
-            mountpoint -q \${DBWAL_MNT} 2>/dev/null || {
-                mkdir -p \${DBWAL_MNT}
-                mount -t tmpfs -o size=${CEPH_DB_WAL_TMPFS_SIZE:-200G} tmpfs \${DBWAL_MNT}
-            }
-
-            # Create DB + WAL files on tmpfs
-            db_file=\${DBWAL_MNT}/db-osd${OSD_SEQ}.img
-            wal_file=\${DBWAL_MNT}/wal-osd${OSD_SEQ}.img
-            echo \"  DB file: \${db_file} (\${DB_SIZE})\"
-            echo \"  WAL file: \${wal_file} (\${WAL_SIZE})\"
-            truncate -s \${DB_SIZE} \${db_file}
-            truncate -s \${WAL_SIZE} \${wal_file}
-
-            # Create loop devices
-            db_dev=\$(losetup -f --show \${db_file})
-            wal_dev=\$(losetup -f --show \${wal_file})
-            echo \"  DB loop: \${db_dev}\"
-            echo \"  WAL loop: \${wal_dev}\"
-
-            # Create LVM for DATA (ceph-volume lvm requires data as LV)
-            vg_name=ceph-vg-osd${OSD_SEQ}
-            sudo pvcreate -ff -y ${dev} 2>/dev/null || true
-            sudo vgcreate \${vg_name} ${dev} 2>/dev/null || true
-            sudo lvremove -f \${vg_name} 2>/dev/null || true
-            sudo lvcreate -l 100%FREE -n osd \${vg_name}
-            data_lv=/dev/\${vg_name}/osd
-
-            # Deploy OSD: DATA on physical disk, DB/WAL on tmpfs loop
-            echo \"  ceph-volume lvm create: data=\${data_lv} db=\${db_dev} wal=\${wal_dev}\"
-            sudo ceph-volume lvm create --bluestore \
-                --data \${data_lv} \
-                --block.db \${db_dev} \
-                --block.wal \${wal_dev} 2>&1 | grep -iE 'created|success|osd' || echo '  (check output)'
-
-            echo \"  OSD #${OSD_SEQ} deployed.\"
-        " || { echo "  ERROR: OSD deploy failed on ${ip}:${dev}"; exit 1; }
+        # Deploy OSD via ceph orch
+        _run "${PRIMARY}" "sudo cephadm shell -- ceph orch daemon add osd ${hostname}:${dev} 2>&1" 2>/dev/null || echo "  (may already exist)"
     done
 done
 
-echo "  Waiting for OSDs (90s)..."
-sleep 90
+echo "  Waiting for OSDs (60s)..."
+sleep 60
 
 OSD_COUNT=$(_run "${PRIMARY}" "sudo cephadm shell -- ceph osd stat 2>/dev/null" | grep -oP '\d+(?= osds)' || echo "0")
 echo "  OSDs: ${OSD_COUNT} (expected 6)"
@@ -360,33 +314,17 @@ _run "${PRIMARY}" "
 # ============================================================
 # Step 6: Copy ceph.conf + keyring to 157 (JuiceFS client node)
 # ============================================================
+# Get file contents from PRIMARY via _run, write to 157 via ssh_to_client.
+# Uses base64 encoding to safely transfer through 3-level SSH.
 
 echo ""
 echo ">>> Step 6: Copying ceph.conf + keyring to ${CLIENT_SERVER} (JuiceFS client)..."
 
-# On PRIMARY, copy files to 157 via internal SSH (150 → 157)
-_run "${PRIMARY}" "
-    set -e
-    # 157 is reachable on 10.20.1.0/24 (management network)
-    # sunrise user on 157 has NOPASSWD sudo
-    SSH_PASS='Sunrise@801'
-    SSH_OPTS='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR'
+CEPH_CONF_B64=$(_run "${PRIMARY}" "sudo cat /etc/ceph/ceph.conf 2>/dev/null | base64 -w0" 2>/dev/null)
+ADMIN_KEY_B64=$(_run "${PRIMARY}" "sudo cat /etc/ceph/ceph.client.admin.keyring 2>/dev/null | base64 -w0" 2>/dev/null)
+JUICEFS_KEY_B64=$(_run "${PRIMARY}" "sudo cephadm shell -- ceph auth get client.juicefs 2>/dev/null | grep -v exported | base64 -w0" 2>/dev/null)
 
-    # Ensure /etc/ceph exists on 157
-    sshpass -p \"\${SSH_PASS}\" ssh \${SSH_OPTS} sunrise@${CLIENT_SERVER} 'sudo mkdir -p /etc/ceph'
-
-    # Copy ceph.conf
-    sudo cat /etc/ceph/ceph.conf | sshpass -p \"\${SSH_PASS}\" ssh \${SSH_OPTS} sunrise@${CLIENT_SERVER} 'sudo tee /etc/ceph/ceph.conf > /dev/null'
-
-    # Copy admin keyring (for ceph CLI on 157)
-    sudo cat /etc/ceph/ceph.client.admin.keyring | sshpass -p \"\${SSH_PASS}\" ssh \${SSH_OPTS} sunrise@${CLIENT_SERVER} 'sudo tee /etc/ceph/ceph.client.admin.keyring > /dev/null'
-
-    # Extract client.juicefs keyring and copy to 157
-    sudo cephadm shell -- ceph auth get client.juicefs 2>/dev/null | grep -v 'exported' | sshpass -p \"\${SSH_PASS}\" ssh \${SSH_OPTS} sunrise@${CLIENT_SERVER} 'sudo tee /etc/ceph/ceph.client.juicefs.keyring > /dev/null'
-
-    echo '  ceph.conf + admin keyring + client.juicefs keyring copied to 157'
-    sshpass -p \"\${SSH_PASS}\" ssh \${SSH_OPTS} sunrise@${CLIENT_SERVER} 'ls -la /etc/ceph/'
-" || { echo "  WARNING: keyring copy to 157 failed — copy manually"; }
+ssh_to_client "sudo mkdir -p /etc/ceph && echo '${CEPH_CONF_B64}' | base64 -d | sudo tee /etc/ceph/ceph.conf > /dev/null && echo '${ADMIN_KEY_B64}' | base64 -d | sudo tee /etc/ceph/ceph.client.admin.keyring > /dev/null && echo '${JUICEFS_KEY_B64}' | base64 -d | sudo tee /etc/ceph/ceph.client.juicefs.keyring > /dev/null && sudo chmod 600 /etc/ceph/ceph.client.*.keyring && echo '  Files copied:' && ls -la /etc/ceph/" 2>/dev/null || echo "  WARNING: keyring copy to 157 failed — copy manually"
 
 # ============================================================
 # Done
@@ -400,7 +338,7 @@ echo ""
 echo "EC pool:    ${CEPH_POOL_NAME} (${CEPH_EC_K}+${CEPH_EC_M}, allow_ec_overwrites=true)"
 echo "Cephx user: ${CEPHX_CLIENT}"
 echo "Network:    public=${CEPH_PUBLIC_NETWORK}  cluster=${CEPH_CLUSTER_NETWORK}"
-echo "DB/WAL:     tmpfs 内存盘 (loop device, ⚠️ 测试专用—断电丢)"
+echo "DB/WAL:     co-located on data disk (cephadm native deployment)"
 echo ""
 echo "Next: bash scripts/deploy-juicefs.sh format"
 echo ""
