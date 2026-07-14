@@ -50,7 +50,7 @@ check_ceph_pool() {
     result=$(ssh_to_client "
         if [ ! -f /etc/ceph/ceph.conf ] || [ ! -f /etc/ceph/ceph.client.juicefs.keyring ]; then
             echo 'MISSING keyring'
-        elif ceph --name ${CEPHX_CLIENT} --keyring /etc/ceph/ceph.client.juicefs.keyring osd pool ls 2>/dev/null | grep -q '${POOL}'; then
+        elif sudo ceph --name ${CEPHX_CLIENT} --keyring /etc/ceph/ceph.client.juicefs.keyring osd pool ls 2>/dev/null | grep -q '${POOL}'; then
             echo 'OK'
         else
             echo 'UNREACHABLE'
@@ -145,6 +145,7 @@ do_format() {
                 --bucket 'ceph://${POOL}' \
                 --access-key 'ceph' \
                 --secret-key '${CEPHX_CLIENT}' \
+                --block-size 256K \
                 --trash-days 0 \
                 '${METADATA_URL}' \
                 '${JUICEFS_FS_NAME}'

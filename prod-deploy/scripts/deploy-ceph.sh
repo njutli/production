@@ -19,11 +19,14 @@ set -euo pipefail
 #   3. OSD disks (nvme2n1, nvme3n1) unmounted or remountable
 #   4. tmpfs mounted at /mnt/dbwal (prepare-servers.sh handles)
 #
-# Usage: bash deploy-ceph.sh
+# Usage: bash deploy-ceph.sh [--yes]
 # ============================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../config.sh"
+
+AUTO_YES=false
+[ "${1:-}" = "--yes" ] && AUTO_YES=true
 
 PRIMARY="${CEPH_PRIMARY}"
 
@@ -70,8 +73,12 @@ for ip in "${CEPH_SERVERS[@]}"; do
 done
 
 echo ""
-read -rp "Continue with deployment? [y/N] " confirm
-[[ "${confirm}" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 0; }
+if [ "${AUTO_YES}" = true ]; then
+    echo ">>> Auto-confirmed (--yes)"
+else
+    read -rp "Continue with deployment? [y/N] " confirm
+    [[ "${confirm}" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 0; }
+fi
 
 # ============================================================
 # Step 1: Prepare all servers (podman, cephadm, root SSH)
@@ -105,6 +112,9 @@ for i in "${!CEPH_SERVERS[@]}"; do
 
         # Install disk tools
         command -v sgdisk &>/dev/null || sudo DEBIAN_FRONTEND=noninteractive apt-get install -y gdisk parted 2>/dev/null || true
+
+        # Ensure ceph-volume is available (for OSD deployment in Step 4)
+        command -v ceph-volume &>/dev/null || sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ceph-osd 2>/dev/null || true
 
         # Stop docker if present (conflicts with podman)
         sudo systemctl stop docker docker.socket 2>/dev/null || true
@@ -151,7 +161,7 @@ _run "${PRIMARY}" "
     else
         echo '  Running cephadm bootstrap...'
         sudo cephadm bootstrap \
-            --mon-ip ${PRIMARY} \
+            --mon-ip ${CEPH_PRIMARY_MON_IP} \
             --allow-fqdn-hostname \
             --skip-prepare-host \
             --skip-dashboard \
@@ -170,6 +180,10 @@ echo ">>> Step 2b: Configuring dual network..."
 _run "${PRIMARY}" "
     sudo cephadm shell -- ceph config set global public_network '${CEPH_PUBLIC_NETWORK}' 2>/dev/null || true
     sudo cephadm shell -- ceph config set global cluster_network '${CEPH_CLUSTER_NETWORK}' 2>/dev/null || true
+    # mon 级别覆盖：bootstrap 会设 mon public_network = MON IP 所在网段
+    # 必须显式设为目标 public_network，否则 mon 一直用 bootstrap 时的网段
+    sudo cephadm shell -- ceph config set mon public_network '${CEPH_PUBLIC_NETWORK}' 2>/dev/null || true
+    sudo cephadm shell -- ceph config set mon cluster_network '${CEPH_CLUSTER_NETWORK}' 2>/dev/null || true
     echo '  public_network  = ${CEPH_PUBLIC_NETWORK}  (${PUBLIC_NIC})'
     echo '  cluster_network = ${CEPH_CLUSTER_NETWORK}  (${CLUSTER_NIC})'
 "
@@ -225,17 +239,36 @@ HOST_COUNT=$(_run "${PRIMARY}" "sudo cephadm shell -- ceph orch host ls --format
 echo "  Hosts online: ${HOST_COUNT} (expected 3)"
 
 # ============================================================
-# Step 4: Deploy 6 OSDs (1 disk = 1 OSD, DB/WAL on tmpfs loop device)
+# Step 3b: Extract bootstrap-osd keyring for ceph-volume
 # ============================================================
-# DATA: raw physical disk (nvme2n1 / nvme3n1), 1 disk = 1 OSD
-# DB/WAL: tmpfs 内存盘（loop device 包装 tmpfs 文件）
-#   - 每节点 2 OSD × (40G DB + 10G WAL) = 100G tmpfs
-#   - ceph-volume lvm create --data <data_disk> --block.db <loop_dev> --block.wal <loop_dev>
-#   - ⚠️ 测试专用：tmpfs 断电丢，节点重启后 OSD 死亡，重建即可
+# cephadm stores keyring inside /var/lib/ceph/<fsid>/, but ceph-volume
+# (running on host) looks at /var/lib/ceph/bootstrap-osd/ceph.keyring.
+# Extract from Ceph auth DB and place at the expected path on all nodes.
+
+echo ""
+echo ">>> Step 3b: Extracting bootstrap-osd keyring for ceph-volume..."
+BOSD_KEYRING=$(_run "${PRIMARY}" "sudo cephadm shell -- ceph auth get client.bootstrap-osd 2>/dev/null | grep -v exported" 2>/dev/null)
+if [ -n "${BOSD_KEYRING}" ]; then
+    BOSD_B64=$(echo "${BOSD_KEYRING}" | base64 -w0)
+    for ip in "${CEPH_SERVERS[@]}"; do
+        echo -n "  ${ip}: "
+        _run "${ip}" "sudo mkdir -p /var/lib/ceph/bootstrap-osd && echo '${BOSD_B64}' | base64 -d | sudo tee /var/lib/ceph/bootstrap-osd/ceph.keyring > /dev/null && sudo chmod 600 /var/lib/ceph/bootstrap-osd/ceph.keyring && echo OK" 2>/dev/null
+    done
+else
+    echo "  WARNING: Could not extract bootstrap-osd keyring"
+fi
+
+# ============================================================
+# Step 4: Deploy 6 OSDs via ceph orch (DATA on NVMe, DB/WAL on tmpfs)
+# ============================================================
+# DATA: NVMe → PV → VG → LV
+# DB/WAL: tmpfs → file → loop → PV → VG → LV
+# 三者均为 LV，通过 ceph orch daemon add osd 一步部署
+# OSD 由 cephadm 容器管理（非宿主机进程），HEALTH_OK 无 stray daemon
 # ============================================================
 
 echo ""
-echo ">>> Step 4: Deploying OSDs (6 physical disks, DB/WAL on tmpfs)..."
+echo ">>> Step 4: Deploying OSDs (ceph orch, DATA on NVMe, DB/WAL on tmpfs)..."
 
 OSD_SEQ=0
 for i in "${!CEPH_SERVERS[@]}"; do
@@ -256,7 +289,7 @@ for i in "${!CEPH_SERVERS[@]}"; do
 
         sleep 2
 
-        # Create DB/WAL on tmpfs + deploy OSD with ceph-volume
+        # Prepare DATA/DB/WAL LVs on the target node
         _run "${ip}" "
             set -e
             DBWAL_MNT='${CEPH_DB_WAL_MOUNT:-/mnt/dbwal}'
@@ -264,42 +297,55 @@ for i in "${!CEPH_SERVERS[@]}"; do
             WAL_SIZE='${CEPH_WAL_SIZE:-10G}'
 
             # Ensure tmpfs mounted
-            mountpoint -q \${DBWAL_MNT} 2>/dev/null || {
-                mkdir -p \${DBWAL_MNT}
-                mount -t tmpfs -o size=${CEPH_DB_WAL_TMPFS_SIZE:-200G} tmpfs \${DBWAL_MNT}
+            sudo mountpoint -q \${DBWAL_MNT} 2>/dev/null || {
+                sudo mkdir -p \${DBWAL_MNT}
+                sudo mount -t tmpfs -o size=${CEPH_DB_WAL_TMPFS_SIZE:-200G} tmpfs \${DBWAL_MNT}
             }
 
             # Create DB + WAL files on tmpfs
             db_file=\${DBWAL_MNT}/db-osd${OSD_SEQ}.img
             wal_file=\${DBWAL_MNT}/wal-osd${OSD_SEQ}.img
-            echo \"  DB file: \${db_file} (\${DB_SIZE})\"
-            echo \"  WAL file: \${wal_file} (\${WAL_SIZE})\"
-            truncate -s \${DB_SIZE} \${db_file}
-            truncate -s \${WAL_SIZE} \${wal_file}
+            sudo rm -f \${db_file} \${wal_file}
+            sudo truncate -s \${DB_SIZE} \${db_file}
+            sudo truncate -s \${WAL_SIZE} \${wal_file}
 
-            # Create loop devices
-            db_dev=\$(losetup -f --show \${db_file})
-            wal_dev=\$(losetup -f --show \${wal_file})
-            echo \"  DB loop: \${db_dev}\"
-            echo \"  WAL loop: \${wal_dev}\"
+            # Create loop devices + LVM LVs for DB/WAL
+            db_loop=\$(sudo losetup -f --show \${db_file})
+            wal_loop=\$(sudo losetup -f --show \${wal_file})
+            db_vg=ceph-vg-db${OSD_SEQ}
+            wal_vg=ceph-vg-wal${OSD_SEQ}
+            sudo pvcreate -ff -y \${db_loop} 2>/dev/null || true
+            sudo pvcreate -ff -y \${wal_loop} 2>/dev/null || true
+            sudo vgcreate \${db_vg} \${db_loop} 2>/dev/null || true
+            sudo vgcreate \${wal_vg} \${wal_loop} 2>/dev/null || true
+            sudo lvremove -f \${db_vg} 2>/dev/null || true
+            sudo lvremove -f \${wal_vg} 2>/dev/null || true
+            sudo lvcreate -l 100%FREE -n osd-db \${db_vg}
+            sudo lvcreate -l 100%FREE -n osd-wal \${wal_vg}
+            sudo dmsetup mknodes 2>/dev/null || true
+            echo \"  DB LV: /dev/\${db_vg}/osd-db (on \${db_loop})\"
+            echo \"  WAL LV: /dev/\${wal_vg}/osd-wal (on \${wal_loop})\"
 
-            # Create LVM for DATA (ceph-volume lvm requires data as LV)
-            vg_name=ceph-vg-osd${OSD_SEQ}
+            # Create LVM LV for DATA
+            data_vg=ceph-vg-osd${OSD_SEQ}
             sudo pvcreate -ff -y ${dev} 2>/dev/null || true
-            sudo vgcreate \${vg_name} ${dev} 2>/dev/null || true
-            sudo lvremove -f \${vg_name} 2>/dev/null || true
-            sudo lvcreate -l 100%FREE -n osd \${vg_name}
-            data_lv=/dev/\${vg_name}/osd
+            sudo vgcreate \${data_vg} ${dev} 2>/dev/null || true
+            sudo lvremove -f \${data_vg} 2>/dev/null || true
+            sudo lvcreate -l 100%FREE -n osd \${data_vg}
+            echo \"  DATA LV: /dev/\${data_vg}/osd\"
+        " || { echo "  ERROR: LV preparation failed on ${ip}:${dev}"; exit 1; }
 
-            # Deploy OSD: DATA on physical disk, DB/WAL on tmpfs loop
-            echo \"  ceph-volume lvm create: data=\${data_lv} db=\${db_dev} wal=\${wal_dev}\"
-            sudo ceph-volume lvm create --bluestore \
-                --data \${data_lv} \
-                --block.db \${db_dev} \
-                --block.wal \${wal_dev} 2>&1 | grep -iE 'created|success|osd' || echo '  (check output)'
-
-            echo \"  OSD #${OSD_SEQ} deployed.\"
-        " || { echo "  ERROR: OSD deploy failed on ${ip}:${dev}"; exit 1; }
+        # Deploy OSD via ceph orch (cephadm-managed container)
+        data_lv="/dev/ceph-vg-osd${OSD_SEQ}/osd"
+        db_lv="/dev/ceph-vg-db${OSD_SEQ}/osd-db"
+        wal_lv="/dev/ceph-vg-wal${OSD_SEQ}/osd-wal"
+        echo "  Deploying via ceph orch: data=${data_lv} db=${db_lv} wal=${wal_lv}"
+        result=$(_run "${PRIMARY}" "sudo cephadm shell -- ceph orch daemon add osd ${hostname}:data_devices=${data_lv},db_devices=${db_lv},wal_devices=${wal_lv} 2>&1" 2>/dev/null)
+        if echo "${result}" | grep -q "Created"; then
+            echo "  ${result}" | grep "Created"
+        else
+            echo "  WARNING: ${result}"
+        fi
     done
 done
 

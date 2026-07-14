@@ -89,8 +89,25 @@
 | failure-domain | `osd` | 3 节点 6 OSD，osd 级容错 |
 | allow_ec_overwrites | `true` | JuiceFS 整对象写不触发 RMW |
 | pg_num | 32 | 6 OSD 测试环境 |
-| DB/WAL | tmpfs 内存盘（loop device） | ⚠️ 无剩余物理 NVMe；tmpfs 断电丢，重建即可 |
+| DB/WAL | tmpfs 内存盘（loop device + LVM LV） | ⚠️ 无剩余物理 NVMe；tmpfs 断电丢，重建即可 |
 | 网络 | public=10.3.1.0/24 / cluster=10.3.2.0/24 | 双网 100GbE 分离 |
+
+### OSD 部署架构（cephadm 容器化）
+
+所有 Ceph 守护进程（MON/MGR/OSD）均由 cephadm 以容器方式管理。宿主机设备通过 podman `-v /dev:/dev` 传递到容器中：
+
+```
+存储节点（150-152，每节点 2 个 OSD）
+├── DATA:  NVMe 盘 → PV → VG → LV → 传给容器作 --data
+├── DB:    tmpfs 文件 → loop 设备 → PV → VG → LV → 传给容器作 --block.db
+└── WAL:   tmpfs 文件 → loop 设备 → PV → VG → LV → 传给容器作 --block.wal
+```
+
+三者均为 LV，统一格式，cephadm/ceph-volume 均可识别。
+
+> **与老集群的差异**：老集群一个节点一个数据盘分两个 LV 给两个 OSD，DB/WAL co-located。
+> 新集群一个节点两个 NVMe 盘各给一个 OSD，DB/WAL 单独放在 tmpfs 内存盘上（loop + LVM LV）。
+> 两者的部署原理一致：都是 cephadm 容器 + cephadm ceph-volume + LV 传参。
 
 ## 六、TiKV 配置
 
@@ -178,12 +195,12 @@ bash scripts/limit-bandwidth.sh remove    # 恢复 100GbE
 
 | 测试项 | 参数 |
 |--------|------|
-| seqread | 1 job, bs=256K, direct=1 |
-| seqwrite | 1 job, bs=256K, direct=1, end_fsync=1 |
-| multi-seqread | 16 jobs, bs=256K |
-| multi-seqwrite | 16 jobs, bs=256K, end_fsync=1 |
+| seqread | 1 job, bs=256K, direct=1, psync, iodepth=1, 180s |
+| seqwrite | 1 job, bs=4M, direct=1, psync, iodepth=1, end_fsync=1 |
+| multi-seqread | 16 jobs, bs=256K, direct=1, psync, iodepth=1, 180s |
+| multi-seqwrite | 16 jobs, bs=4M, direct=1, psync, iodepth=1, end_fsync=1 |
 | layout | 128 jobs × 1G, bs=4M, end_fsync=1 |
-| randread | 128 jobs, iodepth=128, bs=256K, 60s, 3 轮 |
+| randread | 128 jobs, iodepth=128, bs=256K, direct=1, libaio, 180s, 3 轮 |
 | randwrite | 同上 |
 | randrw | 同上 |
 | bs sweep | randread at 64K/256K/1M, 3 轮 each |
@@ -192,8 +209,11 @@ bash scripts/limit-bandwidth.sh remove    # 恢复 100GbE
 
 - `--direct=1`（绕过 page cache）
 - `--cache-size 0`（JuiceFS 基线冷态，无应用层缓存）
+- `--max-readahead 0`（关预读，randread/randrw 达标关键开关）
+- 所有项 `--write_bw_log --log_avg_msec=1000`（采逐秒瞬时带宽，达标值取稳态中位数非平均）
 - 每项测前 `drop_all_caches`（客户端 157 + 全部 3 storage 节点）
 - 随机项 3 轮取一致值
+- 每项同时采 NIC RX/TX + juicefs stats + pidstat（交叉验证 fio ≤ NIC ≤ object）
 
 ## 十一、目录结构
 

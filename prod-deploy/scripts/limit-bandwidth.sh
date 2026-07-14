@@ -40,21 +40,18 @@ _run_ceph() {
 update_157_ceph_conf() {
     local mon_ips="$1"
     echo "  Updating ceph.conf on ${CLIENT_SERVER} (mon_host=${mon_ips})..."
-    _run "${PRIMARY}" "
-        SSH_PASS='Sunrise@801'
-        SSH_OPTS='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR'
-        # Generate minimal ceph.conf with new mon_host
-        sudo bash -c 'cat > /tmp/ceph.conf <<CONF
-[global]
-fsid = '\$(cat /etc/ceph/ceph.conf | grep '^fsid' | awk '{print \$3}')'
+    local fsid
+    fsid=$(_run "${PRIMARY}" "grep '^fsid' /etc/ceph/ceph.conf | awk '{print \$3}'" 2>/dev/null)
+    local conf_content="[global]
+fsid = ${fsid}
 mon_host = ${mon_ips}
 auth_cluster_required = cephx
 auth_service_required = cephx
-auth_client_required = cephx, none
-CONF'
-        cat /tmp/ceph.conf | sshpass -p \"\${SSH_PASS}\" ssh \${SSH_OPTS} sunrise@${CLIENT_SERVER} 'sudo tee /etc/ceph/ceph.conf > /dev/null'
-        echo '  ceph.conf updated on 157'
-    " || echo "  WARNING: ceph.conf update failed — update manually"
+auth_client_required = cephx, none"
+    local conf_b64
+    conf_b64=$(echo "${conf_content}" | base64 -w0)
+    ssh_to_client "echo '${conf_b64}' | base64 -d | sudo tee /etc/ceph/ceph.conf > /dev/null && echo '  ceph.conf updated on 157'" 2>/dev/null \
+        || echo "  WARNING: ceph.conf update failed — update manually"
 }
 
 restart_ceph_services() {
@@ -77,11 +74,13 @@ apply_limit() {
     echo "========================================"
     echo ""
 
-    # 1. Switch Ceph network to 10GbE
+    # 1. Switch Ceph network to 10GbE (eno12409)
     echo ">>> Switching Ceph network to ${LIMIT_NET}..."
     _run "${PRIMARY}" "
         sudo cephadm shell -- ceph config set global public_network '${LIMIT_NET}' 2>/dev/null
         sudo cephadm shell -- ceph config set global cluster_network '${LIMIT_NET}' 2>/dev/null
+        sudo cephadm shell -- ceph config set mon public_network '${LIMIT_NET}' 2>/dev/null
+        sudo cephadm shell -- ceph config set mon cluster_network '${LIMIT_NET}' 2>/dev/null
         echo '  public_network  = ${LIMIT_NET}'
         echo '  cluster_network = ${LIMIT_NET}'
     "
@@ -134,6 +133,8 @@ remove_limit() {
     _run "${PRIMARY}" "
         sudo cephadm shell -- ceph config set global public_network '${PUBLIC_NET}' 2>/dev/null
         sudo cephadm shell -- ceph config set global cluster_network '${CLUSTER_NET}' 2>/dev/null
+        sudo cephadm shell -- ceph config set mon public_network '${PUBLIC_NET}' 2>/dev/null
+        sudo cephadm shell -- ceph config set mon cluster_network '${CLUSTER_NET}' 2>/dev/null
         echo '  public_network  = ${PUBLIC_NET}  (${PUBLIC_NIC})'
         echo '  cluster_network = ${CLUSTER_NET}  (${CLUSTER_NIC})'
     "
@@ -141,11 +142,10 @@ remove_limit() {
     # 2. Restart Ceph services to rebind
     restart_ceph_services "unlimit"
 
-    # 3. Build MON IPs on the public network (10.3.1.x)
+    # 3. Build MON IPs on the 100GbE public network (10.3.1.x)
     PUBLIC_MON_IPS=""
     for ip in "${CEPH_SERVERS[@]}"; do
-        last_octet=$(echo "${ip}" | cut -d. -f4)
-        public_ip="10.3.1.${last_octet}"
+        public_ip="${CEPH_MON_IPS[${ip}]}"
         [ -n "${PUBLIC_MON_IPS}" ] && PUBLIC_MON_IPS+=","
         PUBLIC_MON_IPS+="${public_ip}"
     done

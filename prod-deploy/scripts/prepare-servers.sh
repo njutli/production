@@ -97,6 +97,12 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
 if [ "${ROLE}" = "slave" ]; then
     DEBIAN_FRONTEND=noninteractive apt-get install -y gdisk parted lvm2 podman >/dev/null 2>&1 || \
         echo "  (some ceph prerequisites unavailable, deploy-ceph.sh will retry)"
+
+    # udev rule: device mapper devices world-accessible
+    # cephadm container ceph user (UID 167) needs to access /dev/dm-* devices
+    # that are owned by root:disk by default. This makes all dm-* devices 0666.
+    echo 'ACTION=="add|change", SUBSYSTEM=="block", KERNEL=="dm-*", MODE="0666"' > /etc/udev/rules.d/99-dm-permissions.rules
+    udevadm control --reload 2>/dev/null || true
 fi
 
 echo "  Packages installed."

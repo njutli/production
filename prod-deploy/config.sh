@@ -111,7 +111,16 @@ done
 
 # --- Ceph 配置（3 节点 × 2 盘 = 6 OSD，EC 4+2）---
 CEPH_SERVERS=( "${SLAVE_SERVERS[@]}" )
-CEPH_PRIMARY="${CEPH_SERVERS[0]}"     # bootstrap 节点 = 150
+CEPH_PRIMARY="${CEPH_SERVERS[0]}"     # bootstrap 节点 = 150（管理网 IP，用于 SSH）
+
+# Ceph MON 绑定在 100GbE public 网络上（不是管理网）
+# 这样 MON 和 OSD 在同一网段，限速切换时可以正确迁移
+# 映射：管理网 IP → 100GbE public IP（每节点对应关系固定）
+declare -A CEPH_MON_IPS
+CEPH_MON_IPS["10.20.1.150"]="10.3.1.6"
+CEPH_MON_IPS["10.20.1.151"]="10.3.1.7"
+CEPH_MON_IPS["10.20.1.152"]="10.3.1.8"
+CEPH_PRIMARY_MON_IP="${CEPH_MON_IPS[${CEPH_PRIMARY}]}"  # bootstrap 用的 MON IP
 
 # 每节点 OSD 数据盘（所有节点相同设备名）
 CEPH_OSD_DEVICES_PER_NODE=( "/dev/nvme2n1" "/dev/nvme3n1" )  # 2 × 7T NVMe
@@ -165,14 +174,14 @@ JUICEFS_CACHE_SIZE_MB=0             # 0=冷态基线；暖态按需开（如 102
 JUICEFS_BASE_MOUNT_OPTS=(
     --storage ceph                     # 08_1：直连 RADOS，随机写 +71%
     --bucket ceph://juicefs-data
-    --access-key ceph
-    --secret-key client.juicefs
-    --block-size 256K                  # 08_2：消 16× 读放大
+    --block-size 256K                  # 08_2：消 16× 读放大（与 format 一致，显式声明避免歧义）
     --max-uploads 150                  # 演进报告 §四：顺序写 +23%
 )
 
 JUICEFS_ENABLE_WRITEBACK=false       # 突发写负载 + 缓存盘空间充足时置 true
-JUICEFS_READAHEAD="default"          # "default" 或 "0"
+# "default" 或 "0"。全量冷态基线做 A/B 双组对照（见 doc/perf-tasks/01-full-cold-baseline.md）：
+#   A 组 default（保留预读）；B 组 0（关预读，历史最优：randread +103%/randrw +57%，代价单流顺序读 -33%）
+JUICEFS_READAHEAD="default"
 
 # 组装最终挂载参数
 _jfs_cache_args=( --cache-size 0 )
