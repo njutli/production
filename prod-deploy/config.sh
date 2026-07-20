@@ -122,6 +122,19 @@ CEPH_MON_IPS["10.20.1.151"]="10.3.1.7"
 CEPH_MON_IPS["10.20.1.152"]="10.3.1.8"
 CEPH_PRIMARY_MON_IP="${CEPH_MON_IPS[${CEPH_PRIMARY}]}"  # bootstrap 用的 MON IP
 
+# 限速口径下 MON 迁移目标 IP（eno12409 / 10.114.1.x）
+# limit-bandwidth.sh apply 时逐个 mon rm + orch daemon add mon 迁到这里，保 HEALTH_OK
+declare -A CEPH_MON_LIMIT_IPS
+CEPH_MON_LIMIT_IPS["10.20.1.150"]="10.114.1.150"
+CEPH_MON_LIMIT_IPS["10.20.1.151"]="10.114.1.151"
+CEPH_MON_LIMIT_IPS["10.20.1.152"]="10.114.1.152"
+
+# 管理网 IP → cephadm 主机名（mon rm/add 用 daemon 名 = mon.<hostname>）
+declare -A CEPH_HOSTNAMES
+CEPH_HOSTNAMES["10.20.1.150"]="ceph-node1"
+CEPH_HOSTNAMES["10.20.1.151"]="ceph-node2"
+CEPH_HOSTNAMES["10.20.1.152"]="ceph-node3"
+
 # 每节点 OSD 数据盘（所有节点相同设备名）
 CEPH_OSD_DEVICES_PER_NODE=( "/dev/nvme2n1" "/dev/nvme3n1" )  # 2 × 7T NVMe
 

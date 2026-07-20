@@ -73,6 +73,14 @@ done
 - `compact_running` = 0（无进行中 compaction）
 - `kv_sync_lat avg` < 2ms（无 KV 压力）
 
+> **⚠️ §1.3 的局限（2026-07-17 实测教训）**：
+> 以上三条只表示"没有正在 compact"，**不保证 LSM tree 状态最优**。一个膨胀的 LSM tree（大量未合并的 SST 文件、level-0 文件数过多）会在 `compact_running=0` 的情况下仍然拖慢读性能——表现为高并发随机读带宽骤降（实测 -t4096 从 4454 → 168 MB/s，差 26 倍）。
+>
+> **补充检查**：在上述三条全绿的基础上，追加以下检查之一：
+> 1. **强制 compact 后重测**：即使三指标全绿，在关键测试项（高并发 randread）前执行一次 `compact` + 轮询确认，确保 LSM tree 已完全合并。
+> 2. **检查 level-0 文件数**：`ceph tell osd.X perf dump` 中 `rocksdb` → `l0_files`（若 > 10，LSM tree 膨胀，需强制 compact）。
+> 3. **数据异常时必须排查并重测**：带宽骤降（>20%）或 IOPS 波动大（Min IOPS=0）时，不得跳过，必须检查 compaction 状态并重测。
+
 **如果积压未消除，强制 compaction**：
 
 ```bash
@@ -198,6 +206,61 @@ check_ceph_health "after layout cooldown"
 | 10-50G | 60s |
 | 50-128G | 120-300s |
 | > 128G | 300s+ |
+
+---
+
+## 三·五、卷清理（重要）
+
+### 3.5.1 问题
+
+`juicefs format` **不删除任何 pool 对象**——只重置 TiKV 元数据，pool 中的 Ceph 对象成为孤儿。多轮测试中数据只增不减，最终导致 OSD 积压、性能退化。
+
+### 3.5.2 三种清理方式
+
+| 方式 | 删什么 | 不删什么 | 用途 |
+|------|--------|---------|------|
+| `juicefs format` | **什么都不删**（只重置 TiKV 元数据） | 全部 pool 对象 | 不单独用于清理 |
+| `juicefs destroy` | JuiceFS 拥有的 pool 对象 + TiKV 元数据 | 非 JuiceFS 对象（如 rados bench 残留） | **标准清卷** |
+| `ceph osd pool delete + create` | 全部 | 无 | destroy 失败或孤儿对象累积时兜底 |
+
+### 3.5.3 标准清卷流程（从老集群脚本固化）
+
+```bash
+META="<tikv://...>"
+MNT="/mnt/juicefs"
+TEST_DIR="${MNT}/test_dir"
+
+# 1. 卸载
+juicefs umount "${MNT}"
+
+# 2. 等会话过期（JuiceFS session TTL ~65s，不等待会导致 destroy 失败）
+sleep 65
+
+# 3. 提取 UUID（关键！不能传卷名，必须传 UUID）
+UUID=$(juicefs status "${META}" 2>/dev/null | grep -o '"UUID": "[^"]*"' | cut -d'"' -f4)
+
+# 4. destroy（删除 pool 中 JuiceFS 拥有的对象 + TiKV 元数据）
+[ -n "${UUID}" ] && juicefs destroy "${META}" "${UUID}" --yes
+
+# 5. compact cooldown（destroy 产生大量 tombstone，必须 compact 清理，见 §3.2 方法 1）
+
+# 6. format（初始化新卷元数据）
+juicefs format --storage ceph --bucket ceph://juicefs-data \
+  --access-key ceph --secret-key client.juicefs --block-size 256K --trash-days 0 \
+  "${META}" juicefs-prod
+
+# 7. mount + mkdir
+juicefs mount -d --max-uploads 150 --cache-size 0 "${META}" "${MNT}"
+mkdir -p "${TEST_DIR}"
+```
+
+### 3.5.4 destroy 的代价与注意事项
+
+- **大卷 destroy 慢**：1.4M 对象约 21 分钟（老集群实测）。大卷 destroy 后必须跑 compact cooldown 清理 tombstone 积压。
+- **UUID 必须正确**：从 `juicefs status` 提取，不能传卷名。传错会报 `UUID <name> != expected <uuid>` 错误。
+- **session TTL**：卸载后须等 65 秒让会话过期，否则 destroy 可能失败。
+- **destroy 不删 rados bench 残留**：如果 pool 中有 `rados bench --no-cleanup` 留下的对象，destroy 不删它们。需单独 `rados -p <pool> cleanup --run-name <name>` 或 `ceph osd pool delete + create`。
+- **destroy 不删 RGW bucket**（S3 后端时）：需额外 `radosgw-admin bucket rm --purge-objects`。生产环境已去 RGW，不涉及。
 
 ---
 

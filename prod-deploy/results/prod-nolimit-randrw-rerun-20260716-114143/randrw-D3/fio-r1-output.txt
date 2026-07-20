@@ -1,0 +1,47 @@
+=== randrw D3 R1 START: Thu Jul 16 11:35:01 +07 2026 ===
+numjobs=8 iodepth=4
+storage_test: (g=0): rw=randrw, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=libaio, iodepth=4
+...
+fio-3.28
+Starting 8 processes
+
+storage_test: (groupid=0, jobs=8): err= 0: pid=2609815: Thu Jul 16 11:38:02 2026
+  read: IOPS=1012, BW=253MiB/s (265MB/s)(44.5GiB/180007msec)
+    slat (usec): min=1566, max=114344, avg=7732.87, stdev=3733.11
+    clat (nsec): min=1425, max=108409k, avg=10297992.45, stdev=5741365.46
+     lat (msec): min=2, max=119, avg=18.03, stdev= 6.86
+    clat percentiles (usec):
+     |  1.00th=[  416],  5.00th=[  465], 10.00th=[  519], 20.00th=[ 5669],
+     | 30.00th=[ 7898], 40.00th=[ 9241], 50.00th=[10552], 60.00th=[11863],
+     | 70.00th=[13173], 80.00th=[14746], 90.00th=[16909], 95.00th=[18744],
+     | 99.00th=[23725], 99.50th=[27657], 99.90th=[40109], 99.95th=[46924],
+     | 99.99th=[63701]
+   bw (  KiB/s): min=217398, max=292424, per=100.00%, avg=259153.10, stdev=1596.70, samples=1440
+   iops        : min=  758, max= 1242, avg=1012.18, stdev= 8.70, samples=2880
+  write: IOPS=1012, BW=253MiB/s (265MB/s)(44.5GiB/180007msec); 0 zone resets
+    slat (usec): min=77, max=1993, avg=165.85, stdev=47.99
+    clat (usec): min=325, max=119498, avg=13415.32, stdev=7093.98
+     lat (usec): min=439, max=119664, avg=13581.32, stdev=7093.61
+    clat percentiles (usec):
+     |  1.00th=[  408],  5.00th=[  457], 10.00th=[  519], 20.00th=[ 8979],
+     | 30.00th=[10552], 40.00th=[12125], 50.00th=[13566], 60.00th=[15139],
+     | 70.00th=[16909], 80.00th=[18744], 90.00th=[21365], 95.00th=[23725],
+     | 99.00th=[30278], 99.50th=[34866], 99.90th=[50594], 99.95th=[61080],
+     | 99.99th=[77071]
+   bw (  KiB/s): min=193536, max=348974, per=100.00%, avg=259098.96, stdev=3223.68, samples=1440
+   iops        : min=  644, max= 1510, avg=1011.97, stdev=17.82, samples=2880
+  lat (usec)   : 2=0.01%, 4=0.01%, 500=8.73%, 750=3.61%, 1000=0.09%
+  lat (msec)   : 2=0.08%, 4=1.20%, 10=22.43%, 20=54.82%, 50=8.95%
+  lat (msec)   : 100=0.07%, 250=0.01%
+  cpu          : usr=0.26%, sys=0.41%, ctx=819835, majf=2, minf=1264
+  IO depths    : 1=0.1%, 2=0.1%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=182212,182168,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=4
+
+Run status group 0 (all jobs):
+   READ: bw=253MiB/s (265MB/s), 253MiB/s-253MiB/s (265MB/s-265MB/s), io=44.5GiB (47.8GB), run=180007-180007msec
+  WRITE: bw=253MiB/s (265MB/s), 253MiB/s-253MiB/s (265MB/s-265MB/s), io=44.5GiB (47.8GB), run=180007-180007msec
+=== randrw D3 R1 DONE: Thu Jul 16 11:38:02 +07 2026 ===
+bw_log files: 8 (expected 8)

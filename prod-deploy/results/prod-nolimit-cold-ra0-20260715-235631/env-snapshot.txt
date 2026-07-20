@@ -1,0 +1,32 @@
+### date: 2026年 07月 15日 星期三 23:56:31 CST
+### 口径: 不限速 100GbE (ra0 --max-readahead 0)
+
+### ceph health
+HEALTH_OK
+### ceph osd dump (osd.0 public+cluster addr)
+osd.0 up   in  weight 1 up_from 84 up_thru 109 down_at 81 last_clean_interval [6,80) [v2:10.3.1.6:6802/1899774645,v1:10.3.1.6:6803/1899774645] [v2:10.3.2.6:6802/1899774645,v1:10.3.2.6:6803/1899774645] exists,up 7ac76b8c-3e13-4a02-a362-e0b7750e29fd
+### mon stat
+e3: 3 mons at {ceph-node1=[v2:10.3.1.6:3300/0,v1:10.3.1.6:6789/0],ceph-node2=[v2:10.3.1.7:3300/0,v1:10.3.1.7:6789/0],ceph-node3=[v2:10.3.1.8:3300/0,v1:10.3.1.8:6789/0]} removed_ranks: {} disallowed_leaders: {}, election epoch 16, leader 0 ceph-node1, quorum 0,1,2 ceph-node1,ceph-node2,ceph-node3
+### config network
+global                   advanced  cluster_network                        10.3.2.0/24                                                                                * 
+global                   advanced  public_network                         10.3.1.0/24                                                                                * 
+mon                      advanced  cluster_network                        10.3.2.0/24                                                                                * 
+mon                      advanced  public_network                         10.3.1.0/24                                                                                * 
+### tc qdisc (should be empty = no limit)
+qdisc mq 0: root 
+qdisc fq_codel 0: parent :77 limit 10240p flows 1024 quantum 1514 target 5ms interval 100ms memory_limit 32Mb ecn drop_batch 64 
+qdisc fq_codel 0: parent :76 limit 10240p flows 1024 quantum 1514 target 5ms interval 100ms memory_limit 32Mb ecn drop_batch 64 
+---
+qdisc mq 0: root 
+qdisc fq_codel 0: parent :3f limit 10240p flows 1024 quantum 4214 target 5ms interval 100ms memory_limit 32Mb ecn drop_batch 64 
+qdisc fq_codel 0: parent :3e limit 10240p flows 1024 quantum 4214 target 5ms interval 100ms memory_limit 32Mb ecn drop_batch 64 
+### client (157)
+juicefs version 1.3.1+2025-12-02.e0032b2
+fio-3.28
+Filesystem            Size  Used Avail Use% Mounted on
+JuiceFS:juicefs-prod  1.0P     0  1.0P   0% /mnt/juicefs
+### juicefs mount params
+sunrise   653281  0.1  0.0 3979420 95520 ?       Sl   22:55   0:00 juicefs mount -d --storage ceph --bucket ceph://juicefs-data --max-uploads 150 --cache-size 0 --max-readahead 0 tikv://10.20.1.150:2379,10.20.1.151:2379,10.20.1.152:2379/juicefs-prod /mnt/juicefs
+sunrise   653318  0.4  0.0 4332476 113628 ?      Sl   22:55   0:00 /usr/local/bin/juicefs mount -d --storage ceph --bucket ceph://juicefs-data --max-uploads 150 --cache-size 0 --max-readahead 0 tikv://10.20.1.150:2379,10.20.1.151:2379,10.20.1.152:2379/juicefs-prod /mnt/juicefs
+### fsid
+7bb47ec2-8061-11f1-a671-97520597268c

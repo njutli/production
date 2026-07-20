@@ -23,7 +23,7 @@ set -euo pipefail
 # ============================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../config.sh"
+source "${SCRIPT_DIR}/../${CONFIG_FILE:-config.sh}"
 
 AUTO_YES=false
 [ "${1:-}" = "--yes" ] && AUTO_YES=true

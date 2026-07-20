@@ -1,0 +1,31 @@
+bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+START: Wed Jul 15 11:11:14 +07 2026
+seqread: (g=0): rw=read, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=psync, iodepth=1
+fio-3.28
+Starting 1 process
+
+seqread: (groupid=0, jobs=1): err= 0: pid=2834366: Wed Jul 15 11:14:14 2026
+  read: IOPS=226, BW=56.7MiB/s (59.5MB/s)(9.97GiB/180003msec)
+    clat (msec): min=2, max=3390, avg= 4.41, stdev=44.73
+     lat (msec): min=2, max=3390, avg= 4.41, stdev=44.73
+    clat percentiles (msec):
+     |  1.00th=[    4],  5.00th=[    4], 10.00th=[    4], 20.00th=[    4],
+     | 30.00th=[    4], 40.00th=[    4], 50.00th=[    4], 60.00th=[    4],
+     | 70.00th=[    4], 80.00th=[    4], 90.00th=[    4], 95.00th=[    4],
+     | 99.00th=[    5], 99.50th=[    5], 99.90th=[   14], 99.95th=[   71],
+     | 99.99th=[ 2467]
+   bw (  KiB/s): min=  256, max=73984, per=100.00%, avg=64151.62, stdev=22923.10, samples=163
+   iops        : min=    2, max=  292, avg=265.22, stdev=68.83, samples=308
+  lat (msec)   : 4=98.44%, 10=1.46%, 20=0.01%, 50=0.04%, 100=0.01%
+  lat (msec)   : 1000=0.01%, 2000=0.01%, >=2000=0.02%
+  cpu          : usr=0.01%, sys=0.24%, ctx=81851, majf=1, minf=77
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=40845,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+   READ: bw=56.7MiB/s (59.5MB/s), 56.7MiB/s-56.7MiB/s (59.5MB/s-59.5MB/s), io=9.97GiB (10.7GB), run=180003-180003msec
+DONE: Wed Jul 15 11:14:14 +07 2026
+ALL_DONE

@@ -1,0 +1,33 @@
+bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+STATS_START: Thu Jul 16 09:55:29 +07 2026
+storage_test: (g=0): rw=randread, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=libaio, iodepth=128
+...
+fio-3.28
+Starting 128 processes
+
+storage_test: (groupid=0, jobs=128): err= 0: pid=2513120: Thu Jul 16 09:56:35 2026
+  read: IOPS=11.5k, BW=2875MiB/s (3015MB/s)(169GiB/60029msec)
+    slat (usec): min=1177, max=47811, avg=11123.21, stdev=7328.61
+    clat (usec): min=2, max=1787.6k, avg=1395631.24, stdev=150463.48
+     lat (msec): min=2, max=1804, avg=1406.75, stdev=150.65
+    clat percentiles (msec):
+     |  1.00th=[  592],  5.00th=[ 1250], 10.00th=[ 1301], 20.00th=[ 1334],
+     | 30.00th=[ 1368], 40.00th=[ 1385], 50.00th=[ 1401], 60.00th=[ 1435],
+     | 70.00th=[ 1452], 80.00th=[ 1485], 90.00th=[ 1519], 95.00th=[ 1552],
+     | 99.00th=[ 1620], 99.50th=[ 1636], 99.90th=[ 1687], 99.95th=[ 1720],
+     | 99.99th=[ 1754]
+   bw (  MiB/s): min= 1590, max= 3361, per=99.37%, avg=2856.84, stdev= 2.08, samples=7543
+   iops        : min= 3964, max=14632, avg=11452.40, stdev=10.72, samples=15057
+  lat (usec)   : 4=0.01%, 10=0.01%
+  lat (msec)   : 4=0.01%, 10=0.01%, 20=0.01%, 50=0.05%, 100=0.09%
+  lat (msec)   : 250=0.23%, 500=0.43%, 750=0.41%, 1000=0.40%, 2000=98.35%
+  cpu          : usr=0.03%, sys=0.22%, ctx=1389058, majf=2, minf=1050601
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.3%, 32=0.6%, >=64=98.8%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.1%
+     issued rwts: total=690348,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+   READ: bw=2875MiB/s (3015MB/s), 2875MiB/s-2875MiB/s (3015MB/s-3015MB/s), io=169GiB (181GB), run=60029-60029msec
+STATS_DONE: Thu Jul 16 09:56:37 +07 2026

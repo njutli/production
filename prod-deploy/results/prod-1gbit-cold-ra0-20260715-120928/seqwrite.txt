@@ -1,0 +1,31 @@
+bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+START: Wed Jul 15 11:11:21 +07 2026
+seqwrite: (g=0): rw=write, bs=(R) 4096KiB-4096KiB, (W) 4096KiB-4096KiB, (T) 4096KiB-4096KiB, ioengine=psync, iodepth=1
+fio-3.28
+Starting 1 process
+seqwrite: Laying out IO file (1 file / 4096MiB)
+
+seqwrite: (groupid=0, jobs=1): err= 0: pid=2834618: Wed Jul 15 11:11:58 2026
+  write: IOPS=28, BW=114MiB/s (119MB/s)(4096MiB/35991msec); 0 zone resets
+    clat (usec): min=1948, max=45274, avg=31840.69, stdev=10047.04
+     lat (usec): min=1949, max=45274, avg=31840.82, stdev=10047.04
+    clat percentiles (usec):
+     |  1.00th=[ 3458],  5.00th=[ 4113], 10.00th=[22676], 20.00th=[32375],
+     | 30.00th=[33162], 40.00th=[33162], 50.00th=[33424], 60.00th=[33817],
+     | 70.00th=[33817], 80.00th=[34341], 90.00th=[43779], 95.00th=[44303],
+     | 99.00th=[44827], 99.50th=[44827], 99.90th=[45351], 99.95th=[45351],
+     | 99.99th=[45351]
+   bw (  KiB/s): min=114688, max=417792, per=100.00%, avg=125745.39, stdev=52467.52, samples=33
+   iops        : min=   28, max=  176, avg=30.70, stdev=18.18, samples=66
+  lat (msec)   : 2=0.10%, 4=4.59%, 10=3.61%, 20=0.10%, 50=91.60%
+  cpu          : usr=2.10%, sys=0.47%, ctx=32773, majf=0, minf=10
+  IO depths    : 1=100.0%, 2=0.0%, 4=0.0%, 8=0.0%, 16=0.0%, 32=0.0%, >=64=0.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     issued rwts: total=0,1024,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=1
+
+Run status group 0 (all jobs):
+  WRITE: bw=114MiB/s (119MB/s), 114MiB/s-114MiB/s (119MB/s-119MB/s), io=4096MiB (4295MB), run=35991-35991msec
+DONE: Wed Jul 15 11:11:58 +07 2026
+ALL_DONE

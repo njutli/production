@@ -1,0 +1,85 @@
+=== §8.3 Per-job Aggregation Steady Median (1s bucket) ===
+
+--- D0 (numjobs=128, iodepth=128) ---
+  R1: 128 bw_log files
+    R=1244.5 W=1247.3 合计=2491.8 R/W=1.0
+  R2: 128 bw_log files
+    R=1334.3 W=1339.5 合计=2673.8 R/W=1.0
+  R3: 128 bw_log files
+    R=1358.8 W=1357.7 合计=2716.5 R/W=1.0
+  中位数: R=1334.3 W=1339.5 合计=2673.8 R/W=1.0
+  三轮: R=[1244.5, 1334.3, 1358.8] W=[1247.3, 1339.5, 1357.7] 合计=[2491.8, 2673.8, 2716.5]
+
+--- D1 (numjobs=32, iodepth=16) ---
+  R1: 32 bw_log files
+    R=887.0 W=892.9 合计=1779.9 R/W=0.99
+  R2: 32 bw_log files
+    R=862.6 W=863.9 合计=1726.5 R/W=1.0
+  R3: 32 bw_log files
+    R=856.5 W=861.4 合计=1717.9 R/W=0.99
+  中位数: R=862.6 W=863.9 合计=1726.5 R/W=0.99
+  三轮: R=[887.0, 862.6, 856.5] W=[892.9, 863.9, 861.4] 合计=[1779.9, 1726.5, 1717.9]
+
+--- D2 (numjobs=16, iodepth=8) ---
+  R1: 16 bw_log files
+    R=540.8 W=543.0 合计=1083.8 R/W=1.0
+  R2: 16 bw_log files
+    R=456.8 W=453.4 合计=910.2 R/W=1.01
+  R3: 16 bw_log files
+    R=460.0 W=459.0 合计=919.0 R/W=1.0
+  中位数: R=460.0 W=459.0 合计=919.0 R/W=1.0
+  三轮: R=[540.8, 456.8, 460.0] W=[543.0, 453.4, 459.0] 合计=[1083.8, 910.2, 919.0]
+
+--- D3 (numjobs=8, iodepth=4) ---
+  R1: 8 bw_log files
+    R=253.0 W=252.5 合计=505.5 R/W=1.0
+  R2: 8 bw_log files
+    R=254.8 W=253.5 合计=508.3 R/W=1.01
+  R3: 8 bw_log files
+    R=255.0 W=253.5 合计=508.5 R/W=1.01
+  中位数: R=254.8 W=253.5 合计=508.3 R/W=1.01
+  三轮: R=[253.0, 254.8, 255.0] W=[252.5, 253.5, 253.5] 合计=[505.5, 508.3, 508.5]
+
+=== Final Summary (§8.3 aggregation median, 1s bucket) ===
+
+| 档位 | numjobs×iodepth | 总并发 | R 中位数 | W 中位数 | 合计 | R/W 比 |
+|------|----------------|--------|---------|---------|------|--------|
+| D0 | 128×128 | 16384 | 1334.3 | 1339.5 | 2673.8 | 1.0 |
+| D1 | 32×16 | 512 | 862.6 | 863.9 | 1726.5 | 0.99 |
+| D2 | 16×8 | 128 | 460.0 | 459.0 | 919.0 | 1.0 |
+| D3 | 8×4 | 32 | 254.8 | 253.5 | 508.3 | 1.01 |
+
+=== lat >=2000ms 占比 (from fio output) ===
+  D0 R1: >=2000ms = 0.90%
+  D0 R2: >=2000ms = 0.44%
+  D0 R3: >=2000ms = 1.68%
+  D1 R1: >=2000ms = 0.06%
+  D1 R2: >=2000ms = 0.07%
+  D1 R3: >=2000ms = 0.08%
+  D2 R1: >=2000ms = 0.01%
+
+=== fio 汇总行 (for comparison) ===
+  D0 R1: READ: bw=1251MiB/s (1312MB/s), 1251MiB/s-1251MiB/s (1312MB/s-1312MB/s), io=220GiB (236GB), run=180042-180042msec
+  D0 R1: WRITE: bw=1250MiB/s (1311MB/s), 1250MiB/s-1250MiB/s (1311MB/s-1311MB/s), io=220GiB (236GB), run=180042-180042msec
+  D0 R2: READ: bw=1333MiB/s (1397MB/s), 1333MiB/s-1333MiB/s (1397MB/s-1397MB/s), io=234GiB (252GB), run=180032-180032msec
+  D0 R2: WRITE: bw=1332MiB/s (1397MB/s), 1332MiB/s-1332MiB/s (1397MB/s-1397MB/s), io=234GiB (251GB), run=180032-180032msec
+  D0 R3: READ: bw=1331MiB/s (1395MB/s), 1331MiB/s-1331MiB/s (1395MB/s-1395MB/s), io=234GiB (251GB), run=180075-180075msec
+  D0 R3: WRITE: bw=1330MiB/s (1394MB/s), 1330MiB/s-1330MiB/s (1394MB/s-1394MB/s), io=234GiB (251GB), run=180075-180075msec
+  D1 R1: READ: bw=855MiB/s (896MB/s), 855MiB/s-855MiB/s (896MB/s-896MB/s), io=152GiB (163GB), run=181965-181965msec
+  D1 R1: WRITE: bw=856MiB/s (897MB/s), 856MiB/s-856MiB/s (897MB/s-897MB/s), io=152GiB (163GB), run=181965-181965msec
+  D1 R2: READ: bw=836MiB/s (876MB/s), 836MiB/s-836MiB/s (876MB/s-876MB/s), io=148GiB (159GB), run=181083-181083msec
+  D1 R2: WRITE: bw=836MiB/s (877MB/s), 836MiB/s-836MiB/s (877MB/s-877MB/s), io=148GiB (159GB), run=181083-181083msec
+  D1 R3: READ: bw=825MiB/s (865MB/s), 825MiB/s-825MiB/s (865MB/s-865MB/s), io=146GiB (157GB), run=181223-181223msec
+  D1 R3: WRITE: bw=826MiB/s (866MB/s), 826MiB/s-826MiB/s (866MB/s-866MB/s), io=146GiB (157GB), run=181223-181223msec
+  D2 R1: READ: bw=534MiB/s (560MB/s), 534MiB/s-534MiB/s (560MB/s-560MB/s), io=93.9GiB (101GB), run=180010-180010msec
+  D2 R1: WRITE: bw=535MiB/s (561MB/s), 535MiB/s-535MiB/s (561MB/s-561MB/s), io=94.0GiB (101GB), run=180010-180010msec
+  D2 R2: READ: bw=455MiB/s (477MB/s), 455MiB/s-455MiB/s (477MB/s-477MB/s), io=80.0GiB (85.9GB), run=180016-180016msec
+  D2 R2: WRITE: bw=456MiB/s (478MB/s), 456MiB/s-456MiB/s (478MB/s-478MB/s), io=80.2GiB (86.1GB), run=180016-180016msec
+  D2 R3: READ: bw=456MiB/s (478MB/s), 456MiB/s-456MiB/s (478MB/s-478MB/s), io=80.2GiB (86.1GB), run=180012-180012msec
+  D2 R3: WRITE: bw=457MiB/s (479MB/s), 457MiB/s-457MiB/s (479MB/s-479MB/s), io=80.3GiB (86.2GB), run=180012-180012msec
+  D3 R1: READ: bw=253MiB/s (265MB/s), 253MiB/s-253MiB/s (265MB/s-265MB/s), io=44.5GiB (47.8GB), run=180007-180007msec
+  D3 R1: WRITE: bw=253MiB/s (265MB/s), 253MiB/s-253MiB/s (265MB/s-265MB/s), io=44.5GiB (47.8GB), run=180007-180007msec
+  D3 R2: READ: bw=254MiB/s (266MB/s), 254MiB/s-254MiB/s (266MB/s-266MB/s), io=44.6GiB (47.9GB), run=180010-180010msec
+  D3 R2: WRITE: bw=254MiB/s (266MB/s), 254MiB/s-254MiB/s (266MB/s-266MB/s), io=44.6GiB (47.9GB), run=180010-180010msec
+  D3 R3: READ: bw=255MiB/s (267MB/s), 255MiB/s-255MiB/s (267MB/s-267MB/s), io=44.8GiB (48.1GB), run=180036-180036msec
+  D3 R3: WRITE: bw=255MiB/s (267MB/s), 255MiB/s-255MiB/s (267MB/s-267MB/s), io=44.8GiB (48.1GB), run=180036-180036msec

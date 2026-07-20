@@ -1,0 +1,22 @@
+### date: 2026年 07月 15日 星期三 10:08:34 CST
+### 口径: 千兆限速 1Gbps TBF (A 组 default readahead)
+
+### ceph health
+HEALTH_OK
+### ceph osd dump (osd.0 public+cluster addr)
+osd.0 up   in  weight 1 up_from 6 up_thru 46 down_at 0 last_clean_interval [0,0) [v2:10.114.1.150:6802/880060958,v1:10.114.1.150:6803/880060958] [v2:10.114.1.150:6804/880060958,v1:10.114.1.150:6805/880060958] exists,up e5d9e919-046e-4b06-b9d2-235332459da2
+### mon stat
+e3: 3 mons at {ceph-node1=[v2:10.114.1.150:3300/0,v1:10.114.1.150:6789/0],ceph-node2=[v2:10.114.1.151:3300/0,v1:10.114.1.151:6789/0],ceph-node3=[v2:10.114.1.152:3300/0,v1:10.114.1.152:6789/0]} removed_ranks: {} disallowed_leaders: {}, election epoch 16, leader 0 ceph-node1, quorum 0,1,2 ceph-node1,ceph-node2,ceph-node3
+### config network
+global                   advanced  cluster_network                        10.114.1.0/24                                                                              * 
+global                   advanced  public_network                         10.114.1.0/24                                                                              * 
+mon                      advanced  public_network                         10.114.1.0/24                                                                              * 
+### tc qdisc
+qdisc tbf 801f: root refcnt 129 rate 1Gbit burst 32750b lat 50ms 
+ Sent 58807 bytes 492 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0
+### client (157)
+juicefs version 1.3.1+2025-12-02.e0032b2
+fio-3.28
+Filesystem            Size  Used Avail Use% Mounted on
+JuiceFS:juicefs-prod  1.0P  4.0K  1.0P   1% /mnt/juicefs

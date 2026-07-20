@@ -10,9 +10,12 @@ set -euo pipefail
 #
 # 切换方式：
 #   1. ceph config set global public_network / cluster_network
-#   2. 重启所有 OSD + MON（重新绑定新网络）
-#   3. eno12409 上 tc tbf 1Gbps（限速模式）
-#   4. 更新 157 上 /etc/ceph/ceph.conf 的 mon_host
+#   2. 逐个迁移 MON（mon rm + orch daemon add mon <host>:<新IP>），始终保 quorum
+#      —— MON 的 IP 固死在 monmap 里，config 改了不会跟着走，必须显式迁移，
+#         否则集群 HEALTH_ERR "osds not reachable"（见 doc 限速 MON 迁移问题）
+#   3. 重启所有 OSD（重新绑定新网络）
+#   4. eno12409 上 tc tbf 1Gbps（限速模式）
+#   5. 更新 157 上 /etc/ceph/ceph.conf 的 mon_host
 #
 # 红线：不在 100GbE RDMA 网卡上做任何限速/QoS（与 WekaIO 共用）
 #
@@ -54,14 +57,63 @@ auth_client_required = cephx, none"
         || echo "  WARNING: ceph.conf update failed — update manually"
 }
 
-restart_ceph_services() {
-    local mode="$1"
-    echo "  Restarting MONs..."
-    _run_ceph "orch restart mon" 2>/dev/null || true
-    echo "  Restarting OSDs..."
+restart_osds() {
+    echo "  Restarting OSDs (rebind to new public/cluster network)..."
     _run_ceph "orch restart osd" 2>/dev/null || true
-    echo "  Waiting for services to stabilize (30s)..."
+    echo "  Waiting for OSDs to stabilize (30s)..."
     sleep 30
+}
+
+# 等待 MON quorum 恢复到 expect 个成员（最多 wait_max 秒）
+wait_mon_quorum() {
+    local expect="${1:-3}"
+    local wait_max="${2:-120}"
+    local waited=0
+    while [ "${waited}" -lt "${wait_max}" ]; do
+        # mon_status 里 quorum 是索引数组，如 "quorum":[0,1,2]
+        local qs n
+        qs=$(_run_ceph "quorum_status --format json" 2>/dev/null \
+             | grep -oP '"quorum":\[[^]]*\]' || echo '"quorum":[]')
+        n=$(echo "${qs}" | grep -oP '[0-9]+' | wc -l)
+        if [ "${n}" -ge "${expect}" ]; then
+            echo "    quorum OK (${n}/${expect})"
+            return 0
+        fi
+        sleep 5
+        waited=$(( waited + 5 ))
+    done
+    echo "    WARNING: quorum 未在 ${wait_max}s 内恢复到 ${expect} 成员（当前 ${n:-?}）"
+    return 1
+}
+
+# 逐个把 MON 从旧 IP 迁到新 IP（cephadm）：始终保 quorum
+# $1 = 关联数组名（管理网IP → 目标MON IP），如 CEPH_MON_LIMIT_IPS / CEPH_MON_IPS
+migrate_mons() {
+    local -n target_map="$1"
+    echo "  Migrating MONs one at a time (keep quorum)..."
+    for ip in "${CEPH_SERVERS[@]}"; do
+        local host="${CEPH_HOSTNAMES[${ip}]}"
+        local newip="${target_map[${ip}]}"
+        echo "    ${host}: → ${newip}"
+        # 1) 移除该 host 上的 MON（quorum 仍由另外 2 个维持）
+        _run_ceph "orch daemon rm mon.${host} --force" 2>/dev/null || true
+        # 等它退出 monmap
+        sleep 8
+        _run_ceph "mon rm ${host}" 2>/dev/null || true
+        sleep 3
+        # 2) 在新 IP 上重建 MON（cephadm 会拉起容器并绑到该网段 IP）
+        _run_ceph "orch daemon add mon ${host}:${newip}" 2>/dev/null || true
+        # 3) 等该 MON 重新入 quorum 再迁下一个
+        wait_mon_quorum 3 120 || true
+    done
+}
+
+restart_ceph_services() {
+    local mode="$1"       # limit | unlimit
+    local mon_map_name="$2"
+    # 先迁 MON（保 quorum），再重启 OSD，避免 OSD 先切网络后 MON 不可达
+    migrate_mons "${mon_map_name}"
+    restart_osds
     local health
     health=$(_run_ceph "health" 2>/dev/null || echo "UNKNOWN")
     echo "  Ceph health: ${health}"
@@ -85,8 +137,8 @@ apply_limit() {
         echo '  cluster_network = ${LIMIT_NET}'
     "
 
-    # 2. Restart Ceph services to rebind
-    restart_ceph_services "limit"
+    # 2. Migrate MONs to 10.114.1.x + restart OSDs to rebind
+    restart_ceph_services "limit" CEPH_MON_LIMIT_IPS
 
     # 3. Get MON IPs on the limit network
     # MONs are on ceph-node1/2/3 = 150/151/152, limit network IPs:
@@ -139,8 +191,8 @@ remove_limit() {
         echo '  cluster_network = ${CLUSTER_NET}  (${CLUSTER_NIC})'
     "
 
-    # 2. Restart Ceph services to rebind
-    restart_ceph_services "unlimit"
+    # 2. Migrate MONs back to 10.3.1.x + restart OSDs to rebind
+    restart_ceph_services "unlimit" CEPH_MON_IPS
 
     # 3. Build MON IPs on the 100GbE public network (10.3.1.x)
     PUBLIC_MON_IPS=""

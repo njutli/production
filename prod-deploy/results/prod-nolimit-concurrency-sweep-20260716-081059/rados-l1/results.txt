@@ -1,0 +1,9 @@
+### rados bench results
+prefill write: 2160 MB/s (256K, -t 16, 120s)
+rand -t 128:   3198 MB/s (256K, 60s, 12792 IOPS, avg lat 10ms)
+rand -t 16:    2832 MB/s (256K, 60s, 11328 IOPS, avg lat 1.4ms)
+
+JuiceFS randread D0 = 2891 MiB/s
+rados rand -t 128 = 3198 MiB/s
+客户端放大 = rados / JuiceFS = 1.11 (接近1.0)
+结论：JuiceFS 客户端开销极小，已接近后端裸上限

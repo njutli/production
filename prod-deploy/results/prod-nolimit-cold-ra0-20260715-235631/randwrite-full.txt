@@ -1,0 +1,102 @@
+bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+=== randwrite R1 START: Wed Jul 15 23:27:13 +07 2026 ===
+storage_test: (g=0): rw=randwrite, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=libaio, iodepth=128
+...
+fio-3.28
+Starting 128 processes
+
+storage_test: (groupid=0, jobs=128): err= 0: pid=895968: Wed Jul 15 23:30:20 2026
+  write: IOPS=10.6k, BW=2652MiB/s (2781MB/s)(466GiB/180020msec); 0 zone resets
+    slat (usec): min=95, max=48310, avg=11076.27, stdev=8126.77
+    clat (usec): min=2, max=15063k, avg=1455828.50, stdev=655956.92
+     lat (usec): min=717, max=15064k, avg=1466905.48, stdev=655477.52
+    clat percentiles (msec):
+     |  1.00th=[  768],  5.00th=[ 1062], 10.00th=[ 1200], 20.00th=[ 1301],
+     | 30.00th=[ 1351], 40.00th=[ 1401], 50.00th=[ 1435], 60.00th=[ 1469],
+     | 70.00th=[ 1519], 80.00th=[ 1552], 90.00th=[ 1620], 95.00th=[ 1687],
+     | 99.00th=[ 1821], 99.50th=[ 4597], 99.90th=[12818], 99.95th=[13892],
+     | 99.99th=[14697]
+   bw (  MiB/s): min= 1149, max= 5146, per=100.00%, avg=2859.02, stdev= 3.68, samples=21123
+   iops        : min= 5076, max=29248, avg=11456.53, stdev=19.61, samples=42206
+  lat (usec)   : 4=0.01%, 10=0.01%, 20=0.01%, 50=0.01%, 750=0.01%
+  lat (usec)   : 1000=0.01%
+  lat (msec)   : 2=0.01%, 4=0.01%, 10=0.01%, 20=0.01%, 50=0.07%
+  lat (msec)   : 100=0.05%, 250=0.10%, 500=0.18%, 750=0.50%, 1000=2.94%
+  lat (msec)   : 2000=95.51%, >=2000=0.63%
+  cpu          : usr=0.21%, sys=0.20%, ctx=3877584, majf=0, minf=14793
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.2%, >=64=99.6%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.1%
+     issued rwts: total=0,1909906,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+  WRITE: bw=2652MiB/s (2781MB/s), 2652MiB/s-2652MiB/s (2781MB/s-2781MB/s), io=466GiB (501GB), run=180020-180020msec
+=== randwrite R1 DONE: Wed Jul 15 23:30:20 +07 2026 ===
+=== randwrite R2 START: Wed Jul 15 23:30:30 +07 2026 ===
+storage_test: (g=0): rw=randwrite, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=libaio, iodepth=128
+...
+fio-3.28
+Starting 128 processes
+
+storage_test: (groupid=0, jobs=128): err= 0: pid=925161: Wed Jul 15 23:34:01 2026
+  write: IOPS=10.7k, BW=2673MiB/s (2803MB/s)(470GiB/180023msec); 0 zone resets
+    slat (usec): min=90, max=47789, avg=10916.23, stdev=8119.32
+    clat (usec): min=2, max=16209k, avg=1437158.46, stdev=692103.48
+     lat (usec): min=217, max=16209k, avg=1448075.39, stdev=691586.68
+    clat percentiles (msec):
+     |  1.00th=[  760],  5.00th=[ 1036], 10.00th=[ 1200], 20.00th=[ 1284],
+     | 30.00th=[ 1351], 40.00th=[ 1385], 50.00th=[ 1418], 60.00th=[ 1452],
+     | 70.00th=[ 1485], 80.00th=[ 1536], 90.00th=[ 1586], 95.00th=[ 1636],
+     | 99.00th=[ 1754], 99.50th=[ 4732], 99.90th=[13624], 99.95th=[14832],
+     | 99.99th=[15771]
+   bw (  MiB/s): min= 1585, max= 5265, per=100.00%, avg=2904.33, stdev= 3.61, samples=20930
+   iops        : min= 5510, max=29896, avg=11626.52, stdev=19.98, samples=41920
+  lat (usec)   : 4=0.01%, 10=0.01%, 20=0.01%, 250=0.01%, 500=0.01%
+  lat (usec)   : 750=0.01%, 1000=0.01%
+  lat (msec)   : 2=0.01%, 20=0.01%, 50=0.08%, 100=0.05%, 250=0.10%
+  lat (msec)   : 500=0.18%, 750=0.54%, 1000=3.25%, 2000=95.15%, >=2000=0.63%
+  cpu          : usr=0.21%, sys=0.21%, ctx=3909065, majf=0, minf=14673
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.2%, >=64=99.6%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.1%
+     issued rwts: total=0,1924765,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+  WRITE: bw=2673MiB/s (2803MB/s), 2673MiB/s-2673MiB/s (2803MB/s-2803MB/s), io=470GiB (505GB), run=180023-180023msec
+=== randwrite R2 DONE: Wed Jul 15 23:34:01 +07 2026 ===
+=== randwrite R3 START: Wed Jul 15 23:34:11 +07 2026 ===
+storage_test: (g=0): rw=randwrite, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=libaio, iodepth=128
+...
+fio-3.28
+Starting 128 processes
+
+storage_test: (groupid=0, jobs=128): err= 0: pid=951481: Wed Jul 15 23:37:42 2026
+  write: IOPS=10.2k, BW=2560MiB/s (2685MB/s)(450GiB/180021msec); 0 zone resets
+    slat (usec): min=92, max=52988, avg=11424.08, stdev=8195.69
+    clat (usec): min=2, max=15801k, avg=1502772.22, stdev=690442.07
+     lat (usec): min=222, max=15802k, avg=1514197.02, stdev=689967.53
+    clat percentiles (msec):
+     |  1.00th=[  768],  5.00th=[ 1083], 10.00th=[ 1250], 20.00th=[ 1334],
+     | 30.00th=[ 1385], 40.00th=[ 1435], 50.00th=[ 1469], 60.00th=[ 1519],
+     | 70.00th=[ 1552], 80.00th=[ 1603], 90.00th=[ 1687], 95.00th=[ 1770],
+     | 99.00th=[ 1955], 99.50th=[ 5000], 99.90th=[13355], 99.95th=[14563],
+     | 99.99th=[15368]
+   bw (  MiB/s): min= 1050, max= 5268, per=100.00%, avg=2768.65, stdev= 3.90, samples=21033
+   iops        : min= 5326, max=29980, avg=11099.45, stdev=20.72, samples=42053
+  lat (usec)   : 4=0.01%, 10=0.01%, 20=0.01%, 250=0.01%, 500=0.01%
+  lat (usec)   : 750=0.01%, 1000=0.01%
+  lat (msec)   : 20=0.01%, 50=0.11%, 100=0.05%, 250=0.11%, 500=0.19%
+  lat (msec)   : 750=0.43%, 1000=2.60%, 2000=95.65%, >=2000=0.85%
+  cpu          : usr=0.20%, sys=0.20%, ctx=3745346, majf=0, minf=14640
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.1%, 32=0.2%, >=64=99.6%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.1%
+     issued rwts: total=0,1843515,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+  WRITE: bw=2560MiB/s (2685MB/s), 2560MiB/s-2560MiB/s (2685MB/s-2685MB/s), io=450GiB (483GB), run=180021-180021msec
+=== randwrite R3 DONE: Wed Jul 15 23:37:42 +07 2026 ===
+ALL_DONE

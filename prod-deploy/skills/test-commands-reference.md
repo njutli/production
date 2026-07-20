@@ -278,12 +278,13 @@ fio --directory="${TEST_DIR}" \
     --filesize=1G --size=1G \
     --bs=256k --rw=randread \
     --ioengine=libaio --iodepth=128 --numjobs=128 \
-    --direct=1 --fallocate=none \
+    --direct=1 --fallocate=none --openfiles=128 \
     --group_reporting --time_based --runtime=180 \
     --write_bw_log="${JUICEFS_BW_LOG_DIR}/randread" --log_avg_msec=1000
 ```
 
 > 跑前：冷态 drop_caches（§3.1）+ layout cooldown（§3.2）；暖态 warmup（§2.4）。
+> `--openfiles=128`：必须 = numjobs（显式声明，防止遗漏导致假瓶颈）。
 > REPEAT=3（冷态取 r1）/ 7（暖态看收敛），取稳态中位数（§8）。
 
 ### 6.2 随机写 randwrite（验收口径，fresh volume + 自建文件）
@@ -295,12 +296,13 @@ fio --directory="${TEST_DIR}" \
     --nrfiles=100 --filesize=1G --size=1G \
     --bs=256k --rw=randwrite \
     --ioengine=libaio --iodepth=128 --numjobs=128 \
-    --direct=1 --fallocate=none --create_on_open=1 --openfiles=100 \
+    --direct=1 --fallocate=none --create_on_open=1 --openfiles=128 \
     --group_reporting --time_based --runtime=180 \
     --write_bw_log="${JUICEFS_BW_LOG_DIR}/randwrite" --log_avg_msec=1000
 ```
 
 > `--create_on_open=1 --nrfiles=100`：自建 100 个文件，测真随机写（非覆写已有数据）。
+> `--openfiles=128`：必须 = numjobs。旧值 100 会导致 28 个 job 排队等 fd（BeeGFS 单变量对照实验证实 +507% 假瓶颈，详见 `beegfs-production/results/20260707-beegfs-cold-baseline-v2/evidence/control-experiment-conclusion.md`）。
 
 ### 6.3 随机读写 randrw（验收口径，fresh volume + 自建文件）
 
@@ -311,12 +313,13 @@ fio --directory="${TEST_DIR}" \
     --nrfiles=100 --filesize=1G --size=1G \
     --bs=256k --rw=randrw \
     --ioengine=libaio --iodepth=128 --numjobs=128 \
-    --direct=1 --fallocate=none --create_on_open=1 --openfiles=100 \
+    --direct=1 --fallocate=none --create_on_open=1 --openfiles=128 \
     --group_reporting --time_based --runtime=180 \
     --write_bw_log="${JUICEFS_BW_LOG_DIR}/randrw" --log_avg_msec=1000
 ```
 
 > randrw 是最难点（读写争抢 + 协议开销，历史所有调参手段无效，关预读后才达标，见 `doc/perf-analysis/12` §三）。
+> `--openfiles=128`：同 §6.2，必须 = numjobs。
 
 ### 6.4 随机写/读写 analysis 版（复用 layout，隔离文件创建开销）
 
@@ -327,7 +330,7 @@ fio --directory="${TEST_DIR}" \
     --filesize=1G --size=1G \
     --bs=256k --rw=randwrite \
     --ioengine=libaio --iodepth=128 --numjobs=128 \
-    --direct=1 --fallocate=none --openfiles=100 \
+    --direct=1 --fallocate=none --openfiles=128 \
     --group_reporting --time_based --runtime=180 \
     --write_bw_log="${JUICEFS_BW_LOG_DIR}/randwrite-analysis" --log_avg_msec=1000
 
@@ -337,12 +340,13 @@ fio --directory="${TEST_DIR}" \
     --filesize=1G --size=1G \
     --bs=256k --rw=randrw \
     --ioengine=libaio --iodepth=128 --numjobs=128 \
-    --direct=1 --fallocate=none --openfiles=100 \
+    --direct=1 --fallocate=none --openfiles=128 \
     --group_reporting --time_based --runtime=180 \
     --write_bw_log="${JUICEFS_BW_LOG_DIR}/randrw-analysis" --log_avg_msec=1000
 ```
 
 > analysis 版目的：消除文件创建开销，测已有数据上的稳态随机写/读写，便于调参对比。
+> `--openfiles=128`：同 §6.2，必须 = numjobs（旧值 100 已废止）。
 
 ---
 
@@ -414,14 +418,14 @@ python3 -c "
 import glob, statistics
 from collections import defaultdict
 
-ts_dir = defaultdict(lambda: [0, 0])  # {ts: [read_bw, write_bw]} KiB/s
+ts_dir = defaultdict(lambda: [0, 0])  # {sec: [read_bw, write_bw]} KiB/s
 for f in glob.glob('${JUICEFS_BW_LOG_DIR}/randread-r1_bw.*.log'):
     for line in open(f):
         parts = line.strip().split(',')
-        ts = int(parts[0])
-        bw = float(parts[1])
+        sec = int(parts[0]) // 1000  # fio bw_log 时间戳是毫秒，必须按整秒归桶
+        bw = float(parts[1])         # 否则各 job 毫秒抖动(4999 vs 5000)会分散归桶，128-job 聚合被严重低估
         d = int(parts[2])  # 0=read, 1=write
-        ts_dir[ts][d] += bw
+        ts_dir[sec][d] += bw
 
 # randread 只有 read(d=0)；randrw 有 read(d=0)+write(d=1)
 read_vals = [v[0] for v in sorted(ts_dir.values())]
@@ -436,7 +440,7 @@ if write_vals:
 "
 ```
 
-> **128 job 聚合要点**：不能对 128 个文件分别取中位数再平均（会丢失并发效应），必须按时间戳对齐求和后再取中位数。
+> **128 job 聚合要点**：不能对 128 个文件分别取中位数再平均（会丢失并发效应），必须按时间戳对齐求和后再取中位数。**时间戳按整秒归桶（`ms//1000`），不能用原始毫秒**——各 job 的毫秒时间戳有抖动（如 4999 vs 5000），直接用毫秒当 key 会把同一秒的值分散到不同桶，导致 128-job 聚合被严重低估（实测低估数十倍）。
 > randrw 的 bw_log 同时含 read(d=0) 和 write(d=1) 行，按 data_direction 分开后各自取中位数。
 
 ### 8.4 红线

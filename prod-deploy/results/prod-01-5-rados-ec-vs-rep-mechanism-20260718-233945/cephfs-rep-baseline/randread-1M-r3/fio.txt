@@ -1,0 +1,34 @@
+storage_test: (g=0): rw=randread, bs=(R) 1024KiB-1024KiB, (W) 1024KiB-1024KiB, (T) 1024KiB-1024KiB, ioengine=libaio, iodepth=128
+...
+fio-3.28
+Starting 128 processes
+
+storage_test: (groupid=0, jobs=128): err= 0: pid=3946211: Sun Jul 19 21:32:15 2026
+  read: IOPS=5551, BW=5551MiB/s (5821MB/s)(1027GiB/189355msec)
+    slat (usec): min=8, max=42025, avg=333.12, stdev=612.72
+    clat (nsec): min=986, max=20329M, avg=2946385227.48, stdev=3706997224.15
+     lat (usec): min=495, max=20329k, avg=2946718.52, stdev=3707077.73
+    clat percentiles (usec):
+     |  1.00th=[    1188],  5.00th=[    1549], 10.00th=[    1729],
+     | 20.00th=[    2245], 30.00th=[    3163], 40.00th=[    6194],
+     | 50.00th=[  884999], 60.00th=[ 2264925], 70.00th=[ 4798284],
+     | 80.00th=[ 6945768], 90.00th=[ 8355054], 95.00th=[ 9865004],
+     | 99.00th=[13354664], 99.50th=[16710108], 99.90th=[17112761],
+     | 99.95th=[17112761], 99.99th=[17112761]
+   bw (  MiB/s): min=  194, max=10946, per=100.00%, avg=5720.63, stdev=13.28, samples=23163
+   iops        : min=  282, max=13688, avg=5734.67, stdev=17.42, samples=46200
+  lat (nsec)   : 1000=0.01%
+  lat (usec)   : 2=0.01%, 10=0.01%, 20=0.01%, 50=0.01%, 100=0.01%
+  lat (usec)   : 250=0.01%, 500=0.01%, 750=0.56%, 1000=0.27%
+  lat (msec)   : 2=15.06%, 4=18.81%, 10=7.59%, 20=0.76%, 50=0.28%
+  lat (msec)   : 100=0.42%, 250=1.41%, 500=2.06%, 750=1.81%, 1000=1.78%
+  lat (msec)   : 2000=8.24%, >=2000=40.95%
+  cpu          : usr=0.01%, sys=1.34%, ctx=1310198, majf=2, minf=4201859
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.1%, 16=0.2%, 32=0.4%, >=64=99.2%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.1%
+     issued rwts: total=1051189,0,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+   READ: bw=5551MiB/s (5821MB/s), 5551MiB/s-5551MiB/s (5821MB/s-5821MB/s), io=1027GiB (1102GB), run=189355-189355msec
