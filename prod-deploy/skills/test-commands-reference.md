@@ -45,7 +45,7 @@ RESULTS_DIR=""                    # 测试结果保存目录（每项 fio 的产
 - `--time_based --runtime=180s`：时间基准，跑满 180s（60s 太短，缓冲暂态占 15s 后稳态样本不够）
 - `--group_reporting`：多 job 合并上报
 - **所有项必须加 `--write_bw_log --log_avg_msec=1000`**：每秒一个瞬时带宽点，用于稳态中位数计算（见 §8）
-- 随机项 REPEAT=3（冷态）或 7（暖态看收敛），取稳态中位数（见 §8）
+- 随机项 REPEAT≥3（冷态）或 ≥5（基线复现验证）或 7（暖态看收敛），取稳态中位数（见 §8）
 
 ---
 
@@ -185,8 +185,8 @@ done
 
 ```bash
 # prep：写 4G 数据（冷态读前必须有数据）
-mkdir -p "${TEST_DIR}"
-fio --name=prep --directory="${TEST_DIR}/" --rw=write --bs=4M --size=4G >/dev/null 2>&1
+rm -rf "${TEST_DIR}/seqread"; mkdir -p "${TEST_DIR}/seqread"
+fio --name=prep --directory="${TEST_DIR}/seqread/" --rw=write --bs=4M --size=4G >/dev/null 2>&1
 # drop_caches 后冷读
 sync; echo 3 | sudo tee /proc/sys/vm/drop_caches
 fio --name=seqread --directory="${TEST_DIR}/" \
@@ -379,10 +379,7 @@ rados -p "${POOL}" cleanup --run-name rados-l1
 
 ### 8.1 为什么不能看 fio 平均 BW
 
-fio 报的 **平均** BW（`bw=`行）会被以下两种暂态污染：
-
-1. **客户端写缓冲暂态**（写类）：测试开头几秒写进 JuiceFS 内存缓冲即返回，fio 以为写完，瞬时 bw 冲到 ~485 MiB/s（远超网卡线速），缓冲填满后跌落到真实稳态。全程平均被暂态拉高 7-8%，曾报 120-127 MB/s 超千兆物理上限（~118），是假象。
-2. **冷启动暂态**（读类）：开头几秒 OSD 缓存/连接池未热，带宽偏低或偏高。
+> 详见 `TESTING-GUIDE.md` §5.5（后端缓冲暂态）和 §5.6（JuiceFS 客户端写缓冲虚高）。此处仅列采集方法。
 
 **达标值 = fio 瞬时带宽稳态段中位数**，不是全程平均/最大。
 

@@ -39,14 +39,14 @@
 ### 1.3 01 阶段核心结论（三层瓶颈分解，01-5 最终版）
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
+┌────────────────────────────────────────────────────────────────────┐
 │ 层级           │ 瓶颈             │ 证据                    │ 结论   │
-├─────────────────────────────────────────────────────────────────┤
+├────────────────────────────────────────────────────────────────────┤
 │ ① 磁盘硬件     │ ❌ 非瓶颈        │ BeeGFS 同硬件 9045      │ 可排除 │
 │ ② Ceph OSD 软件 │ EC 路径是瓶颈   │ CephFS+EC 4608 < 6250   │ 待攻   │
-│    栈（EC4+2） │ Rep 路径非瓶颈  │ CephFS+Rep 6718 ✅ 达标 │        │
-│ ③ FUSE 用户态  │ JuiceFS 主瓶颈  │ ceph-fuse 单变量 -42%   │ 待攻   │
-└─────────────────────────────────────────────────────────────────┘
+│    栈（EC4+2） │ Rep 路径非瓶颈   │ CephFS+Rep 6718 ✅ 达标 │        │
+│ ③ FUSE 用户态  │ JuiceFS 主瓶颈   │ ceph-fuse 单变量 -42%   │ 待攻   │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 1. **EC4+2 vs Rep3 在 RADOS 层基本相当**（0.80-1.30×）。01-4 CephFS "Rep +46% vs EC" 是客户端层效应（IOPS 放大），非后端本质差异。
@@ -54,7 +54,7 @@
 3. **Ceph OSD 软件栈在 EC 是瓶颈**（IOPS 放大：256K → 4×64K chunks → disk IOPS bound，%util=100%），**在 Rep 非瓶颈**（CephFS+Rep 6718 ✅ 达标）。
 4. **FUSE 是 JuiceFS 主瓶颈**（直接证据：ceph-fuse 单变量对照 4972 → 2884，损失 42%；slat 暴涨 15×：729μs → 11092μs）。
 5. **Go runtime 和 TiKV 不是瓶颈**（ceph-fuse 无 Go/TiKV 但和 JuiceFS 一样慢，2884 vs 2969 差 3%）。
-6. **rados bench 不能代表后端真实能力**（librados 用户态比 CephFS 内核客户端低效 63%）。
+6. **rados bench 不能代表后端真实能力**（librados 用户态比 CephFS 内核客户端低效 63%）。因为 librados 使用用户态 messenger，每次网络收发都需 user↔kernel context switch，而 kernel CephFS 内核模块使用内核态 socket 直连 OSD，无此开销。
 7. **达标 6250 路径**：✅ kernel CephFS+Rep（6718）/ ✅ BeeGFS（9045），其余均不达标。
 
 ### 1.4 Ceph per-op 软件开销代码级定位（01-5 §十二）
@@ -117,8 +117,8 @@ JuiceFS 客户端 ─── 2404（EC）/ 2969（Rep）= 后端 56% ── 当�
 
 ### 2.3 01 阶段遗留的开放问题
 
-1. **cluster_network 修复后性能反降**：01-5 后端修复 cluster_network=10.3.2.0/24，但写 -19%、读 -6%；疑似 OSD 冷缓存，需 24h+ 预热后复测。
-2. **CephFS+Rep3 本集群 4972 vs 01-4 集群 6718**：同集群不同时期，差距 35% 未解释（疑似 cluster 状态差异）。
+1. **cluster_network 修复后性能反降**：02-1 Z1 已确认 cluster_network 修复生效（cluster NIC 7.8GB 流量）。01-5 的"反降"需在 cluster_network=10.3.2.0/24 下重新跑 rados bench 确认（A1 待执行）。
+2. **CephFS+Rep 本集群 5359 vs 01-4 集群 6718**：02-1 Z3 复测中位 5359，未复现 6718。差距 20% 缩窄至原 35%，剩余归因集群状态差异。待作为独立全量基线任务（02-2）深入排查。
 3. **01-3 多实例亚线性**：N4 ra0=5013=单进程 1.74×（亚线性），当时可能受后端裸能力上限压制；**后端裸能力提升后需复测**，可能恢复线性。
 4. **6 核封顶根因（01-4 §5.4）**：已定位为反馈平衡点（IOPS 被延迟反馈环封顶 → per-I/O CPU 仅 0.4% → 固定开销占 91%），但**未验证是否有可松动的调优点**。
 5. **randwrite-ow 不限速轮间波动 50-100%**（01-2d 唯一未结项）：A=2004~3015、B=1410~2847；v2 诊断数据（OSD delta/PG/iostat/jfs-stats）已采集待分析；限速口径 0% 波动形成反常对照。
@@ -152,153 +152,30 @@ JuiceFS 客户端 ─── 2404（EC）/ 2969（Rep）= 后端 56% ── 当�
 
 ---
 
-## 零、零号检查（A1/B1 前置，门槛极低）
-
-> **核心逻辑**：在投入大量测试时间前，先确认测试环境的基础设施没有隐藏问题。01-5 已暴露 cluster_network 零流量是重大隐患；4 份外部调优建议均指出"不先修底层问题就做 A/B 线调优，所有后续数据都可能受干扰"。
-> 来源：`/tmp/02-stage-optimization-suggestions.md` §一 + `/tmp/minimax-m3-02-stage-tuning-recommendations.md` §二 + `/tmp/opencode-02-stage-tuning-suggestions.md` 方向1 + `/tmp/opencode-02阶段调优补充建议.md` N1。
-
-### Z1：cluster_network 零流量根因诊断【P0】
-
-**问题**：01-5 §四.4 报告 cluster NIC `enp139s0f1np1` **全程零流量**——EC subop 全部走 public NIC。02 计划 A1 直接写"等预热 24h 后复测"，但**没有验证修复是否生效**。若 cluster_network 依然零流量，则"预热后复测"得到的是无效对照。
-
-**执行**（4 项，<30 分钟）：
-```bash
-# 1. 配置层确认
-ceph config show osd.0 | grep -E "cluster_network|public_network|cluster_addr"
-ceph config get osd cluster_network
-ceph config get osd public_network
-
-# 2. OSD 进程实际监听端口
-ss -tlnp | grep ceph   # 应有 6789(public) + 6800-7300(cluster) 两组
-
-# 3. CRUSH map 检查
-ceph osd metadata osd.0 | grep -E "addr|front_addr|back_addr"
-
-# 4. 抓包直接确认（跑 randread 时）
-tcpdump -i enp139s0f1np1 'port 6800' -c 100   # 期望：有 EC subop 流量
-```
-
-**判定**：
-- 配置层正确 + 进程监听 6800 + tcpdump 有流量 → cluster_network 已生效，进 A1 预热复测。
-- 配置层正确但 tcpdump 0 流量 → 可能是 Quincy 17.2.x 在 `failure-domain=osd` 下的路由 bug，搜 [tracker.ceph.com](https://tracker.ceph.com)。
-- 配置层缺失 → 修配置后重测。
-
-### Z2：PG 分布与 CRUSH 均衡性检查【P0】
-
-**问题**：01 阶段从未检查 32 PG 在 6 OSD 上的分布均衡性。EC k=4+m=2+6 OSD 理论每 OSD 5.3 PG，但 CRUSH 可能不均匀。
-
-**执行**（~5 分钟）：
-```bash
-ceph osd df tree                          # 各 OSD 使用率
-ceph pg dump_stuck                         # 是否有 stuck PG
-ceph pg ls-by-pool juicefs-data | awk '{print $NF}' | sort | uniq -c  # PG per OSD
-```
-
-**判定**：若某 OSD 承载 PG 数偏离均值 ±20% → 调 pg_num 或重 crush。
-
-### Z3：kernel CephFS+Rep 同集群差距复现【P0】
-
-**问题**：01-4 集群 kernel CephFS+Rep = **6718**（达标），01-5 同集群同配置仅 **4972**（差 35%），从未被解释。
-
-**价值**：若能复现 6718 → "换 CephFS+Rep"是确定性达标路径，直接给用户拍板；若复现 4972 → 找出 01-4 集群为何更高（cluster_network 状态？Ceph 版本？PG 分布？），挖掘更深调优空间。
-
-**执行**（与 Z1 合并）：
-1. 在本集群（01-5 FSID）kernel mount 跑一次 randread。
-2. 若 Z1 确认 cluster_network 修复生效 → 修复后再跑一次，对比是否从 4972 → 6718。
-
-### Z4：FUSE 内核侧参数核查【P0 — 整个 B 线最高优先级】
-
-**问题**：02 计划 B1 全集中在 go-fuse 用户态（writeback_cache / splice / batch），但 **FUSE dispatch 延迟是用户态 + 内核态双重路径**。01-4 §5.4.4 排除了 go-fuse `maxMaxReaders=4`（用户态），但**从未检查内核侧 FUSE 队列参数**。
-
-**关键怀疑**：`/sys/fs/fuse/connections/<dev>/max_read` 默认 **131072（128K）**，而业务用 **256K block** ——每个 256K 读请求被内核 FUSE 拆成 2 次 `/dev/fuse` 往返，**dispatch 延迟直接翻倍**。这可能是 slat 11092μs（kernel CephFS 729μs 的 15×）的**物理根因**，而非 01-4/01-5 推断的"FUSE 架构固有"。
-
-**执行**：
-```bash
-# 1. 检查当前值
-for d in /sys/fs/fuse/connections/*/; do
-  echo "=== $d ==="
-  echo "max_background: $(cat $d/max_background)"
-  echo "congestion_threshold: $(cat $d/congestion_threshold)"
-  echo "max_read: $(cat $d/max_read)"
-  echo "max_write: $(cat $d/max_write)"
-done
-
-# 2. 若 max_read=131072(128K)，调大到 256K 并 remount
-echo 262144 > /sys/fs/fuse/connections/*/max_read    # 注意：需 umount + remount 生效
-echo 1024 > /sys/fs/fuse/connections/*/max_background
-```
-
-| 参数 | 默认 | 建议 | 机理 |
-|------|------|------|------|
-| `max_read` | 131072 (128K) | **262144 (256K)** | 与 JuiceFS 256K block 对齐，避免拆包 |
-| `max_write` | 131072 | 262144 | 同上 |
-| `max_background` | 128 | 512-1024 | 内核 pending 请求数；128j×128 远超 128 |
-| `congestion_threshold` | max_bg × 0.75 | 接近 max_bg | 入队限流阈值 |
-
-**预期收益**：若 `max_read=128K` 确认是限制，修正后 slat 砍半，randread 可能提升 20-40%。**这会改变整个 B 线策略**——从"攻 FUSE 架构固有延迟"转向"修正一个配置不匹配"。
-
-### Z5：librados 客户端限流参数核查【P0】
-
-**问题**（来源：`/tmp/opencode-02阶段调优补充建议.md` N1）：01-4 §5.4 的"IOPS 被延迟反馈环封顶在 11.6K → CPU 封顶 6 核"推导，隐含前提是"128 goroutine 发出的请求都能畅通进入 librados objecter 队列"。但 Ceph 客户端侧有**两个默认限流阀**：
-
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| `objecter_inflight_ops` | 1024 | objecter 最大在途操作数 |
-| `objecter_inflight_op_bytes` | **100MB** | objecter 最大在途字节数 |
-
-当前 fio 口径 `iodepth=128 × numjobs=128`，每 op 256K，理论峰值在途字节 = 16384 × 256KB ≈ **4GB**，远超 100MB 默认阈值 **40 倍**。若未显式覆盖，objecter 会在客户端本地排队等待配额释放，这部分排队被 fio 计入 `slat`/`clat`，**混进"FUSE dispatch 5+ms/op"的观测值中**，导致 FUSE 税被高估。
-
-**执行**（成本极低）：
-```bash
-ceph config get client objecter_inflight_ops
-ceph config get client objecter_inflight_op_bytes
-# 同时检查 157 ceph.conf 和 JuiceFS 进程实际生效值
-```
-
-**判定**：
-- 确认是默认值 100MB → 临时调大到 `objecter_inflight_op_bytes=1073741824`（1GB），复测 randread D0，对比 slat 是否显著下降。
-- 若 slat 下降 30%+ → 说明 01-4 §5.4 的"FUSE dispatch 5+ms 是架构固有"结论需部分修正，**objecter 限流是比 FUSE dispatch 更早触发的隐藏瓶颈**。
-- 若无变化 → 排除该假设，明确记录"objecter 限流非瓶颈"。
-
-### Z6：EC pool fast_read 开关【P1】
-
-**问题**（来源：`/tmp/opencode-02阶段调优补充建议.md` N3）：01-5 §4.1 显示 EC randread 存在"冷启动-暖缓存"模式（r1=3191 vs r2/r3=4600+，+44%）。EC 读延迟 = `max(4 个 shard 延迟)`，某个 shard 偶发慢会拖低整体。Ceph 原生 `fast_read` 属性向 **K+M 个 shard 全发请求**，取最先回来的 K 个组数据，用冗余 shard 顶替偶发慢 shard。
-
-**执行**（一条命令）：
-```bash
-ceph osd pool set juicefs-data fast_read true   # 或诊断池先试
-rados bench -p juicefs-data 60 rand --pool-ops   # REPEAT=3
-```
-
-**判定**：
-- 消除"冷启动-暖缓存"模式（r1 ≈ r2 ≈ r3）→ 确认尾延迟拖尾是冷启动根因。
-- 中位数提升 → fast_read 有效（需权衡多读 M=2 份冗余 shard 的 IOPS/网络代价）。
-- 中位数反降（IOPS-bound 场景多读反而更糟）→ 回滚，不适用。
-
----
-
 ## 四、主线 A：后端裸能力提升
 
 > 目标：将 Ceph EC4+2 后端裸能力从 ~4300 提升到 ≥5000，逼近 6250 验收线。
-> 逻辑：01-5 已确认磁盘非瓶颈（BeeGFS 同硬件 9045）、EC 瓶颈在 Ceph OSD 软件栈（IOPS 放大 + per-op 开销），故 A 线聚焦**削减 Ceph 软件栈 per-op 开销** + **修复 cluster_network** + **OSD 预热**。
+> 逻辑：01-5 已确认磁盘非瓶颈（BeeGFS 同硬件 9045）、EC 瓶颈在 Ceph OSD 软件栈（IOPS 放大 + per-op 开销），故 A 线聚焦**削减 Ceph 软件栈 per-op 开销** + **修复 cluster_network**。
 
-### A1：cluster_network 修复 + OSD 预热复测（进行中，门槛低）
+### A1：cluster_network 修复 + rados bench 复测（门槛低）
 
-**背景**：01-5 发现 cluster_network 配置未生效（EC subop 全走 public NIC），已修复为 10.3.2.0/24，但修复后性能反降（写 -19%、读 -6%），疑似 OSD 冷缓存。
+**前置检查（已完成）**：cluster_network 配置/监听/流量三层验证
+- `ceph config get osd cluster_network` = `10.3.2.0/24` ✅
+- OSD `back_addr` 在 cluster 网段 ✅
+- EC randread 期间 cluster NIC 有 7.8GB RX + 5.8GB TX ✅
+- 结论：cluster_network 修复已生效。
 
-**假设**：cluster_network 修复后，EC subop 走专用 cluster NIC，理论上应减少 public NIC 争用 + 降低 RTT；当前反降是因为 OSD RocksDB cache 冷、PG 状态重算等一次性开销。
+**背景**：01-5 发现 cluster_network 配置未生效（EC subop 全走 public NIC），已修复为 10.3.2.0/24。
 
 **执行**：
-1. 等待 OSD 预热 24h+（期间可跑轻负载填充 cache）。
-2. 复测 rados bench EC4+2 randread（-t128 / -t4096，REPEAT=3）。
-3. 对比修复前后 + 预热前后，判断 cluster_network 修复的净收益。
-4. 附带：测 cluster NIC RTT（`ping 10.3.2.7` vs `ping 10.3.1.7`），确认双网延迟差异。
+1. 跑 rados bench EC4+2 randread（-t128 / -t4096，REPEAT=3）。
+2. 对比 01-5 修复前数据，判断 cluster_network 修复的净收益。
 
 **判定**：
-- 修复+预热后 ≥ 修复前（4300）→ cluster_network 修复有效，纳入生产。
-- 仍 < 修复前 → cluster_network 修复无益，回滚（EC subop 走 public NIC 并非瓶颈）。
+- 修复后 ≥ 修复前（4300）→ cluster_network 修复有效，纳入生产。
+- 仍 < 修复前 → cluster_network 修复无益，回滚。
 
-**状态**：⏳ 待执行（需等待 OSD 预热）。
+**状态**：⏳ 待执行。
 
 ### A2：Ceph OSD 软件开销削减（核心，代码级定向）
 
@@ -355,7 +232,9 @@ rados bench -p juicefs-data 60 rand --pool-ops   # REPEAT=3
 
 **背景**：当前 EC4+2 failure-domain=osd，256K block。EC 读路径 256K → 4×64K chunks（IOPS 放大 4×）。01-5 §十二 确认这是 EC 瓶颈本质。
 
-> **前置**：Z6 `fast_read` 开关已作为零号检查项先行验证。若 fast_read 有效，A4 的 stripe/k/m 调优可降低优先级。
+> **前置检查（已完成）**：EC pool fast_read 开关
+> - fast_read=true 消除轮间波动（19%→2%），但中位数无显著提升（+0.5%）
+> - 结论：稳定性强但无吞吐收益，保持 false（默认）
 
 **可探索项**：
 1. **A4.1 JuiceFS chunk/block vs EC stripe 三层对齐检查**（来源：外部建议新增）：
@@ -375,44 +254,28 @@ rados bench -p juicefs-data 60 rand --pool-ops   # REPEAT=3
 > 目标：将 JuiceFS+EC 从 2404（后端 56%）提升到 ≥3500（后端 70%+），缩小与后端裸能力的差距。
 > 逻辑：01-4 §5.4 + 01-5 §十一 已确认 FUSE 是 JuiceFS 主瓶颈（dispatch 延迟 5+ms/op → IOPS 反馈封顶 ~11.6K → CPU 封顶 ~6 核）。B 线聚焦**削减 FUSE dispatch 延迟** + **JuiceFS 内部参数** + **多实例复测**。
 
-### B1：FUSE dispatch 延迟削减（核心，攻根因）
+### B1：FUSE dispatch 延迟削减（已完成，结论更新）
 
-> **前置**：Z4（FUSE 内核侧 `max_read` 检查）已作为零号检查项先行。若 Z4 确认 `max_read=128K` 且修正后 slat 砍半，则 B1 的优先级和方向需重新评估——可能是配置不匹配而非架构固有。
+> **前置检查（已完成）**：max_read = 128K（JuiceFS 默认 `--max-fuse-io 128K`）
+> - 256K I/O 被拆成 2 × 128K dispatch，slat 翻倍
+> - 修正为 1M 后 randread +25%，FUSE 税从 39% 降到 24%
+> - 但 max-fuse-io > 128K 导致写劣化（根因：buffer 压力检查 sleep，详见 02-1 报告 §九-十）
+> - **当前最优配置**：`--max-fuse-io 256K --buffer-size 1024`（读 +16%，写 +70%，详见 02-1b 报告）
 
-**背景**：01-4 §5.4.4 排除了 go-fuse `maxMaxReaders=4`（仅 2 reader 活跃，未触顶），故单纯增大 reader 数无益。根因是 **FUSE dispatch 路径本身的长延迟**（writev → /dev/fuse → kernel FUSE module → back ≈ 5+ms/op）。
+**背景**：01-4 §5.4.4 排除了 go-fuse `maxMaxReaders=4`，根因是 FUSE dispatch 路径本身的长延迟。但通过 Z4 发现 max_read=128K 拆包是主要因素，修正后 FUSE 税大幅降低。
 
-**假设 B1a**：go-fuse 默认 `WriteBackCache` 未启用或配置不当，启用后可减少 dispatch 往返。
-
-**执行 B1a**：
-1. 检查当前 JuiceFS mount 的 FUSE options（`mount | grep fuse`）。
-2. 尝试 `-o writeback_cache`（内核 FUSE writeback 模式，减少 readahead 失效场景的 dispatch）。
-3. 复测 randread，对比 slat 变化。
-
-**假设 B1b**：go-fude 版本/补丁调研 + io_uring FUSE 替代路径（来源：外部建议新增）。
-
-**执行 B1b**：
-1. 检查 JuiceFS 依赖的 go-fuse 版本（`grep go-fuse /home/lilingfeng/project/juicefs/go.mod`），对比上游是否有未启用的 batch/splice 优化。
-2. **检查 157 内核版本**：`uname -r`。若 ≥ 6.1 → Linux 支持 `IORING_OP_URING_CMD` 让 FUSE 通过 io_uring 与内核通信，**绕过传统 /dev/fuse read/write 模型**——理论上是 B4（kernel mount）的更安全替代方案（仍走 FUSE ABI，不需要新内核模块）。
-3. 调研 JuiceFS 社区是否有 io_uring FUSE 的实验分支。
-
-**假设 B1c**：FUSE splice（零拷贝）可减少 memcpy 开销。
-
-**执行 B1c**：
-1. 检查 go-fuse 是否启用 splice（`-o splice_read -o splice_write`）。
-2. 检查内核 `/sys/module/fuse/parameters/` 是否允许 splice。
-3. 若未启用，尝试启用并复测。
-
-**判定**：
-- 任一 B1 子项使 slat 从 ~11000μs 降到 ≤5000μs → FUSE dispatch 有可松动空间，继续深挖。
-- 全部无效 → FUSE dispatch 延迟是架构固有，B 线转向 B3 多实例或 io_uring/kernel mount。
-
-**状态**：⏳ 待 Z4 完成后执行（Z4 结果决定 B1 方向）。
+**后续方向**：
+- B1a writeback_cache：**降级**（FUSE 税已从 39% 降到 24-27%，边际收益变小）
+- B1b io_uring FUSE：**排除**（内核 5.15 < 6.1，不可用）
+- B1c splice：低优先级
 
 ### B2：JuiceFS 内部参数调优
 
 **背景**：01-3 已测 max-uploads 对 randread 无益（-2~-5%，控写不控读）。但 JuiceFS 仍有未试参数。
 
-> **前置**：Z5（objecter_inflight_op_bytes 限流核查）已作为零号检查项先行。若 Z5 确认限流命中，B2 优先级降低（限流是更早的瓶颈）。
+> **前置检查（已完成）**：objecter_inflight_op_bytes 限流核查
+> - objecter_inflight_op_bytes=100MB（默认），调大到 1GB 后 BW 仅 +3%、slat -3%（噪声范围）
+> - 结论：非瓶颈，不再追踪
 
 **执行**：
 1. **B2.1 max_background**：当前 50（`fuse.go:469`），试 100/200，看是否增加 FUSE 后台请求处理并发。**注意**：这是 go-fuse 用户态参数，与内核 `/sys/fs/fuse/connections/*/max_background`（Z4 检查项）是不同变量，需同时调。
@@ -562,21 +425,7 @@ sysctl -w net.core.busy_poll=50
 ## 八、执行顺序与决策树
 
 ```
-零号检查（§零）────────── 门槛极低，先行（<1h）
-  ├─ Z1 cluster_network 根因诊断 ─── 确认修复生效后再预热
-  ├─ Z2 PG 分布均衡性检查
-  ├─ Z3 kernel CephFS+Rep 同集群复现 6718
-  ├─ Z4 FUSE 内核 max_read 检查 ─── 可能是 slat 15× 的物理根因
-  ├─ Z5 objecter_inflight_op_bytes 限流核查 ─── 可能是隐藏客户端限流
-  └─ Z6 EC pool fast_read 开关
-     │
-     ├─ Z4 命中（max_read=128K）→ 修正后 slat 砍半，B 线方向根本改变
-     ├─ Z5 命中（限流生效）→ 修正后排除客户端限流干扰，01-4 §5.4 结论需修正
-     ├─ Z3 复现 6718 → 记录"CephFS+Rep 达标"路径
-     └─ 任一项异常 → 先修异常再进 A/B 线
-          │
-          ▼
-A1 cluster_network 修复 + OSD 预热复测 ──── 门槛低，先行
+A1 cluster_network 修复 + rados bench 复测 ─── 前置已确认（Z1 已生效）
      │
      ├─ 有效（≥4300）→ 纳入生产，继续 A2
      └─ 无益 → 回滚，跳到 A2
@@ -631,24 +480,18 @@ B3 多实例复测（后端提升后）────────── 验证 01-
 
 | 优先级 | 任务 | 预期收益 | 成本 | 风险 |
 |:---:|------|---------|------|------|
-| **P0** | Z1 cluster_network 根因诊断 | 高（影响 A1 有效性） | 极低（<30min） | 0 |
-| **P0** | Z2 PG 分布均衡性检查 | 中 | 极低（~5min） | 0 |
-| **P0** | Z3 kernel CephFS+Rep 同集群复现 | 高（影响决策） | 低 | 低 |
-| **P0** | Z4 FUSE 内核 max_read 检查 | **可能极高（slat 砍半）** | 极低 | 低 |
-| **P0** | Z5 objecter 限流核查 | **可能极高（隐藏限流）** | 极低 | 低 |
-| **P1** | Z6 EC pool fast_read | 中（消除尾延迟拖尾） | 极低（一条命令） | 低 |
+| **P0** | A1 cluster_network 修复 + rados bench 复测 | 高（确认修复净收益） | 极低 | 0 |
 | **P1** | A2.1 cephx 分级测试 | 高（5-15%，最大可消除项） | 低（配置改） | 中（安全权衡） |
 | **P1** | A2.2 osd_memory_target 16GB + cache | 高（EC 4× RocksDB 查） | 低（配置改） | 低 |
-| **P1** | B1a FUSE writeback_cache | 高（可能削减 dispatch 延迟） | 低（mount 选项） | 低 |
+| **P1** | B1 FUSE 调优（⚑ 结论存疑，02-2 重验中） | ~~已确认：max-fuse-io 256K + buf1024 读写都受益~~ 收益基于漂移基线（02-1b 写 683↔1760 差 2.6×），**待 02-2 P1 锁定收敛基线后 P3 重扫复核** | 低 | — |
 | **P2** | A2.3 Messenger/线程模型 | 中 | 低（配置改） | 中 |
-| **P2** | B2 JuiceFS 内部参数 | 中 | 低 | 低 |
+| **P2** | B2 JuiceFS 内部参数 | 中（objecter 已排除） | 低 | 低 |
 | **P2** | C1 NVMe 队列参数 | 中（EC %util=100%） | 极低 | 低 |
 | **P2** | C2 NIC IRQ 亲和性 | 中 | 低 | 低（slave only） |
 | **P2** | C3 MTU 4200→9000 | 中 | 中（需确认交换机） | 中 |
 | **P2** | D1 randwrite-ow 波动数据分析 | 中（补齐唯一未结项） | 极低（纯分析） | 0 |
 | **P2** | D2 大 block-size（1M/4M）基线 | 高（可能不改代码就近达标） | 中 | 低 |
 | **P3** | B3 多实例复测 | 诊断价值 | 低 | 低 |
-| **P3** | B1b go-fuse 版本/io_uring 调研 | 中-高 | 低 | 低 |
 | **P3** | C4 TCP BBR / busy_poll | 低-中 | 低 | 低 |
 | **P4** | A3 OSD 扩容 | 不确定 | 高（加盘） | 中 |
 | **P4** | B4 io_uring FUSE / kernel mount | 高 | 高 | 高 |
@@ -664,8 +507,9 @@ B3 多实例复测（后端提升后）────────── 验证 01-
 - **统计口径**：fio bw_log 稳态中位数（截开头 1/4），不认 fio 平均。
 - **block size**：256K（与 EC stripe_width 对齐）。
 - **冷态**：cache=0，无 writeback。
+- **OSD 缓存**：对比性测试（不同配置 A/B 对照）前重启所有 OSD 清缓存；生产模拟测试可不清。
 - **openfiles**：128（=numjobs，避免 01 阶段假瓶颈）。
-- **双口径**：default + ra0 均测，分析以 ra0 为主。
+- **readahead 口径（已定，用户拍板）**：**统一单组 ra0（`--max-readahead 0`）**，不再 default + ra0 双测。依据：生产只能用一种挂载配置，AI 训推稳态热点（shuffle 随机读 + checkpoint 并发写）ra0 全面占优；default 唯一强项（顺序大文件读）属冷启动一次性开销，已在 `doc/perf-report/00-baseline-20260722.md` 的 A/B 全量对照中作"已知代价"固化，后续不再每轮双测（省约 1/3 全量测试时间）。仅当新增负载确含高频顺序大文件读时才回补 default 单项。
 - **REPEAT**：≥3 轮取中位数，CV < 5%。
 
 ### 9.2 红线（不可触碰）
@@ -688,7 +532,7 @@ B3 多实例复测（后端提升后）────────── 验证 01-
 ## 十、待用户拍板的开放问题
 
 1. **cephx_sign_messages=false 是否可在生产应用**：内网可信环境下安全风险低，但需用户权衡（cephx 防中间人篡改，关签名不关认证）。A2.1 分级测试可提供更细的决策依据。
-2. **调优基线口径**：01-2c 后已倾向 ra0（随机项全面占优），但顺序项 default 仍占优。**是否正式将调优分析基线定为 ra0**？
+2. ~~**调优基线口径**：01-2c 后已倾向 ra0（随机项全面占优），但顺序项 default 仍占优。**是否正式将调优分析基线定为 ra0**？~~ ⚑ **已拍板（2026-07-22）：正式定为单组 ra0**。理由：生产只能用一种挂载配置，AI 训推稳态热点（shuffle 随机读 + checkpoint 写）ra0 全面占优；default 顺序读强项属冷启动一次性开销，仅在 `00-baseline-20260722.md` 作已知代价一次性记录。后续全量测试不再双测 default（见 §9.1）。
 3. **A3 OSD 扩容是否纳入预算**：若 A1/A2 收益不足，加盘是最后手段。
 4. **io_uring FUSE / kernel mount 是否值得评估**：B4 先评估 io_uring（更安全），再考虑 jfs.ko。
 5. **验收线是否调整**：若 02 阶段后端+JuiceFS 调优仍不达标，是否接受"JuiceFS+EC 后端 70%（~3500）"作为 EC 空间效率下的合理上限？

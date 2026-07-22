@@ -17,7 +17,7 @@
 | **01-4** | 根因 + CephFS 对照 | pprof 热点分析 + CephFS 内核态对照 | 无 bw_log，直接用 fio 聚合行（方法正确） | C1（FUSE dispatch）坐实；CephFS EC 1.60× / Rep 2.34× JuiceFS |
 | **AUDIT** | 统计口径审计 | 全量数据审计，修订"合并×numjobs"外推值 | 确认 01-1 五目录全部只有合并 bw_log；157 上 01-1 的 per-job 已被覆盖丢失；01-2b 是唯一正确执行 §8.3 的测试；发现 `--openfiles=100` 假瓶颈问题（BeeGFS 已证实 +507%） | 无 C 类（需重测）——所有项有 fio 聚合行可用；但 mseqread、randwrite 从未有准确 §8.3 值；openfiles=100 可能导致所有 128-job 项偏低 |
 | **01-2d** | **全量基线重测（定基线）** | 用正确方法（128/16/1 份 per-job §8.3 + REPEAT=3 + `--openfiles=128`）**一次性重测 A=default/B=ra0 全量**，同时补 rados 后端 4 档裸能力 | 旧全部真值作废（randread bw_log×numjobs 失真 65×、rados 3198 单点不可复现）；layout §8.3 峰值虚高（应取含 fsync 的 fio 真值）；randwrite-ow 轮间波动 50-100% 根因定位中 | ✅ **全量准确基线就位**（见 §三重写）。后端随机读裸 ~4300–4400（4000+ 稳态），**首要瓶颈在后端 EC4+2 随机读**（<6250 验收线、<BeeGFS 9045）；JuiceFS randread ra0=2404 仅为后端 56% |
-| **01-5** | **rados bench 后端机制诊断 + FUSE 瓶颈验证**（01-2d 后续） | rados bench EC4+2 vs Rep3 单变量对照（72 cells + 监控）+ 用户两次反驳后补做：(A) JuiceFS+Rep3 后端实测、(B) ceph-fuse vs kernel CephFS 单变量对照（直接隔离 FUSE 影响） | 初版结论两次错：①"磁盘硬件天花板"被 BeeGFS 9045 推翻；②"Ceph 软件栈 per-IO 是后端瓶颈"被用户反驳（CephFS 同栈远高于 rados bench）；③"FUSE 是 JuiceFS 瓶颈"被用户要求直接证据。修复后补做 ceph-fuse 对照实验 | ✅ **三层瓶颈分解**：磁盘非瓶颈（BeeGFS 9045）、Ceph OSD 在 EC 是瓶颈但 Rep 非瓶颈（CephFS+Rep 6718 ✅）、**FUSE 是 JuiceFS 主瓶颈（直接证据：ceph-fuse 单变量对照损失 42%）**；Go/TiKV 非瓶颈（ceph-fuse 一样慢）；rados bench 不能代表后端真实能力（librados 比 CephFS 内核客户端低效 63%）|
+| **01-5** | **rados bench 后端机制诊断 + FUSE 瓶颈验证**（01-2d 后续） | rados bench EC4+2 vs Rep3 单变量对照（72 cells + 监控）+ 用户两次反驳后补做：(A) JuiceFS+Rep3 后端实测、(B) ceph-fuse vs kernel CephFS 单变量对照（直接隔离 FUSE 影响） | 初版结论两次错：①"磁盘硬件天花板"被 BeeGFS 9045 推翻；②"Ceph 软件栈 per-IO 是后端瓶颈"被用户反驳（CephFS 同栈远高于 rados bench）；③"FUSE 是 JuiceFS 瓶颈"被用户要求直接证据。修复后补做 ceph-fuse 对照实验 | ✅ **三层瓶颈分解**：磁盘非瓶颈（BeeGFS 9045）、Ceph OSD 在 EC 是瓶颈但 Rep 非瓶颈（CephFS+Rep 6718 ✅）、**FUSE 是 JuiceFS 主瓶颈（直接证据：ceph-fuse 单变量对照损失 42%）**；Go/TiKV 非瓶颈（ceph-fuse 一样慢）；rados bench 不能代表后端真实能力（librados 比 CephFS 内核客户端低效 63%；librados 用户态 messenger 每次网络收发需 user↔kernel context switch，kernel CephFS 内核态 socket 无此开销）|
 
 > **⚑ 分水岭（2026-07-17）**：01-2d 之前所有"当前数据可信度"结论（§三旧版）建立在**错误/缺失基线**上，已被 01-2d 全量重测取代。下方 §三已按 01-2d 真值重写。
 
@@ -113,5 +113,5 @@
    - **磁盘非瓶颈**（BeeGFS 同硬件 9045 实测，NVMe 单盘 1.5+ GB/s）
    - Ceph OSD 软件栈在 EC 是瓶颈（4 ops × 250μs = 1000μs/op），Rep 路径非瓶颈（CephFS+Rep 6718 ✅ 达标）
    - **FUSE 是 JuiceFS 主瓶颈**（直接证据：ceph-fuse 单变量对照损失 42%）
-   - **rados bench 不能代表后端真实能力**（librados 用户态比 CephFS 内核客户端低效 63%）
+   - **rados bench 不能代表后端真实能力**（librados 用户态比 CephFS 内核客户端低效 63%）——librados 使用用户态 messenger，每次网络收发都需 user↔kernel context switch，而 kernel CephFS 内核模块使用内核态 socket 直连 OSD，无此开销
    - 详见 `doc/perf-report/01-5-rados-bench-ec-vs-rep-mechanism-report.md`

@@ -1,0 +1,50 @@
+diff --git a/pkg/vfs/vfs.go b/pkg/vfs/vfs.go
+--- a/pkg/vfs/vfs.go
++++ b/pkg/vfs/vfs.go
+@@ -7,6 +7,7 @@
+ 	"sort"
+ 	"sync"
++	"sync/atomic"
+ 	"syscall"
+ 	"time"
+ 
+@@ -158,6 +159,8 @@
+ 	Buckets: prometheus.LinearBuckets(4096, 4096, 32),
+ )
+ 
++var writeInstrCounter int64
++
+ var (
+ 	readSizeHistogram = prometheus.NewHistogram(prometheus.HistogramOpts{
+@@ -832,6 +835,8 @@
+ 		return
+ 	}
+ 
++	wlockStart := time.Now()
+ 	if !h.Wlock(ctx) {
+ 		err = syscall.EINTR
+ 		return
+ 	}
++	wlockDur := time.Since(wlockStart)
+ 	defer h.Wunlock()
+ 
++	writeStart := time.Now()
+ 	err = h.writer.Write(ctx, off, buf)
++	writeDur := time.Since(writeStart)
+ 	if err == syscall.ENOENT || err == syscall.EPERM || err == syscall.EINVAL {
+ 		err = syscall.EBADF
+ 	}
+@@ -849,6 +854,15 @@
+ 		v.invalidateAttr(ino)
+ 	}
+ 
++	// Instrumentation: log write handler timing every 1000 writes
++	writeInstrCount := atomic.AddInt64(&writeInstrCounter, 1)
++	if writeInstrCount%1000 == 0 {
++		fmt.Fprintf(os.Stderr, "[vfs-write] size=%d wlock=%dms write=%dms total=%dms\n",
++			len(buf), wlockDur.Milliseconds(), writeDur.Milliseconds(),
++			(wlockDur + writeDur).Milliseconds())
++	}
++
+ 	return
+ }

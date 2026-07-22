@@ -304,9 +304,28 @@ mkdir -p "${TEST_DIR}"
 
 - `--cache-size 0`（无客户端缓存）
 - 每项跑前 `echo 3 > /proc/sys/vm/drop_caches`
-- 不 drop OSD cache（模拟生产 OSD 自然状态）
-- 随机项 REPEAT=3 取均值
-- destroy + reformat 确保干净环境
+- **OSD 缓存管理策略（详见 `baseline-reproduction-skill-draft.md` §2）**：
+  - **基线复现**：集群重建后 A→B 不重启 OSD（B 用 A 的热缓存，匹配 01-2d 方法论）
+  - **配置对比**（如 128K vs 256K+buf1024）：每组测试前重启 OSD，确保冷缓存统一起点
+  - **生产模拟**：可不清 OSD 缓存（OSD 7×24 运行缓存始终热）
+- **清理层级**（详见 `baseline-reproduction-skill-draft.md` §2.2）：
+  - 基线起点：重建集群（每 2-3 轮后）
+  - 轮间清理：delete+recreate pool + restart OSD
+  - 组内清卷：juicefs destroy + compact cooldown
+- 测试前采集 BlueStore 缓存指标（作为环境记录）：
+```bash
+  for osd in 0 1 2 3 4 5; do
+    sudo ceph tell osd.${osd} perf dump 2>/dev/null | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+b=d.get('bluestore',{})
+print(f'osd.${osd}: buffer_hit={b.get(\"buffer_hit_bytes\",0)} buffer_miss={b.get(\"buffer_miss_bytes\",0)} onode_hits={b.get(\"onode_hits\",0)} onode_misses={b.get(\"onode_misses\",0)}')
+"
+  done
+```
+
+- 随机项 REPEAT≥3 取中位数（基线复现建议 REPEAT≥5，详见 `baseline-reproduction-skill-draft.md` §3.7）
+- destroy + reformat 确保干净环境（组内清卷）；轮间清理用 pool delete+create（详见 `baseline-reproduction-skill-draft.md` §2.5）
 
 ### 5.2 暖态基线
 
@@ -572,13 +591,33 @@ fio --name=randread ...
 
 ---
 
-## 十一、文件命名规范
+## 十一、Todo List 管理
 
-### 11.1 summary 文件
+### 11.1 实时更新
+
+每次测试完成或状态变化时，立即更新 todo list：
+- 测试完成 → 标记 completed
+- 发现新问题 → 新增 todo 项
+- 优先级变化 → 调整 priority
+
+> **AI 长跑监控**：sleep 间隔规则和每次唤醒的检查清单详见 `LONG-RUNNING-TEST-SKILL.md`。
+
+### 11.2 串行执行
+
+长时间测试任务通常有依赖关系，必须串行执行：
+- 同一时间只有一个测试在跑
+- 当前测试完成且数据可靠后，才启动下一项
+- 如果数据不可靠（两轮差异大），优先排查重测
+
+---
+
+## 十二、文件命名规范
+
+### 12.1 summary 文件
 
 测试结果摘要文件使用 **summary.md**（不是 summary.txt），因为内容是 Markdown 格式。
 
-### 11.2 完整文件列表
+### 12.2 完整文件列表
 
 每个测试结果目录应包含：
 

@@ -1,0 +1,70 @@
+diff --git a/pkg/vfs/writer.go b/pkg/vfs/writer.go
+--- a/pkg/vfs/writer.go
++++ b/pkg/vfs/writer.go
+@@ -19,6 +19,9 @@
+ import (
++	"fmt"
+ 	"math/rand"
++	"os"
+ 	"runtime"
+ 	"sync"
++	"sync/atomic"
+ 	"syscall"
+ 	"time"
+ 
+@@ -31,6 +34,8 @@
+ )
+ 
++var writeInstrCounter2 int64
++
+ const (
+ 	flushDuration = time.Second * 5
+ )
+@@ -294,6 +299,8 @@
+ func (f *fileWriter) Write(ctx meta.Context, off uint64, data []byte) syscall.Errno {
++	wtStart := time.Now()
++
++	waitStart := time.Now()
+ 	for {
+ 		if f.totalSlices() < 1000 {
+ 			break
+@@ -309,9 +316,15 @@
+ 	}
+ 	if f.w.usedBufferSize() > f.w.bufferSize {
+ 		// slow down
+ 		time.Sleep(time.Millisecond * 10)
+ 		for f.w.usedBufferSize() > f.w.bufferSize*2 {
+ 			time.Sleep(time.Millisecond * 100)
+ 		}
+ 	}
++	bufWait := time.Since(waitStart)
+ 
+ 	s := time.Now()
+ 	f.Lock()
+@@ -321,6 +334,7 @@
+ 	}
+ 	f.writewaiting--
++	lockWait := time.Since(s)
+ 
+ 	indx := uint32(off / meta.ChunkSize)
+ 	pos := uint32(off % meta.ChunkSize)
++	chunkStart := time.Now()
++	size := uint64(len(data))
+ 	for len(data) > 0 {
+ 		n := uint32(len(data))
+@@ -337,6 +351,16 @@
+ 	if off+size > f.length {
+ 		f.length = off + size
+ 	}
++
++	// Instrumentation
++	wiCount := atomic.AddInt64(&writeInstrCounter2, 1)
++	if wiCount%1000 == 0 {
++		fmt.Fprintf(os.Stderr, "[fw-write] size=%d bufwait=%dms lockwait=%dms chunk=%dms total=%dms bufUsed=%dMB bufLimit=%dMB\n",
++			size, bufWait.Milliseconds(), lockWait.Milliseconds(), time.Since(chunkStart).Milliseconds(),
++			time.Since(wtStart).Milliseconds(),
++			f.w.usedBufferSize()/(1024*1024), f.w.bufferSize/(1024*1024))
++	}
++
+ 	return f.err
+ }

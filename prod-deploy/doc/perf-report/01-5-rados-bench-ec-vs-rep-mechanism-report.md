@@ -21,7 +21,7 @@
 
 01-4 提出两条候选解释，需要本任务用单变量对照实验判定：
 1. 后端 EC4+2 随机读本身就有 ~4400 天花板（架构受限）
-2. rados bench 数字（~4400）不能代表后端真实能力（librados 客户端低效）
+2. rados bench 数字（~4400）不能代表后端真实能力（librados 客户端低效）——librados 使用用户态 messenger，每次网络收发都需 user↔kernel context switch，而 kernel CephFS 内核模块使用内核态 socket 直连 OSD，无此开销
 
 执行中**用户两次反驳**，将测试范围扩展为三组实验：
 - 主实验：rados bench EC vs Rep（72 cells，回答 EC vs Rep 后端本质差异）
@@ -293,7 +293,7 @@
 
 6. **01-4 的 C1（FUSE）结论正确**，01-5 实验 B 提供**直接证据**确认。01-4 跳过的"步骤2"应改为 ceph-fuse 对照（本任务已补做）。
 
-7. **rados bench 数字不能代表后端真实能力**——librados 客户端比 CephFS 内核客户端低效 63%（rados bench Rep 4123 vs CephFS Rep 6718）。
+7. **rados bench 数字不能代表后端真实能力**——librados 客户端比 CephFS 内核客户端低效 63%（rados bench Rep 4123 vs CephFS Rep 6718）。因为 librados 使用用户态 messenger，每次网络收发都需 user↔kernel context switch，而 kernel CephFS 内核模块使用内核态 socket 直连 OSD，无此开销。
 
 ### 6.3 推翻的旧结论
 

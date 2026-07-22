@@ -135,7 +135,7 @@
 4. **FUSE 是 JuiceFS 主瓶颈**（直接证据：ceph-fuse 单变量对照 4972 → 2884，损失 42%；slat 暴涨 15×：729μs → 11092μs）。
 5. **Go runtime 和 TiKV 不是瓶颈**（直接证据：ceph-fuse 无 Go/TiKV 但和 JuiceFS 一样慢，2884 vs 2969 差 3%）。
 6. **01-4 C1（FUSE）结论正确**，01-5 实验 B 提供**直接证据**确认。
-7. **rados bench 不能代表后端真实能力**——librados 用户态客户端比 CephFS 内核客户端低效 63%（rados bench Rep 4123 vs CephFS Rep 6718）。
+7. **rados bench 不能代表后端真实能力**——librados 用户态客户端比 CephFS 内核客户端低效 63%（rados bench Rep 4123 vs CephFS Rep 6718）。因为 librados 使用用户态 messenger，每次网络收发都需 user↔kernel context switch，而 kernel CephFS 内核模块使用内核态 socket 直连 OSD，无此开销。
 8. **达标 6250 路径**：✅ kernel CephFS+Rep（6718）/ ✅ BeeGFS（9045），其余均不达标。
 
 ### 5.6 推翻的旧结论

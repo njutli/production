@@ -1,0 +1,79 @@
+diff --git a/fuse/server.go b/fuse/server.go
+--- a/fuse/server.go
++++ b/fuse/server.go
+@@ -42,6 +42,30 @@
+ 	maxMaxReaders = 4
+ )
+ 
++// Instrumentation for write latency breakdown
++var (
++	writeOpCount     int64
++	writeHandlerNs   int64
++	writeResponseNs  int64
++	writeTotalNs     int64
++	lastWriteLogTime time.Time
++)
++
++func logWriteStats() {
++	now := time.Now()
++	if now.Sub(lastWriteLogTime) < time.Second {
++		return
++	}
++	lastWriteLogTime = now
++	n := atomic.LoadInt64(&writeOpCount)
++	if n == 0 {
++		return
++	}
++	handler := atomic.LoadInt64(&writeHandlerNs) / n / 1e6
++	response := atomic.LoadInt64(&writeResponseNs) / n / 1e6
++	total := atomic.LoadInt64(&writeTotalNs) / n / 1e6
++	readWait := total - handler - response
++	fmt.Fprintf(os.Stderr, "[write-stats] count=%d avg_total=%dms handler=%dms response=%dms read_wait=%dms\n",
++		n, total, handler, response, readWait)
++}
++
+ // Server contains the logic for reading from the FUSE device and
+ // dispatching to the file system.
+ type Server struct {
+@@ -793,9 +817,27 @@
+ 	}
+ 
+ 	req.parse(ms.kernelSettings)
++
+ 	if req.handler == nil {
+ 		req.status = ENOSYS
+ 	}
++
++	isWrite := req.inHeader.Opcode == _OP_WRITE
++	var handlerStart time.Time
++	if isWrite {
++		handlerStart = time.Now()
++	}
++
+ 	if req.status.Ok() && ms.opts.Debug {
+ 		ms.opts.Logger.Println(req.InputDebug())
+ 	}
+@@ -814,6 +856,22 @@
+ 	} else if req.status.Ok() {
+ 		req.handler.Func(ms, req)
+ 	}
++
++	var writeStart time.Time
++	if isWrite {
++		handlerNs := time.Since(handlerStart)
++		atomic.AddInt64(&writeHandlerNs, int64(handlerNs))
++		writeStart = time.Now()
++	}
++
+ 	errNo := ms.write(req)
++
++	if isWrite {
++		responseNs := time.Since(writeStart)
++		atomic.AddInt64(&writeResponseNs, int64(responseNs))
++		totalNs := time.Since(req.startTime)
++		atomic.AddInt64(&writeTotalNs, int64(totalNs))
++		atomic.AddInt64(&writeOpCount, 1)
++		logWriteStats()
++	}
++
+ 	if errNo != 0 {
