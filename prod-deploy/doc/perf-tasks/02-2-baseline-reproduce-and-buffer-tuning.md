@@ -170,6 +170,18 @@ juicefs mount ... --max-fuse-io 128K --buffer-size 1024 ...
 
 ### 步骤 3（P3）：buffer 放开后矩阵重扫 —— 验证被憋住的配置
 
+> **P3 有效性判据（基于 P1 六段 + T1 实验结论制定）**
+>
+> P1 基线四轮测试已确认：跨重建周期 randread 漂移 12-20%、randwrite-true 漂移 4-25%，
+> 这是重建引入的 OSD ID/PG 映射/tmpfs 差异导致的**已知噪声带**，无法靠重测消除。
+> 因此 P3 不能用"跨重建 CV<5%"作为判据，改用以下 5 条：
+>
+> 1. **同周期背靠背对比**：256K+buf1024（待验）与 128K+buf300（对照）在**同一次重建/同一次挂载会话内**背靠背跑，只比二者 Δ，**不跨重建比绝对值**（跨重建漂移 12-29% 是已知噪声带）。
+> 2. **效应量门槛**：只有 Δ **显著大于 ±15% 噪声带**才算真实效应。max-fuse-io 历史效应量 randread ~2.0×、mseqwrite ~+30%，远大于噪声，信号可辨。
+> 3. **randrw 用 T1 确定的干净口径**：每轮 `rm -rf TEST_DIR && mkdir` 重建 layout + drop_caches 全节点 + compact_cooldown（T1.2 验证 CV=2.1% 消除骤降）；或直接**丢弃 r3 污染样本、取 r1/r2 中位**。
+> 4. **randwrite-ow 用 bw_log 稳态中位**（非 fio 平均），且标注为非目标项（递减趋势是覆写确定性行为）。
+> 5. **T1 实验结论**：randrw r3 骤降 = 脚本缺陷（layout 复用累积污染），非系统波动。详见 `results/prod-02-2-p1-baseline-20260722/t1-randrw-r3-drop-analysis.md`。
+
 > 目标：在 buffer-size=1024（或步骤 2 确定的安全值）打底下，重扫之前判为"无效"的、会推高 m.Sys 的配置，看是否翻盘。
 > **不重扫** async_dio（机制无关）、objecter（OSD 侧）。
 

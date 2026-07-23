@@ -1,0 +1,28 @@
+epoch 1954
+fsid 4f4e3ca0-8297-11f1-a671-97520597268c
+created 2026-07-18T10:56:29.595860+0000
+modified 2026-07-23T10:18:50.969590+0000
+flags sortbitwise,recovery_deletes,purged_snapdirs,pglog_hardlimit
+crush_version 475
+full_ratio 0.95
+backfillfull_ratio 0.9
+nearfull_ratio 0.85
+require_min_compat_client luminous
+min_compat_client jewel
+require_osd_release quincy
+stretch_mode_enabled false
+pool 98 '.mgr' replicated size 3 min_size 2 crush_rule 0 object_hash rjenkins pg_num 1 pgp_num 1 autoscale_mode on last_change 1881 flags hashpspool stripe_width 0 pg_num_max 32 pg_num_min 1 application mgr
+pool 99 'juicefs-data' erasure profile ec-prod size 6 min_size 5 crush_rule 1 object_hash rjenkins pg_num 32 pgp_num 32 autoscale_mode on last_change 1886 flags hashpspool,ec_overwrites stripe_width 16384 fast_read 1 application juicefs
+max_osd 14
+osd.0 up   in  weight 1 up_from 1939 up_thru 1953 down_at 1932 last_clean_interval [1916,1931) [v2:10.3.1.6:6800/451351,v1:10.3.1.6:6801/451351] [v2:10.3.2.6:6800/451351,v1:10.3.2.6:6801/451351] exists,up 990f0388-6019-49dc-bfd3-dbbb78299dba
+osd.1 up   in  weight 1 up_from 1942 up_thru 1953 down_at 1934 last_clean_interval [1919,1933) [v2:10.3.1.6:6804/451555,v1:10.3.1.6:6805/451555] [v2:10.3.2.6:6804/451555,v1:10.3.2.6:6805/451555] exists,up 8d5c112b-84d2-4ecd-8f42-c1936c79204b
+osd.2 up   in  weight 1 up_from 1945 up_thru 1953 down_at 1936 last_clean_interval [1922,1935) [v2:10.3.1.7:6800/1081002,v1:10.3.1.7:6801/1081002] [v2:10.3.2.7:6800/1081002,v1:10.3.2.7:6801/1081002] exists,up 625d26b0-5460-4870-b6ef-44632a4476bd
+osd.3 up   in  weight 1 up_from 1948 up_thru 1953 down_at 1939 last_clean_interval [1925,1938) [v2:10.3.1.7:6804/1081139,v1:10.3.1.7:6805/1081139] [v2:10.3.2.7:6804/1081139,v1:10.3.2.7:6805/1081139] exists,up f720189e-800b-46c7-8aae-3ae05bb38dec
+osd.4 up   in  weight 1 up_from 1951 up_thru 1953 down_at 1942 last_clean_interval [1928,1941) [v2:10.3.1.8:6800/761327,v1:10.3.1.8:6801/761327] [v2:10.3.2.8:6800/761327,v1:10.3.2.8:6801/761327] exists,up d817d868-abd1-4851-b4cd-ada66da31378
+osd.5 up   in  weight 1 up_from 1953 up_thru 1953 down_at 1944 last_clean_interval [1930,1943) [v2:10.3.1.8:6804/761451,v1:10.3.1.8:6805/761451] [v2:10.3.2.8:6804/761451,v1:10.3.2.8:6805/761451] exists,up 24a55785-2f32-4173-9282-7b0cd4bb5a1d
+blocklist 10.3.1.7:0/4033995676 expires 2026-07-24T09:36:58.057961+0000
+blocklist 10.3.1.7:0/783075201 expires 2026-07-24T09:36:58.057961+0000
+blocklist 10.3.1.7:0/3554244225 expires 2026-07-24T09:36:58.057961+0000
+blocklist 10.3.1.7:0/883764496 expires 2026-07-24T09:36:58.057961+0000
+blocklist 10.3.1.7:6801/2472425736 expires 2026-07-24T09:36:58.057961+0000
+blocklist 10.3.1.7:6800/2472425736 expires 2026-07-24T09:36:58.057961+0000

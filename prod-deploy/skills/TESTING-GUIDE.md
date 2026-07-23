@@ -221,7 +221,7 @@ check_ceph_health "after layout cooldown"
 |------|--------|---------|------|
 | `juicefs format` | **什么都不删**（只重置 TiKV 元数据） | 全部 pool 对象 | 不单独用于清理 |
 | `juicefs destroy` | JuiceFS 拥有的 pool 对象 + TiKV 元数据 | 非 JuiceFS 对象（如 rados bench 残留） | **标准清卷** |
-| `ceph osd pool delete + create` | 全部 | 无 | destroy 失败或孤儿对象累积时兜底 |
+| `ceph osd pool delete + create` | 全部 | 无 | ⚑ **仅 destroy 失败/孤儿对象累积时兜底**；会改 pool_id → CRUSH 重映射 → 性能漂移，用后须视为一次重建、重新标定基线（2026-07-23） |
 
 ### 3.5.3 标准清卷流程（从老集群脚本固化）
 
@@ -306,11 +306,11 @@ mkdir -p "${TEST_DIR}"
 - 每项跑前 `echo 3 > /proc/sys/vm/drop_caches`
 - **OSD 缓存管理策略（详见 `baseline-reproduction-skill-draft.md` §2）**：
   - **基线复现**：集群重建后 A→B 不重启 OSD（B 用 A 的热缓存，匹配 01-2d 方法论）
-  - **配置对比**（如 128K vs 256K+buf1024）：每组测试前重启 OSD，确保冷缓存统一起点
+  - **配置对比**（如 128K vs 256K+buf1024）：⚑ 2026-07-23 修正——**同一次重建/挂载会话内背靠背比 Δ**，不重启 OSD、不删建 pool（这些会重洗 CRUSH 映射，引入漂移）；配置切换用 soft-clean（juicefs destroy）保持布局一致
   - **生产模拟**：可不清 OSD 缓存（OSD 7×24 运行缓存始终热）
-- **清理层级**（详见 `baseline-reproduction-skill-draft.md` §2.2）：
-  - 基线起点：重建集群（每 2-3 轮后）
-  - 轮间清理：delete+recreate pool + restart OSD
+- **清理层级**（详见 `baseline-reproduction-skill.md` §2.2）：
+  - 基线起点：仅集群半损坏/跨部署迁移时 stable-ID 重建（`../pre-skills/stable-rebuild-skill.md`）；同部署无需定期重建（02-2-G v3：soft-clean+OSD restart 可无限轮复现）
+  - 轮间清理：⚑ **soft-clean + OSD restart（juicefs destroy 保留 pool + restart OSD 重置 tmpfs 内存态 + compact cooldown + drop_caches）**（2026-07-23 修正，禁用 delete+recreate pool；02-2-G v3 验证 CV=2.88%）
   - 组内清卷：juicefs destroy + compact cooldown
 - 测试前采集 BlueStore 缓存指标（作为环境记录）：
 ```bash
@@ -325,7 +325,7 @@ print(f'osd.${osd}: buffer_hit={b.get(\"buffer_hit_bytes\",0)} buffer_miss={b.ge
 ```
 
 - 随机项 REPEAT≥3 取中位数（基线复现建议 REPEAT≥5，详见 `baseline-reproduction-skill-draft.md` §3.7）
-- destroy + reformat 确保干净环境（组内清卷）；轮间清理用 pool delete+create（详见 `baseline-reproduction-skill-draft.md` §2.5）
+- destroy + reformat 确保干净环境（组内清卷）；⚑ 轮间清理**也用 juicefs destroy（soft-clean，保留 pool）**，**不再用 pool delete+create**（2026-07-23 修正：删建 pool 改 pool_id → CRUSH 重映射 → 漂移，详见 `baseline-reproduction-skill.md` §2.5）
 
 ### 5.2 暖态基线
 

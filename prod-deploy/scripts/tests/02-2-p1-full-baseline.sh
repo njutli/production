@@ -138,6 +138,10 @@ run_group() {
     done
 
     for r in $(seq 1 ${REPEAT}); do
+        log "randrw r${r}: rebuilding layout (variant Y)..."
+        rm -rf "${TEST_DIR}"; mkdir -p "${TEST_DIR}"
+        fio --directory="${TEST_DIR}" --name=storage_test --filesize=1G --size=1G --bs=4M --rw=write --numjobs=128 --fallocate=none --direct=1 --ioengine=libaio --iodepth=128 --group_reporting --end_fsync=1 >/dev/null 2>&1
+        compact_cooldown
         run_fio "randrw-${label}-r${r}" "fio --directory='${TEST_DIR}' --name=storage_test --filesize=1G --size=1G --bs=256k --rw=randrw --ioengine=libaio --iodepth=128 --numjobs=128 --direct=1 --fallocate=none --openfiles=128 --group_reporting --time_based --runtime=180 --write_bw_log='${BW_LOG_DIR}/randrw-${label}-r${r}' --log_avg_msec=1000"
         compact_cooldown
     done

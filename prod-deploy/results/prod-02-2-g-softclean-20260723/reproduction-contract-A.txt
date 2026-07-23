@@ -1,0 +1,17 @@
+# reproduction-contract  group=A readahead=default  captured=2026-07-23 16:45:39
+## 判定：下次复现前 diff 本文件，全一致才期待相近绝对值；有差异须重新标定。
+
+[OSD 集合]        0,1,2,3,4,5,
+[OSD up/in]       6 osds: 6 up (since 12m), 6 in (since 28m); epoch: e1886
+[CRUSH map md5]   686e3697f937abf9a9017be54bc7d82a
+[pool EC/flags]   pool 99 'juicefs-data' erasure profile ec-prod size 6 min_size 5 crush_rule 1 object_hash rjenkins pg_num 32 pgp_num 32 autoscale_mode on last_change 1886 flags hashpspool,ec_overwrites stripe_width 16384 fast_read 1 application juicefs
+[ceph version]    ceph version 17.2.8 (f817ceb7f187defb1d021d6328fa833eb8e943b3) quincy (stable)
+[juicefs version] juicefs version 1.3.1+2025-12-02.e0032b2
+[kernel 157]      5.15.0-170-generic
+[NUMA 157]        NUMA node(s):                            2
+[WekaIO 负载]      16:45:40 up 159 days, 17:50, 2974 users,  load average: 71.20, 61.59, 41.24   # 共享客户端，负载水平影响绝对值
+
+## OSD -> host/device (tmpfs 落点，跨部署会变):
+  (metadata 解析失败，见取证快照 05-osd-metadata.txt)
+
+## primary-OSD 分布 (布局指纹，见取证 10-primary-osd-histogram.txt)
