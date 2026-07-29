@@ -24,8 +24,8 @@ echo "Preparing client (${CLIENT_SERVER})"
 echo "========================================"
 echo ""
 
-scp_to "${SCRIPT_DIR}/prepare-servers.sh" "${CLIENT_SERVER}" "/tmp/prepare-servers.sh"
-ssh_to_client "sudo SSH_USER=${SSH_USER} bash /tmp/prepare-servers.sh client" 2>/dev/null || \
+scp_to "${SCRIPT_DIR}/prepare-servers.sh" "${CLIENT_SERVER}" "/home/sunrise/prepare-servers.sh"
+ssh_to_client "sudo SSH_USER=${SSH_USER} bash /home/sunrise/prepare-servers.sh client" 2>/dev/null || \
     echo "  157 prepare had warnings (continuing)"
 
 # --- Slaves (150-152) ---
@@ -36,9 +36,9 @@ for ip in "${SLAVE_SERVERS[@]}"; do
     echo "========================================"
     echo ""
 
-    scp_to "${SCRIPT_DIR}/prepare-servers.sh" "${ip}" "/tmp/prepare-servers.sh"
+    scp_to "${SCRIPT_DIR}/prepare-servers.sh" "${ip}" "/home/sunrise/prepare-servers.sh"
     ssh_to_slave "${ip}" \
-        "sudo SSH_USER=${SSH_USER} CEPH_DB_WAL_TMPFS=${CEPH_DB_WAL_TMPFS} CEPH_DB_WAL_MOUNT=${CEPH_DB_WAL_MOUNT} CEPH_DB_WAL_TMPFS_SIZE=${CEPH_DB_WAL_TMPFS_SIZE} bash /tmp/prepare-servers.sh slave" \
+        "sudo SSH_USER=${SSH_USER} CEPH_DB_WAL_TMPFS=${CEPH_DB_WAL_TMPFS} CEPH_DB_WAL_MOUNT=${CEPH_DB_WAL_MOUNT} CEPH_DB_WAL_TMPFS_SIZE=${CEPH_DB_WAL_TMPFS_SIZE} bash /home/sunrise/prepare-servers.sh slave" \
         2>/dev/null || echo "  ${ip} prepare had warnings (continuing)"
 done
 

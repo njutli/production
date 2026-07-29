@@ -150,9 +150,9 @@ for i in "${!TIKV_SERVERS[@]}"; do
     echo "Deploying on ${ip} (${name})"
     echo "========================================"
 
-    # Copy configs
-    scp_to "/tmp/pd-${name}.toml" "${ip}" "/tmp/pd.toml"
-    scp_to "/tmp/tikv-${name}.toml" "${ip}" "/tmp/tikv.toml"
+    # Copy configs（dest 放 sunrise home：/tmp 可能有 root 残留，sticky bit 导致覆写失败）
+    scp_to "/tmp/pd-${name}.toml" "${ip}" "/home/sunrise/pd.toml"
+    scp_to "/tmp/tikv-${name}.toml" "${ip}" "/home/sunrise/tikv.toml"
 
     _run "${ip}" "
         set -e
@@ -163,7 +163,7 @@ for i in "${!TIKV_SERVERS[@]}"; do
         cd /tmp/tikv-deploy
         tar xzf ${PD_TAR}
         sudo mv -f pd-server /opt/pd/bin/
-        sudo mv /tmp/pd.toml /opt/pd/conf/pd.toml
+        sudo mv /home/sunrise/pd.toml /opt/pd/conf/pd.toml
         sudo chown -R root:root /opt/pd ${PD_DATA_DIR} /var/log/pd
 
         # --- Install TiKV ---
@@ -172,7 +172,7 @@ for i in "${!TIKV_SERVERS[@]}"; do
         tar xzf ${TIKV_TAR}
         sudo mv -f tikv-server /opt/tikv/bin/
         sudo ln -sf /opt/tikv/bin/tikv-server /opt/tikv/bin/tikv-ctl
-        sudo mv /tmp/tikv.toml /opt/tikv/conf/tikv.toml
+        sudo mv /home/sunrise/tikv.toml /opt/tikv/conf/tikv.toml
         sudo chown -R root:root /opt/tikv ${TIKV_DATA_DIR} /var/log/tikv
         echo '  Binaries installed.'
     " || { echo "  ERROR: install failed on ${ip}"; exit 1; }

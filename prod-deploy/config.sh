@@ -110,6 +110,9 @@ for ip in "${TIKV_SERVERS[@]}"; do
 done
 
 # --- Ceph 配置（3 节点 × 2 盘 = 6 OSD，EC 4+2）---
+# 容器镜像版本：钉死 17.2.8 quincy —— 全部历史基线（02-2-G v3 等）都在此版本
+# ⚠️ 不要用 v19/Squid：跨大版本绝对值/默认值不可比，会作废历史基线对照
+CEPH_CONTAINER_IMAGE="quay.io/ceph/ceph:v17"
 CEPH_SERVERS=( "${SLAVE_SERVERS[@]}" )
 CEPH_PRIMARY="${CEPH_SERVERS[0]}"     # bootstrap 节点 = 150（管理网 IP，用于 SSH）
 
@@ -187,9 +190,10 @@ JUICEFS_CACHE_SIZE_MB=0             # 0=冷态基线；暖态按需开（如 102
 JUICEFS_BASE_MOUNT_OPTS=(
     --storage ceph                     # 08_1：直连 RADOS，随机写 +71%
     --bucket ceph://juicefs-data
-    --block-size 256K                  # 08_2：消 16× 读放大（与 format 一致，显式声明避免歧义）
     --max-uploads 150                  # 演进报告 §四：顺序写 +23%
 )
+# 注：不传 --block-size —— JuiceFS 1.3.1 mount 拒绝该选项（block-size 由 format 固定为 256K，
+#     元数据自描述，mount 无需也无法覆盖）
 
 JUICEFS_ENABLE_WRITEBACK=false       # 突发写负载 + 缓存盘空间充足时置 true
 # "default" 或 "0"。全量冷态基线做 A/B 双组对照（见 doc/perf-tasks/01-full-cold-baseline.md）：
