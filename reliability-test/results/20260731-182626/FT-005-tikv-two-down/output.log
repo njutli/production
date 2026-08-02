@@ -1,0 +1,31 @@
+TAP version 13
+# FT-005: tikv-two-down
+# 停 2/3 TiKV（Raft majority 丢失），验证元数据阻塞→恢复→无损坏
+ok 1 - 集群初始健康（非 ERR） (actual='HEALTH_WARN 1 OSD(s) experiencing slow operations in BlueStore' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 2 - 初始 6/6 OSD up (actual='6' waited=0s)
+ok 3 - 初始 3/3 TiKV store Up (actual='3' waited=0s)
+ok 4 - 初始 PG 含 active (actual='active+clean' =~ /active/ waited=0s)
+ok 5 - 注入目标 A: 192.168.11.13
+ok 6 - 注入目标 B: 192.168.11.11
+ok 7 - 两个目标不同
+fio started: type=randrw bs=256K jobs=128 pid=1912959
+ok 8 - TiKV store 1/3 Up（majority 丢失） (actual='1' waited=10s)
+ok 9 - OSD 仍 6/6 up（数据面不受影响）
+ok 10 - PG 仍 active（数据面不受影响）
+ok 11 - 集群非 ERR（TiKV majority 丢失） (actual='HEALTH_WARN 1 OSD(s) experiencing slow operations in BlueStore' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 12 - 元数据操作阻塞（timeout 5s，rc=124）— 不返回错误
+ok 13 - 元数据 stat 操作也阻塞（rc=124）
+# during_fault_io_test: 1 skip skip cd71fa65d72e20a67f4dd04df6e0e807  t_gen=0s t_write=81s t_read=0s t_total=81s
+# 故障期间 I/O: write_rc=1 read_rc=skip md5_match=skip（TiKV majority 丢失，写可能失败）
+WARNING: fio did not respond to SIGINT in 10s, sent SIGKILL
+WARNING: no fio output found (I/O may have been hung during kill)
+  cleanup: test files removed
+ok 14 - TiKV 3/3 store Up (actual='3' waited=15s)
+ok 15 - 元数据操作恢复（第 1s 恢复） (actual=1 > 0)
+ok 16 - OSD 仍 6/6 up
+ok 17 - PG 仍 active
+ok 18 - 集群恢复健康（非 ERR） (actual='HEALTH_WARN 1 OSD(s) experiencing slow operations in BlueStore' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 19 - juicefs fsck 通过（无元数据损坏）
+stop_io_load: no fio running
+1..19
+# Result: PASS (19/19)

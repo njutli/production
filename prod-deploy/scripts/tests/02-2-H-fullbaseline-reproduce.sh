@@ -155,14 +155,40 @@ mount_jfs() {
     log "Mounted ${LABEL} (max_read=$(mount | grep juice | grep -o 'max_read=[0-9]*'))"
 }
 
+# 连续采集器（analysis.md §5 全路径埋点）
+# 157 侧：load-monitor.sh — loadavg + D 态 + CPU wa + NIC + 内存（已证 idle=82%/wa=0）
+# OSD 侧：osd-monitor.sh — rocksdb get_latency + bluestore hit/miss + 节点 CPU/网络/磁盘
+LOAD_MONITOR="/tmp/load-monitor.sh"
+OSD_MONITOR="/tmp/osd-monitor.sh"
+
 run_fio() {
     local label="$1"; local subdir="${RESULTS_DIR}/${LABEL}/${label}"; mkdir -p "${subdir}"
     drop_caches
     local load_pre=$(uptime 2>/dev/null | grep -oE 'load average:.*' || echo NA)
     echo "load_pre: ${load_pre}" > "${subdir}/weka-load.txt"
     ( while true; do echo "$(date +%s) | $(cat /proc/net/dev | grep ${NIC_IF})"; sleep 1; done ) > "${subdir}/nic.txt" & local nic_pid=$!
+    if [ -x "${LOAD_MONITOR}" ]; then "${LOAD_MONITOR}" "${subdir}/load-monitor.csv" "${NIC_IF}" & local lm_pid=$!; else local lm_pid=""; fi
+    if [ -x "${OSD_MONITOR}" ]; then mkdir -p "${subdir}/osd"; "${OSD_MONITOR}" "${subdir}/osd" & local om_pid=$!; else local om_pid=""; fi
+    # Collect smart-log BEFORE fio (R.8: first of two-point diff)
+    for node_ip in 10.20.1.150 10.20.1.151 10.20.1.152; do
+        node_name=$(echo ${node_ip} | cut -d. -f4)
+        sshpass -p 'Sunrise@801' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR sunrise@${node_ip} \
+            "sudo nvme smart-log /dev/nvme2n1 2>/dev/null; echo '==='; sudo nvme smart-log /dev/nvme3n1 2>/dev/null" \
+            > "${subdir}/osd/nvme-smartlog-pre-node${node_name}.txt" 2>/dev/null
+    done
     shift; eval "$*" 2>&1 | tee "${subdir}/fio.txt"
-    kill ${nic_pid} 2>/dev/null || true; wait ${nic_pid} 2>/dev/null || true
+    # Collect historic ops (serial, one-shot after fio)
+    for osd_id in 0 1 2 3 4 5; do
+        sudo ceph tell osd.${osd_id} dump_historic_ops 2>/dev/null > "${subdir}/osd/historic-ops-osd${osd_id}.json"
+    done
+    # Collect smart-log AFTER fio (R.8: second of two-point diff)
+    for node_ip in 10.20.1.150 10.20.1.151 10.20.1.152; do
+        node_name=$(echo ${node_ip} | cut -d. -f4)
+        sshpass -p 'Sunrise@801' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR sunrise@${node_ip} \
+            "sudo nvme smart-log /dev/nvme2n1 2>/dev/null; echo '==='; sudo nvme smart-log /dev/nvme3n1 2>/dev/null" \
+            > "${subdir}/osd/nvme-smartlog-post-node${node_name}.txt" 2>/dev/null
+    done
+    kill ${nic_pid} ${lm_pid} ${om_pid} 2>/dev/null || true; wait ${nic_pid} ${lm_pid} ${om_pid} 2>/dev/null || true
     echo "load_post: $(uptime 2>/dev/null | grep -oE 'load average:.*' || echo NA)" >> "${subdir}/weka-load.txt"
     cp ${BW_LOG_DIR}/*_bw.*.log "${subdir}/" 2>/dev/null || true; rm -f ${BW_LOG_DIR}/*_bw.*.log 2>/dev/null || true
     local bw=$(grep -oE 'bw=[0-9]+MiB' "${subdir}/fio.txt" 2>/dev/null | head -1 | grep -oE '[0-9]+')
@@ -317,7 +343,7 @@ fi
 log "=== 起点自检 (期望: pool 空 / 157 负载 < ${WEKA_LOAD_MAX}) ==="
 STARTPOINT_OK=true
 # data pool 对象数（JSON 精确取 num_objects）
-POOL_OBJS=$(sudo rados df --format json 2>/dev/null | python3 -c "import sys,json;pools=json.load(sys.stdin).get('pools',[]);print(next((p['num_objects'] for p in pools if p['pool_name']=='${POOL_DATA}'),'NA'))" 2>/dev/null || echo "NA")
+POOL_OBJS=$(sudo rados df --format json 2>/dev/null | python3 -c "import sys,json;pools=json.load(sys.stdin).get('pools',[]);print(next((p['num_objects'] for p in pools if p['name']=='${POOL_DATA}'),'NA'))" 2>/dev/null || echo "NA")
 log "  ${POOL_DATA} num_objects = ${POOL_OBJS:-NA} (干净起点应 ≈0；A2/B/B2 起点由上一步 soft-clean 保证)"
 [ "${POOL_OBJS}" != "NA" ] && [ "${POOL_OBJS}" -gt 100 ] 2>/dev/null && { log "  ⚠️ pool 非空(${POOL_OBJS} 对象)，起点不干净"; STARTPOINT_OK=false; }
 [ "${POOL_OBJS}" = "NA" ] && { log "  ⚠️ 无法解析对象数，须人工 rados df 确认 pool 已清空"; STARTPOINT_OK=false; }

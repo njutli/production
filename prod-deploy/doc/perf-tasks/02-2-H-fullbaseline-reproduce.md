@@ -59,7 +59,8 @@
 2. [ ] 前置：`ceph health` OK、6 OSD up、确认 JuiceFS 版本含 loadRange 修复
 3. [ ] **【前置：建立干净起点，做一次】stable-ID 重建集群**：`scripts/tests/rebuild-stable-ids.sh`（`ceph osd destroy` + `ceph auth rm` + `ceph-volume lvm` 复用现有 LV，**禁 zap** + **保持 OSD ID 0-5** + **不删 pool（pool_id 不变）**）。等 `HEALTH_OK` / PG active+clean。
    - **目的**：让 A 从"tmpfs/BlueStore 全新"的确定起点开始。**只此一次**，A2/B/B2 之前不再重建。
-   - ⚑ 若 `rebuild-stable-ids.sh` 因 auth key 不匹配/PGMap 不兼容跑不通 → 属禁止擅动区（§四b）：**停下来报告障碍，等确认，不要自行改用 purge + pool delete+recreate 绕道**。正解见 `pre-skills/stable-rebuild-skill.md` 问题 5（`ceph auth rm` 再 activate）、问题 7（`lvm prepare` 复用 LV 禁 zap）。
+   - ⚑ **必须确认脚本末尾"restart-safe 交付门禁"输出 `✅ 交付门禁通过`**（0 destroyed + 6 OSD + auth 齐）。若 `🔴 交付门禁未过` → **不要跑 A**，否则 softclean 的 OSD restart 会触发 `osdmap says I am destroyed`（02-2-H 首轮事故）。按 `pre-skills/stable-rebuild-skill.md` 问题 11 用 rm+new+activate 补齐后再跑。
+   - ⚑ 若 `rebuild-stable-ids.sh` 因 auth key 不匹配/PGMap 不兼容跑不通 → 属禁止擅动区（§四b）：**停下来报告障碍，等确认，不要自行改用 purge + pool delete+recreate 绕道**。正解见 `pre-skills/stable-rebuild-skill.md` 问题 5（`ceph auth rm` 再 activate）、问题 7（`lvm prepare` 复用 LV 禁 zap）、问题 11（destroyed 标志用 rm+new 清，**禁 `ceph osd create`**）。
 4. [ ] **R-A（default，紧接重建）**：`./02-2-H-fullbaseline-reproduce.sh A 180 3`
    - 脚本首次运行会把控制变量（OSD 集合/pool_id/crush md5）写入 `variable-guard-baseline.txt` 作为后续比对基线。**A 必须是重建后第一个跑的**，否则守卫基线起点错。
 5. [ ] **soft-clean + OSD restart**（组间清理）：`./02-2-H-fullbaseline-reproduce.sh softclean`

@@ -459,6 +459,7 @@ if ! _ceph "osd pool ls" | grep -q "^${CEPH_POOL_NAME}\$"; then
 fi
 _ceph "osd pool ls" | grep -q "^${CEPH_POOL_NAME}\$" || { echo "  ERROR: pool ${CEPH_POOL_NAME} create failed"; exit 1; }
 _ceph "osd pool set ${CEPH_POOL_NAME} allow_ec_overwrites true" || true
+_ceph "osd pool set ${CEPH_POOL_NAME} fast_read true" || true
 _ceph "osd pool application enable ${CEPH_POOL_NAME} juicefs" || true
 echo '  ec pool OK'
 
@@ -483,6 +484,7 @@ for _r in 1 2 3; do
     _ceph "osd pool ls" | grep -q "^${CEPH_POOL_NAME}\$" || \
         _ceph "osd pool create ${CEPH_POOL_NAME} ${CEPH_PG_NUM} ${CEPH_PG_NUM} erasure ec-prod" || true
     _ceph "osd pool set ${CEPH_POOL_NAME} allow_ec_overwrites true" || true
+    _ceph "osd pool set ${CEPH_POOL_NAME} fast_read true" || true
     _ceph "osd pool application enable ${CEPH_POOL_NAME} juicefs" || true
     _ceph "auth get-or-create client.juicefs mon 'allow r' osd 'allow class-read object_prefix rbd_directory_pool, allow rwx pool=${CEPH_POOL_NAME}'" || true
 done
@@ -490,6 +492,7 @@ done
 _ok=1
 _ceph "osd erasure-code-profile get ec-prod" | grep -q "^k=${CEPH_EC_K}\$" || _ok=0
 _ceph "osd pool ls" | grep -q "^${CEPH_POOL_NAME}\$" || _ok=0
+_ceph "osd pool get ${CEPH_POOL_NAME} fast_read" | grep -q "1" || _ok=0
 _ceph "auth get client.juicefs" | grep -q 'key =' || _ok=0
 [ "${_ok}" = "1" ] || { echo "  ERROR: profile/pool/auth not stable after 3 rounds"; exit 1; }
 echo '  profile/pool/auth stable (survived 45s×3 checks)'
@@ -547,7 +550,7 @@ echo "========================================"
 echo "Ceph Deployment Complete (NO RGW — direct RADOS)!"
 echo "========================================"
 echo ""
-echo "EC pool:    ${CEPH_POOL_NAME} (${CEPH_EC_K}+${CEPH_EC_M}, allow_ec_overwrites=true)"
+echo "EC pool:    ${CEPH_POOL_NAME} (${CEPH_EC_K}+${CEPH_EC_M}, allow_ec_overwrites=true, fast_read=true)"
 echo "Cephx user: ${CEPHX_CLIENT}"
 echo "Network:    public=${CEPH_PUBLIC_NETWORK}  cluster=${CEPH_CLUSTER_NETWORK}"
 echo "DB/WAL:     tmpfs 内存盘 (loop device, ⚠️ 测试专用—断电丢)"

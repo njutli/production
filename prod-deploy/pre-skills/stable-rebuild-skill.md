@@ -242,9 +242,37 @@ OSD uptime 应 <1800s、`df -h /mnt/dbwal` 占用低（fresh BlueStore）。
 
 ---
 
+### 问题 11：destroy 后 destroyed 标志未清 → restart 触发 "osdmap says I am destroyed" → 误用 ceph osd create 建新 ID
+
+> 2026-07-24 02-2-H 触发。destroy 给 OSDMap 持久打 `destroyed` 标志，`ceph osd new <fsid> <id>` **单独不清标志**（需先 `ceph osd rm <id>` 再 `ceph osd new`）。若标志未清，OSD restart 后读到 "destroyed" 立即退出。
+
+**现象**：softclean 的 `systemctl restart ceph-osd@N` → OSD 重读 OSDMap → "osdmap says I am destroyed" → 进程退出 → PG 卡。
+
+**根因**：`ceph osd destroy` 打标志后，`ceph-volume lvm prepare` 检测到 LV 已有 tag 就跳过（"already prepared"），不调用 `ceph osd new` → 标志残留。`ceph osd new <fsid> <id>` 返回成功但**单独不清 destroyed**——必须先 `ceph osd rm <id>` 再 `ceph osd new <fsid> <id>`。
+
+**误用**：`ceph osd create <id>` 不接受"复用已 destroyed 的 id"——它分配**下一个空闲 id**（给了 6-11 空壳）。清 destroyed 的正确命令是 `ceph osd rm` + `ceph osd new`，**不是 `ceph osd create`**。
+
+**修复**：
+```bash
+# 对每个 destroyed 的 osd.N：
+sudo ceph osd rm $id                           # 先从 OSDMap 移除（清 destroyed 标志）
+sudo ceph osd new $fsid $id                    # 用 LV tag 里的真实 fsid 关联回该 ID
+sshpass ... ssh ... sunrise@$node "sudo vgchange -ay; sudo ceph-volume lvm activate $id $fsid"  # activate 注册 auth + 启动
+```
+fsid 获取：`sudo ceph-volume lvm list $id | grep "osd fsid"` 或 LV tag。
+
+**预防（路线乙，已实装）**：`rebuild-stable-ids.sh` **Step 5b** 在 create 后逐 OSD 校验——`ceph osd dump | grep "osd.N " | grep -v destroyed` 且 `ceph auth get osd.N` 有 key；不齐则自动 `ceph auth rm` + `ceph osd rm` + `ceph osd new <fsid> N` + `ceph-volume lvm activate`（fsid 取自 `ceph-volume lvm list N`）。脚本末尾**交付门禁**：`destroyed 残留=0 且 OSD 总数=6 且 缺 auth=0` 才判 ✅ 可交付，否则 🔴 禁止交付给 02-2-H。确保交付的是"restart-safe"集群，softclean 的 OSD restart 不会再触发 destroyed 退出。
+> ⚑ 实测：`ceph osd rm` + `ceph osd new` **不改 CRUSH 拓扑**（weight/host 位置保留），CRUSH md5 不变（恢复后 =694101a9...，与 02-2-G v3 一致）→ stable-ID 安全。
+
+**首次遇到**：2026-07-24
+
+---
+
 ## 七、更新日志
 | 日期 | 内容 |
 |------|------|
 | 2026-07-23 | 初始：destroy+ceph-volume --osd-id stable-ID 重建 + 问题 1-6 |
 | 2026-07-23 晚 | 新增问题 7（LV 缺 tag → lvm prepare 复用现有 LV，禁 zap/裸盘 create/手动 mkfs）|
 | 2026-07-23 晚 | 重构合并：吸收 cluster-full-rebuild-guide 的 §三全量重建 8 步（含救 mgr / 重建 ec profile / 建 pool）；并入 orch 路线残留问题 8-10（标历史）；§一把 purge 路线弃用为兜底 |
+| 2026-07-24 | 新增问题 11（destroyed 标志未清 → restart 退出 → 误用 osd create 建新 ID；正解=rm+new+activate）|
+| 2026-07-24 | 路线乙：`rebuild-stable-ids.sh` 加 Step 5b 校验补齐 + 末尾 restart-safe 交付门禁（问题 11 预防已实装）|

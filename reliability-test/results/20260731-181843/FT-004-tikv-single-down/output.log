@@ -1,0 +1,45 @@
+TAP version 13
+# FT-004: tikv-single-down
+# 停 1 TiKV，验证元数据操作可完成、I/O 不中断
+ok 1 - 集群初始健康（非 ERR） (actual='HEALTH_WARN 1 OSD(s) experiencing slow operations in BlueStore' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 2 - 初始 6/6 OSD up (actual='6' waited=0s)
+ok 3 - 初始 3/3 TiKV store Up (actual='3' waited=0s)
+ok 4 - 初始 PG 含 active (actual='active+clean' =~ /active/ waited=0s)
+ok 5 - 注入目标: 192.168.11.13
+fio started: type=randrw bs=256K jobs=128 pid=1871214
+  t=1s meta=block
+  t=2s meta=block
+  t=3s meta=ok
+  t=4s meta=ok
+  t=5s meta=ok
+  t=6s meta=ok
+  t=7s meta=ok
+  t=8s meta=ok
+  t=9s meta=ok
+  t=10s meta=ok
+  t=11s meta=ok
+  t=12s meta=ok
+  t=13s meta=ok
+  t=14s meta=ok
+  t=15s meta=ok
+ok 6 - 元数据操作恢复（13/15 次成功） (actual=13 > 0)
+# 元数据首次恢复: 第 3s
+# during_fault_io_test: 0 0 true 7a99713380e52091dc665ab1286f582c 7a99713380e52091dc665ab1286f582c t_gen=0s t_write=1s t_read=6s t_total=7s
+ok 7 - 故障期间数据完整性验证（MD5 一致）
+ok 8 - 故障期间写 I/O 可用（direct，10s timeout）
+ok 9 - 故障期间读 I/O 可用（direct，10s timeout）
+fio stopped, results collected
+  cleanup: test files removed
+ok 10 - TiKV store 2/3 Up（目标 TiKV down）
+ok 11 - OSD 仍 6/6 up（数据面不受影响）
+ok 12 - PG 仍 active（数据面不受影响）
+ok 13 - 集群非 ERR（TiKV down） (actual='HEALTH_WARN 1 OSD(s) experiencing slow operations in BlueStore' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 14 - I/O 成功率 100%（数据面不受影响） (actual=100%)
+ok 15 - P99 < 30s (actual=17112760us < 30000000us)
+ok 16 - TiKV 3/3 store Up (actual='3' waited=15s)
+ok 17 - OSD 仍 6/6 up
+ok 18 - PG 仍 active
+ok 19 - 集群恢复健康（非 ERR） (actual='HEALTH_WARN 1 OSD(s) experiencing slow operations in BlueStore' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+stop_io_load: no fio running
+1..19
+# Result: PASS (19/19)

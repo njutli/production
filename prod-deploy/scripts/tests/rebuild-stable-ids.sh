@@ -26,6 +26,28 @@ OSD_MAP=("0:0:0" "1:0:1" "2:1:0" "3:1:1" "4:2:0" "5:2:1")
 
 log() { echo "[$(date '+%H:%M:%S')] $*"; }
 
+# Step 0: 【前置门禁 2026-07-24】mon quorum 必须健康才允许重建。
+# 教训：mon 亚健康（如 3-mon 退化到单 mon、probing 无 quorum）时跑 create，
+#   ceph osd new 请求会堆积把 mon 彻底拖 hung（398 slow ops 事故）。
+# 门禁：ceph -s 必须在 25s 内返回、HEALTH 非 mon 相关错误、且 mon quorum 数 == monmap 中 mon 数。
+# 不满足 → 直接退出，不进入任何 destroy/create（见 pre-skills/cluster-rebuild-skill.md §三.F）。
+log ">>> Step 0: mon quorum 前置门禁"
+MON_CHECK_IP=${SLAVES[0]}
+qs=$($SSHPASS@$MON_CHECK_IP "sudo timeout 25 ceph quorum_status --format json 2>/dev/null" 2>/dev/null)
+if [ -z "$qs" ]; then
+  log "  🔴 ceph quorum_status 超时/无输出 → mon 无响应（可能单 mon probing）。禁止重建。"
+  log "     排查见 pre-skills/cluster-rebuild-skill.md §三.F（mon 容器 hung / monmap 退化）。停下报告，勿跑 create。"
+  exit 1
+fi
+mon_in_quorum=$(echo "$qs" | python3 -c "import sys,json;print(len(json.load(sys.stdin)['quorum']))" 2>/dev/null || echo 0)
+mon_in_map=$(echo "$qs" | python3 -c "import sys,json;print(len(json.load(sys.stdin)['monmap']['mons']))" 2>/dev/null || echo 0)
+if [ "$mon_in_quorum" -lt 1 ] || [ "$mon_in_quorum" -ne "$mon_in_map" ]; then
+  log "  🔴 mon quorum 不健康：quorum=${mon_in_quorum} / monmap=${mon_in_map}（不相等或为 0）。禁止重建。"
+  log "     monmap 里可能挂着已消失的 mon（如 node1/node2），需先 monmap 手术恢复 quorum（cluster-rebuild-skill §三.F）。停下报告。"
+  exit 1
+fi
+log "  ✅ mon quorum 健康：${mon_in_quorum}/${mon_in_map} in quorum"
+
 # Step 1: Stop OSDs (systemctl mask+stop, NOT just pkill — systemd auto-restarts)
 log ">>> Step 1: Stop+mask ceph-osd on all nodes (systemctl mask+stop)"
 for ip in "${SLAVES[@]}"; do
@@ -170,6 +192,42 @@ for entry in "${OSD_MAP[@]}"; do
   sleep 2
 done
 
+# Step 5b: 【路线乙 2026-07-24】保证交付 restart-safe 集群（见 pre-skills/stable-rebuild-skill.md 问题 11）
+# 背景：ceph-volume lvm create 若检测到 LV 已 prepare 会跳过 osd new → destroyed 标志残留；
+#   或 destroy 删了 auth 后未重建 key。任一残留 → 后续 softclean 的 OSD restart 会触发
+#   "osdmap says I am destroyed" 而退出（02-2-H 事故）。此处逐 OSD 校验并用 rm+new+activate 补齐。
+# ⚑ 已实测 rm+new 不改 CRUSH 拓扑（weight/host 位置保留）→ CRUSH md5 不变，stable-ID 安全。
+log ">>> Step 5b: 校验 restart-safe（destroyed 标志清 + auth 齐），不齐则 rm+new+activate 补齐"
+sleep 5
+for entry in "${OSD_MAP[@]}"; do
+  IFS=':' read osd_id node_idx dev_idx <<< "$entry"
+  ip=${SLAVES[$node_idx]}
+  # (1) 取该 OSD 的真实 fsid（优先 ceph-volume lvm list，回退 LV tag）
+  fsid=$($SSHPASS@$ip "sudo ceph-volume lvm list ${osd_id} 2>/dev/null | grep -m1 'osd fsid' | awk '{print \$NF}'" 2>/dev/null)
+  # (2) 检查 destroyed 标志
+  is_destroyed=$(sudo ceph osd dump 2>/dev/null | grep -E "^osd\.${osd_id} " | grep -o destroyed || true)
+  # (3) 检查 auth key
+  has_auth=$(sudo ceph auth get osd.${osd_id} 2>/dev/null | grep -o "key" || true)
+  if [ -n "$is_destroyed" ] || [ -z "$has_auth" ]; then
+    log "  osd.${osd_id}: 需补齐 (destroyed=${is_destroyed:-no} auth=${has_auth:-MISSING} fsid=${fsid:-?})"
+    if [ -z "$fsid" ]; then
+      log "  ⚠️ osd.${osd_id} 取不到 fsid，跳过自动补齐，须人工处理（ceph-volume lvm list ${osd_id}）"
+      continue
+    fi
+    sudo ceph auth rm osd.${osd_id} 2>/dev/null || true   # 清残留 auth（问题 5）
+    sudo ceph osd rm ${osd_id} 2>/dev/null || true        # 从 OSDMap 移除 → 清 destroyed 标志
+    sudo ceph osd new ${fsid} ${osd_id} 2>/dev/null || true  # 用真实 fsid 关联回同 ID（不改 CRUSH）
+    $SSHPASS@$ip "sudo vgchange -ay 2>/dev/null; sudo ceph-volume lvm activate ${osd_id} ${fsid} 2>&1 | tail -3" 2>/dev/null || true
+    sleep 3
+    # 复验
+    still=$(sudo ceph osd dump 2>/dev/null | grep -E "^osd\.${osd_id} " | grep -o destroyed || true)
+    au=$(sudo ceph auth get osd.${osd_id} 2>/dev/null | grep -o "key" || true)
+    [ -z "$still" ] && [ -n "$au" ] && log "  osd.${osd_id}: ✅ 已 restart-safe" || log "  osd.${osd_id}: 🔴 仍未补齐(destroyed=${still:-no} auth=${au:-MISSING})，须人工排查"
+  else
+    log "  osd.${osd_id}: ✅ restart-safe (未 destroyed + auth 齐)"
+  fi
+done
+
 # Step 6: Start any OSDs that didn't auto-start
 log ">>> Step 6: Ensure all OSDs started"
 sleep 10
@@ -219,9 +277,9 @@ log "  Pool: $(sudo ceph osd pool get juicefs-data fast_read 2>/dev/null)"
 log ">>> Step 10: Verify ceph.conf + keyring..."
 if [ ! -f /etc/ceph/ceph.conf ]; then
   sudo tee /etc/ceph/ceph.conf > /dev/null << 'CONF'
-# minimal ceph.conf for 4f4e3ca0-8297-11f1-a671-97520597268c
+# minimal ceph.conf for 020ed5ec-8703-11f1-a671-97520597268c
 [global]
-	fsid = 4f4e3ca0-8297-11f1-a671-97520597268c
+	fsid = 020ed5ec-8703-11f1-a671-97520597268c
 	mon_host = [v2:10.3.1.6:3300/0,v1:10.3.1.6:6789/0] [v2:10.3.1.7:3300/0,v1:10.3.1.7:6789/0] [v2:10.3.1.8:3300/0,v1:10.3.1.8:6789/0]
 CONF
   sudo chmod 644 /etc/ceph/ceph.conf
@@ -235,4 +293,18 @@ log "  $(sudo ceph osd stat 2>/dev/null)"
 log "  $(sudo ceph osd tree 2>/dev/null | grep osd | head -6 | tr '\n' ' ')"
 log "  $(sudo ceph osd pool get juicefs-data fast_read 2>/dev/null)"
 log "  $(sudo ceph health 2>/dev/null)"
+
+# 交付门禁（路线乙）：任一 OSD 仍 destroyed / 缺 auth / 存在多余 ID → 显式 FAIL，禁止交付给 02-2-H
+log ">>> restart-safe 交付门禁校验"
+DESTROY_LEFT=$(sudo ceph osd dump 2>/dev/null | grep -E "^osd\.[0-5] " | grep -c destroyed || echo 0)
+OSD_COUNT=$(sudo ceph osd ls 2>/dev/null | wc -l)
+NO_AUTH=0
+for id in 0 1 2 3 4 5; do sudo ceph auth get osd.${id} 2>/dev/null | grep -q key || NO_AUTH=$((NO_AUTH+1)); done
+log "  destroyed 残留=${DESTROY_LEFT}  OSD 总数=${OSD_COUNT}(应为6)  缺 auth 数=${NO_AUTH}"
+if [ "${DESTROY_LEFT}" = "0" ] && [ "${OSD_COUNT}" = "6" ] && [ "${NO_AUTH}" = "0" ]; then
+  log "  ✅ 交付门禁通过：集群 restart-safe（0 destroyed + 6 OSD + auth 齐），可交付 02-2-H"
+else
+  log "  🔴🔴 交付门禁未过：集群非 restart-safe！若此时跑 02-2-H，softclean 的 OSD restart 会触发"
+  log "       'osdmap says I am destroyed'。禁止交付。按问题 11 手动 rm+new+activate 补齐，或排查多余 OSD ID。"
+fi
 log ">>> Rebuild (stable IDs) DONE"

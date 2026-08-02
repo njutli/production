@@ -1,107 +1,107 @@
 #!/bin/bash
 # ============================================================
-# Production Deployment Configuration (4 Machines)
-#   1 × TiKV  (single node, single replica)
-#   3 × Ceph   (MON+MGR+OSD+RGW, EC 4+2)
-#   Client: shared on TiKV or Ceph machines (see README)
+# Production Configuration (4 Machines, 3 TiKV + 3 PD + Ceph EC 4+2)
 #
-# Edit this file with your actual server IPs before running.
+#   .11 (ceph-node1):  Ceph MON+MGR+2 OSD + TiKV + PD + RGW
+#   .13 (ceph-node2):  同上
+#   .14 (ceph-node3):  同上
+#   .12 (tikv-node):   纯客户端（JuiceFS FUSE + fio）
+#
+# TiKV: 3 节点 3 副本（Raft majority=2），数据在 sdb LV3
+# Ceph: 6 OSD（sdb 切 2 LV + tmpfs DB/WAL），EC 4+2，failure_domain=osd
+# JuiceFS: --storage ceph 直连 RADOS（非 S3/RGW）
+# SSH: sshpass 直连（无三层跳板）
 # ============================================================
 
-# --- TiKV: Single Node (PD + TiKV co-located) ---
-# This machine serves JuiceFS metadata.
-# Running single-replica mode (no Raft group).
-# Minimum: 4 CPU, 8GB RAM, 50GB+ fast SSD
-TIKV_SERVER="192.168.11.12"   # tikv-node (this machine)
-TIKV_DATA_DEVICE="/dev/sdb"   # dedicated disk for TiKV/PD data (/data mount)
+# --- SSH 配置 ---
+SSH_USER="turboai"
+SSH_PASSWORD="TurboAi@303"
+SSH_KEY="${HOME}/.ssh/id_ed25519"
+SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10"
 
-TIKV_DATA_DIR="/data/tikv"
-PD_DATA_DIR="/data/pd"
+# --- 节点信息 ---
+CLIENT_SERVER="192.168.11.12"
 
-TIKV_VERSION="v7.1.5"
-PD_VERSION="v7.1.5"
-
-# --- Ceph Cluster (3 servers, MON+MGR+OSD+RGW) ---
-# These servers provide object storage (S3) for JuiceFS data.
-# Each server: MON + MGR + OSDs.  RGW on first 2 servers.
-# Minimum: 4 CPU, 8GB RAM, dedicated OSD disks per server
-CEPH_SERVERS=(
-  "192.168.11.11"   # ceph-node1
-  "192.168.11.13"   # ceph-node2
-  "192.168.11.14"   # ceph-node3
+SLAVE_SERVERS=(
+  "192.168.11.11"   # ceph-node1: Ceph + TiKV + PD
+  "192.168.11.13"   # ceph-node2: 同上
+  "192.168.11.14"   # ceph-node3: 同上
 )
 
-# OSD block devices on each Ceph server (unformatted, unmounted, one disk
-# per server).  Each disk will be split into 2 equal partitions by
-# deploy-ceph.sh → 3 servers × 2 partitions = 6 OSDs for EC 4+2.
-# Index matches CEPH_SERVERS.
-#   ceph-node1: sdb=953G (reinstalled 2026-06; system now on sda, sdb freed)
-#   ceph-node2: sdb=953G
-#   ceph-node3: sdb=953G
-# Capacity: all OSD disks ~953G → EC 4+2 usable ~1.9T (efficiency ~67%)
-CEPH_OSD_DEVICES=( "/dev/sdb" "/dev/sdb" "/dev/sdb" )
+ALL_SERVERS=( "${CLIENT_SERVER}" "${SLAVE_SERVERS[@]}" )
 
-# EC pool configuration
-# k=4 data chunks + m=2 parity = 6 chunks total
-# Each node creates 2 LVs from its data disk → 3 × 2 = 6 OSDs
-# failure-domain=osd: 2 OSD failures tolerated
+# --- SSH 函数（sshpass 直连）---
+_run() {
+    local ip=$1; shift
+    sshpass -p "${SSH_PASSWORD}" ssh ${SSH_OPTS} "${SSH_USER}@${ip}" "$*"
+}
+ssh_to_client() {
+    sshpass -p "${SSH_PASSWORD}" ssh ${SSH_OPTS} "${SSH_USER}@${CLIENT_SERVER}" "$*"
+}
+ssh_to_slave() {
+    local ip=$1; shift
+    sshpass -p "${SSH_PASSWORD}" ssh ${SSH_OPTS} "${SSH_USER}@${ip}" "$*"
+}
+scp_to() {
+    local src=$1 ip=$2 dest=$3
+    sshpass -p "${SSH_PASSWORD}" scp ${SSH_OPTS} "$src" "${SSH_USER}@${ip}:${dest}"
+}
+
+# --- Ceph 配置（3 节点 × 2 OSD = 6 OSD，EC 4+2）---
+CEPH_SERVERS=( "${SLAVE_SERVERS[@]}" )
+CEPH_PRIMARY="${CEPH_SERVERS[0]}"     # = .11
+
+# 管理网 IP → cephadm 主机名
+declare -A CEPH_HOSTNAMES
+CEPH_HOSTNAMES["192.168.11.11"]="ceph-node1"
+CEPH_HOSTNAMES["192.168.11.13"]="ceph-node2"
+CEPH_HOSTNAMES["192.168.11.14"]="ceph-node3"
+
 CEPH_EC_K=4
 CEPH_EC_M=2
 CEPH_FAILURE_DOMAIN="osd"
+CEPH_CONTAINER_IMAGE="quay.io/ceph/ceph:v17"
+CEPH_POOL_NAME="juicefs-data"
+CEPHX_CLIENT="client.juicefs"
 
-# --- JuiceFS Client ---
-# Which machine runs JuiceFS mount (FUSE process).
-# Per our strategy:
-#   Data-heavy tests  → ${TIKV_SERVER}
-#   Metadata-heavy tests → one of CEPH_SERVERS
-# Set this before each test run; scripts use PD_ENDPOINTS + RGW_ENDPOINT.
-JUICEFS_CLIENT="${TIKV_SERVER}"
+# OSD 数据盘（每节点 sdb 切 2 LV + 1 TiKV LV）
+CEPH_OSD_DEVICES=( "/dev/sdb" "/dev/sdb" "/dev/sdb" )
 
+# DB/WAL on tmpfs
+CEPH_DB_WAL_TMPFS=true
+CEPH_DB_WAL_TMPFS_SIZE="20G"
+
+# --- TiKV/PD 配置（3 节点 3 副本 Raft）---
+TIKV_SERVERS=( "${SLAVE_SERVERS[@]}" )
+TIKV_DATA_DIR="/mnt/tikv/tikv"
+PD_DATA_DIR="/mnt/tikv/pd"
+TIKV_VERSION="v7.1.5"
+PD_VERSION="v7.1.5"
+TIKV_MAX_REPLICAS=3
+
+# PD 端点（逗号分隔，无 http:// 前缀，用于 JuiceFS tikv:// URL）
+PD_ENDPOINTS=""
+for ip in "${TIKV_SERVERS[@]}"; do
+    [ -n "${PD_ENDPOINTS}" ] && PD_ENDPOINTS+=","
+    PD_ENDPOINTS+="${ip}:2379"
+done
+
+# --- JuiceFS 客户端 ---
+JUICEFS_CLIENT="${CLIENT_SERVER}"   # .12
 JUICEFS_FS_NAME="${JUICEFS_FS_NAME:-juicefs-prod}"
 JUICEFS_MOUNT_POINT="/mnt/juicefs"
 
-# --- SSH Configuration ---
-# All servers use user 'turboai'.  Run setup-ssh-keys.sh first to
-# generate a key pair and copy the public key to every target server.
-# Commands that need root (package install, cephadm, systemd, etc.)
-# are run via sudo.  cephadm inter-node communication still requires
-# root SSH — deploy-ceph.sh handles this by distributing ceph.pub.
-SSH_USER="turboai"
-SSH_KEY="${HOME}/.ssh/id_ed25519"       # generated by setup-ssh-keys.sh
-SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10"
+# JuiceFS metadata URL
+JUICEFS_METADATA_URL="tikv://${PD_ENDPOINTS}/${JUICEFS_FS_NAME}"
 
-# --- Network ---
-# Single PD endpoint (single-node, no Raft group)
-PD_ENDPOINTS="${TIKV_SERVER}:2379"
-
-# --- Ceph RGW endpoint (for JuiceFS S3 access) ---
-# With a single RGW, point JuiceFS directly at it (e.g. CEPH_SERVERS[0]:8000).
-# With multiple RGWs, deploy an LB (deploy-lb.sh) and set RGW_ENDPOINT to
-# the LB address so traffic is spread across all RGW backends — otherwise
-# JuiceFS only ever talks to one RGW.
-# NOTE: defined after the LB block below so ${LB_HOST}/${LB_PORT} are set.
-
-# --- RGW load balancer (HAProxy) ---
-# Only meaningful when there is more than one RGW.  deploy-lb.sh installs
-# HAProxy on LB_HOST and balances LB_PORT across RGW_BACKENDS (round-robin
-# with health checks).  After running it, set RGW_ENDPOINT above to
-# "http://${LB_HOST}:${LB_PORT}".
-#
-# LB_HOST: where HAProxy runs.  Default = TiKV node (gigabit, not an RGW
-# host, so the LB itself isn't competing with an RGW for the same NIC).
-LB_HOST="${TIKV_SERVER}"
-LB_PORT="8080"
-# RGW backends the LB fans out to (ip:port).  Must match the RGW placement
-# in deploy-ceph.sh (currently ceph-node1 + ceph-node3, both :8000).
-RGW_BACKENDS=(
-  "${CEPH_SERVERS[0]}:8000"   # ceph-node1
-  "${CEPH_SERVERS[1]}:8000"   # ceph-node2
-  "${CEPH_SERVERS[2]}:8000"   # ceph-node3
+# JuiceFS 挂载参数（直连 RADOS，与 prod-deploy 一致）
+JUICEFS_BASE_MOUNT_OPTS=(
+    --storage ceph
+    --bucket ceph://juicefs-data
+    --block-size 256K
+    --max-uploads 150
 )
+JUICEFS_MOUNT_OPTS=( "${JUICEFS_BASE_MOUNT_OPTS[@]}" --cache-size 0 )
 
-# JuiceFS S3 endpoint: point at the LB so both RGWs get traffic.
-# (For single-RGW setups, set this to "http://${CEPH_SERVERS[0]}:8000".)
-RGW_ENDPOINT="http://${LB_HOST}:${LB_PORT}"
-
-# --- Binary download mirror ---
+# --- 二进制下载镜像 ---
 TIKV_MIRROR="https://tiup-mirrors.pingcap.com"

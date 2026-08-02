@@ -268,6 +268,7 @@ results/prod-02-2-baseline-reproduce-buffer-<YYYYMMDD-HHMMSS>/
 4. **变量隔离**：P2/P3 每次只改一个变量（buffer-size / max-fuse-io / max_background / max-uploads 分开测），杜绝叠加导致归因不清。
 5. **基线优先**：**步骤 1 未收敛锁定不得进入步骤 2–4**（本任务的核心纪律）。判准是收敛（轮内+轮间 CV<5%），**不是**贴近 01-2d 旧值——旧基线本身可能有偏差，本次以收敛值为权威新基线。
 6. **fast_read 稳定化**：若 CV 压不下来，用 `fast_read=true` 作为稳定化手段并记录；测毕按 §六 R3 处理。
+7. **Ceph 侧调优前置验证**：`ceph config set` 运行时参数（如 `osd_memory_target`）可能触发 BlueStore 缓存重整，导致锁定布局失效（等效于一次缓存重抽签）。P2 前需做 15min 对照：锁定布局下 `ceph config set` 一个无害参数 → 连测 5 轮 randread 看 CV。若 CV 仍 <2% → Ceph 侧调优可用锁定布局法（±5%）；若 CV 显著升高 → 归入交错 A/B 多轮抽签对比类（±10%，见 `interleaved-ab-tuning-skill.md`）。需 restart OSD 的 Ceph 侧调优**必然**失效锁定布局（C 组实测 CV=13%），直接归入交错 A/B 类。
 
 ---
 
