@@ -1,15 +1,22 @@
 # 基线复现 Skill
 
-> 状态：**已验证**。2026-07-23 通过 02-2-G v3 验证了 soft-clean + OSD restart 的稳态可复现性（randread CV=2.88% <5%，mseqread 不单调降，变量守卫 4/4 全绿）。
-> 结论：**轮间清理必须用 soft-clean（`juicefs destroy` 保留 pool → pool_id 不变 → CRUSH 映射不变）+ OSD restart（重置 tmpfs/RocksDB 内存态）**，禁止 `pool delete+recreate`（会改 pool_id → 重映射 → 跨 cycle 不可比）、禁止用重建 OSD 作轮间清理（会改 CRUSH 映射）。集群重建/半损坏恢复口径见 `../pre-skills/stable-rebuild-skill.md`（规范重建）与 `../pre-skills/cluster-rebuild-skill.md`（分层诊断）。
-> **定位**：完整工作流文档（集群配置 + 缓存/清理管理 + 测试流程 + 复现验证）。fio 命令见 `test-commands-reference.md`，方法论原则见 `TESTING-GUIDE.md`。
->
-> **⚑ 波动根因链（已闭环，02-2-G v3 证实）**：跨部署绝对值不可复现，只复现相对结论；同部署内 soft-clean 可复现。三个波动源与对策：
+> 状态：**已验证（V2 + 缩缓存方法）**。2026-08-01 验证了 128-job + 缩 BlueStore 缓存方法的稳定性和灵敏度（randread CV=2.2%, ra0/default=1.96x, 跨轮 default 偏差 0.4%）。
+> 
+> **方法演进**：
+> - V1（02-2-G v3, 2026-07-23）：soft-clean + OSD restart → randread CV=2.88%，但后续发现双峰分布（±12%）
+> - V2（2026-07-31）：锁定布局 + 覆盖写 → 单轮 CV<5%，但跨轮 ±12%（BlueStore 缓存 hit% 波动）
+> - V3（2026-07-31）：确定性预热 + 单进程 → CV=0.6%，但"稳但瞎"（1G 全驻缓存，测不出 readahead 差异）
+> - **当前方法（2026-08-01）**：128-job + 缩 BlueStore 缓存（osd_memory_target=2GB）→ CV=2.2%，ra0/default=1.96x → **稳定且敏感**
+> 
+> **⚑ 波动根因链（已闭环）**：BlueStore 缓存命中率波动（ρ=1.000，02-2h 9 轮 + LC.12 D 组 10 轮确证）是 randread 跨轮波动的直接驱动因子。
 > | 波动源 | 对策 | 状态 |
 > |--------|------|:----:|
-> | ① 重建 OSD → CRUSH 重映射（32 PG 映射全变） | stable-ID 重建（destroy + ceph-volume 复用 LV，见 stable-rebuild-skill） | ✅ 消除 |
-> | ② pool delete+recreate → pool_id 变 → PG 重算 | soft-clean 保留 pool | ✅ 消除 |
-> | ③ tmpfs/RocksDB 内存态逐轮累积 | OSD restart（不删 pool，只重置内存态） | ✅ 消除 |
+> | ① 重建 OSD → CRUSH 重映射 | stable-ID 重建（destroy + ceph-volume 复用 LV） | ✅ 消除 |
+> | ② pool delete+recreate → pool_id 变 | soft-clean 保留 pool | ✅ 消除 |
+> | ③ tmpfs/RocksDB 内存态累积 | ~~OSD restart~~ → compact_cooldown 双指标门控 | ✅ 消除 |
+> | ④ **BlueStore 缓存 hit% 波动** | **缩缓存到 ~0%（osd_memory_target=2GB）→ hit% 恒定** | ✅ 消除 |
+> 
+> **定位**：完整工作流文档（集群配置 + 缓存管理 + 测试流程 + 复现验证）。fio 命令见 `test-commands-reference.md`，方法论原则见 `TESTING-GUIDE.md`。
 
 ---
 
@@ -30,7 +37,7 @@
 | **cluster_network** | **10.3.2.0/24**（独立网卡 enp139s0f1np1） | config.sh + 01-2d §7 |
 | public_network | 10.3.1.0/24（网卡 enp139s0f0np0） | config.sh |
 | MTU | 4200（100GbE，WekaIO 设置，不动） | 红线 |
-| osd_memory_target | 当前值（采集记录） | `ceph config get osd osd_memory_target` |
+| osd_memory_target | **2GB（测试态）** / 350GiB（生产态，待评估） | 见 §二.0 |
 
 > **关键**：01-2d 的 cluster_network = 10.3.2.0/24（双网分离）。之前错误的"复现"把它改成了 10.3.1.0/24（合并），与 01-2d 条件完全相反。
 
@@ -58,7 +65,65 @@ cat /proc/net/dev | grep enp139s0f1np1  # cluster NIC 应有 RX/TX 数据
 
 ## 二、OSD 缓存状态管理
 
-### 2.1 01-2d 的实际做法
+### 2.0 缩缓存方法（当前推荐方法）
+
+**核心原理**：BlueStore 缓存 hit% 波动（71-76%→±12% BW 波动）是 randread 跨轮波动的根因（ρ=1.000）。缩缓存到 ~0% 使 hit% 恒定，消除波动。
+
+**配置方法**：
+
+```bash
+# 1. 设 per-OSD osd_memory_target=2GB（注意：per-OSD 值覆盖全局值）
+for osd in 0 1 2 3 4 5; do
+  sudo ceph config set osd.${osd} osd_memory_target 2147483648
+done
+
+# 2. 运行时注入（无需重启 OSD，但注入后缓存会逐步收缩）
+for osd in 0 1 2 3 4 5; do
+  sudo ceph tell osd.${osd} injectargs --osd_memory_target 2147483648
+done
+
+# 3. 验证缓存实际大小
+sudo ceph tell osd.0 dump_mempools | python3 -c '
+import sys,json
+d=json.load(sys.stdin)["mempool"]["by_pool"]
+for k in ["bluestore_cache_data","bluestore_cache_onode"]:
+    print(f"{k}: {d.get(k,{}).get(\"bytes\",0)/1024/1024:.1f} MB")
+'
+```
+
+> **注意**：`bluestore_cache_size` 硬限在 auto 管理模式下被 `osd_memory_target` 覆盖，不生效。必须设 per-OSD `osd_memory_target`。
+> 
+> **暴力缩缓存警告**：从 350GiB 运行时注入到 2GB 会导致 OSD 暴力驱逐 ~348GB 缓存，期间服务降级。正确做法：先设 per-OSD 值 → 重启 OSD（从零开始，无需驱逐）→ injectargs 确认。
+
+**验证结果（2026-08-01）**：
+
+| 指标 | 满缓存（350GiB） | 缩缓存（2GB） | 改善 |
+|------|-----------------|--------------|------|
+| randread CV | ~12% | 2.2% | 5.5× |
+| hit_rate | 71-76%（波动） | ~0%（恒定） | 波动消除 |
+| ra0/default | 1.72x | 1.96x | 方向一致 |
+| 跨轮 default 偏差 | 12% | 0.4% | 30× |
+| 跨轮 ra0 偏差 | 10% | 35.5%⚠️ | OSD 状态退化导致 |
+
+> **ra0 跨轮不稳定**：default 跨轮稳定（0.4%），但 ra0 跨轮波动 35.5%。原因是 OSD 运行数小时后 RocksDB/BlueFS 状态累积退化，ra0（无预读缓冲）对此更敏感。解决方案：同轮背靠背 A/B 对比（不跨轮比较绝对值）。
+
+**7 项基线稳定性（128-job + 缩缓存，label B7）**：
+
+| 项 | numjobs | median | max_dev | 稳定？ |
+|---|---------|--------|---------|--------|
+| seqread | 1 | 1193 | 3.0% | ✅ |
+| mseqread | 16 | 3336 | 0.4% | ✅ |
+| randread | 128 | 1458 | 1.1% | ✅ |
+| randrw | 128 | 1015 | 3.9% | ✅ |
+| seqwrite | 1 | 1399 | 3.5% | ✅ |
+| mseqwrite | 16 | 3156 | 1.9% | ✅ |
+| randwrite | 128 | 1189 | 50.0% | ❌ 单调下降（RocksDB tombstone 累积） |
+
+6/7 项稳定（max_dev < 4%）。randwrite 单调下降需用 r1 值或交错 A/B 法。
+
+### 2.1 历史方法（soft-clean + OSD restart，已被缩缓存方法替代）
+
+> 以下方法在 02-2-G v3 中验证通过（CV=2.88%），但后续发现 BlueStore 缓存 hit% 波动（±12%）未被消除。缩缓存方法（§2.0）是改进版本。
 
 根据 01-2d summary：
 - **Group A (default)**："补测（清卷+**OSD重启**+HEALTH_OK）"——OSD 重启，冷缓存
