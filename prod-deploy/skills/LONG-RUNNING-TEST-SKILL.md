@@ -91,21 +91,45 @@ date; sleep <值>
 
 ## 三、每次唤醒的检查清单
 
+### 3.0 执行环境判断
+
+测试可能运行在本地（直接在测试服务器上）或远程（通过 SSH 访问测试服务器）。每次唤醒时先判断执行环境，再选择对应的监控命令：
+
+```bash
+# 判断当前是否在测试服务器上
+hostname | grep -q '157\|node' && ENV=local || ENV=remote
+
+# 远程模式下，所有监控命令需通过 SSH 执行
+# 示例（157 via 跳板）：
+sshpass -p 'Sunrise@801' ssh -o StrictHostKeyChecking=no \
+  -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR \
+  thailand "<远程命令>"
+```
+
 ### 3.1 必查项
 
 1. **测试进程状态**
    ```bash
+   # 本地
    ps aux | grep -E 'fio|bench-|juicefs' | grep -v grep
+   # 远程
+   sshpass -p '...' ssh thailand "ps aux | grep -E 'fio|bench-|juicefs' | grep -v grep"
    ```
 
 2. **测试日志尾部**
    ```bash
+   # 本地
    tail -20 /tmp/opencode/<test-name>.out
+   # 远程
+   sshpass -p '...' ssh thailand "tail -20 /tmp/opencode/<test-name>.out"
    ```
 
 3. **Ceph 集群健康**
    ```bash
+   # 本地
    sudo ceph health
+   # 远程
+   sshpass -p '...' ssh thailand "sudo ceph health"
    ```
 
 ### 3.2 分析逻辑

@@ -6,7 +6,9 @@
 > - V1（02-2-G v3, 2026-07-23）：soft-clean + OSD restart → randread CV=2.88%，但后续发现双峰分布（±12%）
 > - V2（2026-07-31）：锁定布局 + 覆盖写 → 单轮 CV<5%，但跨轮 ±12%（BlueStore 缓存 hit% 波动）
 > - V3（2026-07-31）：确定性预热 + 单进程 → CV=0.6%，但"稳但瞎"（1G 全驻缓存，测不出 readahead 差异）
-> - **当前方法（2026-08-01）**：128-job + 缩 BlueStore 缓存（osd_memory_target=2GB）→ CV=2.2%，ra0/default=1.96x → **稳定且敏感**
+> - 缩缓存（2026-08-01）：128-job + 缩 BlueStore 缓存（osd_memory_target=2GB）→ CV=2.2%，ra0/default=1.96x → **稳定且敏感**（轮内）
+> - V4（2026-08-03）：V2 基础（128-job 全量）+ 确定性预热（读全部 layout + prep 文件）+ 读写文件分离（read_test/rw_test/storage_test 各 128×1G）+ hit% 采集 + C_amp 守卫 + 每轮 config 快照。脚本：`scripts/FULLBASELINE/FULLBASELINE_V4.sh`
+> - ⚠ **跨会话修正（2026-08-03）**：轮内稳定 ≠ 跨会话稳定。B7/B8 显示缩缓存后跨会话仍波动 3.7-36%（RocksDB/LSM 状态）。autotune=false（E6）消除缓存分区波动（轮内 CV=0.4%），但跨会话未验证。跨会话稳定的唯一已验证方法是 burn-in（每次重启 OSD，spread=4.8%）。详见 `doc/perf-report/02-2h-hitrate-factor-experiment-20260802.md` §10.9。
 > 
 > **⚑ 波动根因链（已闭环）**：BlueStore 缓存命中率波动（ρ=1.000，02-2h 9 轮 + LC.12 D 组 10 轮确证）是 randread 跨轮波动的直接驱动因子。
 > | 波动源 | 对策 | 状态 |
@@ -52,6 +54,7 @@
 | --block-size | 256K | 256K | format 时设置 |
 | --storage | ceph | ceph | 直连 RADOS |
 | --openfiles | 128 | 128 | = numjobs（01-2d 红线7） |
+| **layout 文件分离** | storage_test（randwrite）/ read_test（randread）/ rw_test（randrw），各 128×1G | 同左 | V4 |
 
 ### 1.3 网络验证（每次测试前确认）
 
@@ -65,7 +68,7 @@ cat /proc/net/dev | grep enp139s0f1np1  # cluster NIC 应有 RX/TX 数据
 
 ## 二、OSD 缓存状态管理
 
-### 2.0 缩缓存方法（当前推荐方法）
+### 2.0 缩缓存方法（同会话 A/B 对比推荐）
 
 **核心原理**：BlueStore 缓存 hit% 波动（71-76%→±12% BW 波动）是 randread 跨轮波动的根因（ρ=1.000）。缩缓存到 ~0% 使 hit% 恒定，消除波动。
 
@@ -254,32 +257,17 @@ done
 
 ## 三、测试流程
 
-### 3.1 组内执行顺序
+### 3.1 组间切换
 
 ```
-rados bench（后端裸能力，可选）
-  → seqread → seqwrite → mseqread → mseqwrite
-  → 清卷（juicefs destroy + compact cooldown + format + mount）
-  → randwrite-true ×3（fresh volume, create_on_open, 轮间 compact cooldown）
-  → 清卷（juicefs destroy + compact cooldown + format + mount）
-  → layout 128G（end_fsync=1）
-  → compact cooldown
-  → randread ×3（reuse layout, 轮间 drop_caches）
-  → randrw ×3（reuse layout, 轮间 compact cooldown）
-  → randwrite-ow ×3（reuse layout, 轮间 compact cooldown）
-```
-
-### 3.2 组间切换
-
-```
-Group A (default) → 全量 9 项（不重启 OSD）
+Group A (default) → 全量（不重启 OSD）
     ↓ 重挂 JuiceFS（改 readahead），不切网络
-Group B (ra0) → 全量 9 项（不重启 OSD，缓存被 A 预热）
+Group B (ra0) → 全量（不重启 OSD，缓存被 A 预热）
 ```
 
 > **关键**：A→B 切换只需 `fusermount -u → juicefs mount (改 readahead)`，**不重启 OSD、不切网络**。
 
-### 3.3 组内清卷方法（juicefs destroy）
+### 3.2 组内清卷方法（juicefs destroy）
 
 > 详见 `TESTING-GUIDE.md` §3.5 和 `test-commands-reference.md` §2.5 的完整清卷命令。此处仅列出关键步骤：
 
@@ -292,7 +280,7 @@ Group B (ra0) → 全量 9 项（不重启 OSD，缓存被 A 预热）
 
 > **注意**：轮间清理用 soft-clean + OSD restart（§2.5，`juicefs destroy` 保 pool + restart OSD），组内清卷用 `juicefs destroy`（不 restart OSD）。**任何场景都不用 `ceph osd pool delete+create`**。
 
-### 3.4 每项测试前
+### 3.3 每项测试前
 
 > 详见 `TESTING-GUIDE.md` §4.4。
 
@@ -301,22 +289,15 @@ sync && echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null
 rm -f /tmp/jfs-bw/*
 ```
 
-### 3.5 layout 后 / 写项之间
+### 3.4 layout 后 / 写项之间
 
 > 详见 `TESTING-GUIDE.md` §3.2 的 compact cooldown 流程。
 
-### 3.6 fio 命令
+### 3.5 fio 命令
 
-> **见 `test-commands-reference.md` §4-§6**。所有 9 项的完整可执行 fio 命令在那里统一维护，本文不重复。
+> **见 `test-commands-reference.md` §4-§6**。各项的完整可执行 fio 命令在那里统一维护，本文不重复。
 
-### 3.7 REPEAT 规则
-
-- 顺序项（seqread/seqwrite/mseqread/mseqwrite/layout）：REPEAT=1（单轮）
-- 随机项（randread/randwrite-true/randrw/randwrite-ow）：REPEAT≥3，取中位数（第 2 大值）
-- 基线复现验证：REPEAT≥5（对抗基线漂移）
-- 禁止取平均、禁止挑轮次、禁止丢弃任何一轮
-
-### 3.8 数据采集与稳态中位数
+### 3.6 数据采集与稳态中位数
 
 > **见 `test-commands-reference.md` §8-§9** 和 `TESTING-GUIDE.md` §5.6 的完整规范。本文不重复。
 
@@ -343,8 +324,8 @@ rm -f /tmp/jfs-bw/*
   4. format+mount Group A（default）
 
 cycle 1（预热，判定不计入）：
-  5. 跑 Group A（default）全量 9 项
-  6. 不重启 OSD，重挂 JuiceFS（改 readahead=0）→ 跑 Group B（ra0）全量 9 项
+  5. 跑 Group A（default）全量
+  6. 不重启 OSD，重挂 JuiceFS（改 readahead=0）→ 跑 Group B（ra0）全量
 
 cycle 2 起（判定从此计入）：
   7. soft-clean + OSD restart（juicefs destroy 保 pool + restart OSD + compact cooldown，见 §2.5）

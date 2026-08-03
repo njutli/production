@@ -8,8 +8,7 @@
 >   - §9 生产部署建议 → 重定向到 prod-deploy/README.md（避免重复）
 >   - §8 测试脚本表 → 标注为测试环境清单，生产测试脚本待建
 > 方法论主体（health/cooldown/缓冲暂态/可靠性判据/命令记录规范）环境无关，原样保留。
-> **配套命令手册**：各项的完整可执行 fio/juicefs/rados 命令见同目录 `test-commands-reference.md`
-> （一眼看清怎么测 + 供他人不依赖脚本复现）。
+> **配套脚本**：基线测试脚本 `scripts/FULLBASELINE/FULLBASELINE_V4.sh`（含全部 fio 命令、layout、warmup、hit% 采集、C_amp 守卫）。
 > 创建：2026-06-25（上层）｜生产适配：见本文件修改点
 > 背景：测试中因 BlueFS DB 读停滞导致写性能从 108MB/s 降到 38-54MB/s，产生不可靠数据。
 
@@ -84,6 +83,18 @@ done
 **如果积压未消除，强制 compaction**：
 
 ```bash
+# 方法 A（V4 脚本使用）：ceph tell（无需 FSID/admin socket 路径，可跨节点）
+OSD_IDS=$(sudo ceph osd ls 2>/dev/null)
+for osd_id in ${OSD_IDS}; do
+  sudo ceph tell osd.${osd_id} compact 2>/dev/null
+done
+# 轮询直到全部 compact_running=0 且 compact_queue_len=0
+for osd_id in ${OSD_IDS}; do
+  running=$(sudo ceph tell osd.${osd_id} perf dump 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin).get('rocksdb',{}).get('compact_running',1))")
+  queued=$(sudo ceph tell osd.${osd_id} perf dump 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin).get('rocksdb',{}).get('compact_queue_len',1))")
+done
+
+# 方法 B（admin socket 直采，需在本节点执行）：
 OSD_IDS=$(sudo ceph osd ls 2>/dev/null)
 for osd_id in ${OSD_IDS}; do
   ASOK="/var/run/ceph/${FSID}/ceph-osd.${osd_id}.asok"
@@ -167,10 +178,15 @@ export CEPH_HEALTH_WAIT_SEC=300  # 等 5 分钟
 layout 写完后，**不要立即开始随机测试**，确保 compaction 完成：
 
 ```bash
-# layout 写完后
-log "## Layout cooldown: 等待 compaction 完成"
+# 方法 A（V4 脚本使用）：ceph tell（无需 FSID/admin socket 路径，可跨节点）
+OSD_IDS=$(sudo ceph osd ls 2>/dev/null)
+for osd_id in ${OSD_IDS}; do
+  sudo ceph tell osd.${osd_id} compact 2>/dev/null
+done
+# 轮询直到全部 compact_running=0 且 compact_queue_len=0
 
-# 方法 1（推荐）：强制 compact + 轮询确认
+# 方法 B（admin socket 直采，需在本节点执行）：
+log "## Layout cooldown: 等待 compaction 完成"
 OSD_IDS=$(sudo ceph osd ls 2>/dev/null)
 for osd_id in ${OSD_IDS}; do
   ASOK="/var/run/ceph/${FSID}/ceph-osd.${osd_id}.asok"
@@ -190,7 +206,7 @@ while true; do
   sleep 5
 done
 
-# 方法 2（简单）：等 health 恢复 OK + sleep
+# 方法 C（简单）：等 health 恢复 OK + sleep
 sleep 120
 check_ceph_health "after layout cooldown"
 ```
@@ -304,10 +320,9 @@ mkdir -p "${TEST_DIR}"
 
 - `--cache-size 0`（无客户端缓存）
 - 每项跑前 `echo 3 > /proc/sys/vm/drop_caches`
-- **OSD 缓存管理策略（详见 `baseline-reproduction-skill-draft.md` §2）**：
-  - **基线复现**：集群重建后 A→B 不重启 OSD（B 用 A 的热缓存，匹配 01-2d 方法论）
-  - **配置对比**（如 128K vs 256K+buf1024）：⚑ 2026-07-23 修正——**同一次重建/挂载会话内背靠背比 Δ**，不重启 OSD、不删建 pool（这些会重洗 CRUSH 映射，引入漂移）；配置切换用 soft-clean（juicefs destroy）保持布局一致
-  - **生产模拟**：可不清 OSD 缓存（OSD 7×24 运行缓存始终热）
+- **OSD 缓存管理策略**：
+  - **V4 确定性预热**（`FULLBASELINE_V4.sh` 使用）：测试前顺序读全部 layout + prep 文件，消除 r1 冷启动差异；替代 soft-clean + OSD restart，无需 destroy/重建
+  - **历史方法**（soft-clean + OSD restart）：详见 `baseline-reproduction-skill.md` §2.5
 - **清理层级**（详见 `baseline-reproduction-skill.md` §2.2）：
   - 基线起点：仅集群半损坏/跨部署迁移时 stable-ID 重建（`../pre-skills/stable-rebuild-skill.md`）；同部署无需定期重建（02-2-G v3：soft-clean+OSD restart 可无限轮复现）
   - 轮间清理：⚑ **soft-clean + OSD restart（juicefs destroy 保留 pool + restart OSD 重置 tmpfs 内存态 + compact cooldown + drop_caches）**（2026-07-23 修正，禁用 delete+recreate pool；02-2-G v3 验证 CV=2.88%）
@@ -405,6 +420,37 @@ JuiceFS randwrite（fio direct=1 iodepth=128 numjobs=128）：
 4. **放大单独算并报告**：写放大 = object put稳态 / fio有效写稳态；读放大 = object get稳态 / fio有效读稳态。三者关系应满足 **fio有效 ≤ 客户端网卡 ≤ object（放大后）**，三个一起采才能同时看清"有效带宽达标没"与"放大多少"。
 - ⚠️ **红线**：任何 fio 平均 BW 超过**单客户端网卡线速**（千兆限速≈124 MB/s、100GbE TCP≈12500 MiB/s；按 `production-adjustments.md` §七的实际验收口径算）必是缓冲暂态假象，**不认**，改取 fio 瞬时带宽稳态中位数。汇报外部/领导前务必换成稳态真实值，否则"超网卡"一眼假会拖累整批数据可信度。
 - ⚠️ **本轮教训**：`memdisk-fullretest-128g-20260710` 未开 `--write_bw_log`，导致无法回溯截尾取稳态中位数，只能重测补采。**后续所有 fio 测试必须开 bw_log。**
+
+### 5.7 每轮 config 快照（V4 新增）
+
+每轮测试前后采集配置快照，确保测试期间配置未被意外修改：
+
+```bash
+# 每轮 fio 前后采集
+mount | grep juice | head -1 > "${subdir}/mount-cmd.txt"   # JuiceFS 挂载参数
+sudo ceph config dump > "${subdir}/ceph-config.txt"          # Ceph 全部配置
+sudo ceph osd dump -f json 2>/dev/null | python3 -c '...'   # OSD up_from（检测重启）
+```
+
+> 三个不变量：mount 参数、ceph config、OSD up_from。任一在轮间变化需排查原因，`up_from` 变化意味着 OSD 重启过，数据可能不可比。
+
+### 5.8 C_amp 守卫（V4 新增）
+
+读项测试中，NIC 首末采样差分 ÷ fio 有效读字节 = 读放大系数 C_amp。用于验证读放大在合理范围：
+
+- default 模式：C_amp 应在 2.0±0.1
+- ra0 模式：C_amp 应在 1.0±0.1
+- 不在范围 → 数据判无效，排查 readahead/缓存配置是否正确
+
+```bash
+# fio 启动前采 NIC RX 基线，fio 结束后采 NIC RX 终值
+nic_before=$(cat /proc/net/dev | grep ${NIC_IF} | awk '{print $2}')
+# ... 跑 fio ...
+nic_after=$(cat /proc/net/dev | grep ${NIC_IF} | awk '{print $2}')
+nic_delta_mb=$(( (nic_after - nic_before) / 1024 / 1024 ))
+fio_read_mb=<从 fio 输出提取>
+c_amp=$(python3 -c "print(f'{$nic_delta_mb / $fio_read_mb:.2f}')")
+```
 
 ---
 
@@ -509,20 +555,43 @@ sleep 2
 
 ---
 
-## 八、测试脚本（生产环境待建）
+## 七·五、后端裸测命令（L1 定位，绕开 JuiceFS/FUSE）
 
-> 下列为**测试环境**已加入健康检查的脚本清单，列此作方法论参照。
-> 生产环境测试脚本待建（放入 `prod-deploy/scripts/tests/`，需 source 本指南的 health-check 模式）。
+> 目的：在 RADOS 池直接跑 256K 随机读，算"放大倍数 = NIC RX ÷ 有效读带宽"，
+> 与 JuiceFS randread 的 ~2.5× 对照，切分"放大在 librados/EC 层"还是"JuiceFS 内部"。
+> 详见 `doc/perf-analysis/10_3` / `bench-rados-256k-rand.sh`。
 
-| 脚本（测试环境） | 检查点 | 生产对应 |
-|------|--------|---------|
-| `tests/bench-baseline-rerun.sh` | seqread prep / 每个 run_seq / 每个 run_rand / layout 前 | 待建（冷态基线） |
-| `tests/bench-warm-baseline-noRA.sh` | seqread prep / 每个 run_seq / 每个 run_rand | 待建（暖态 noRA） |
-| `tests/bench-warm-baseline.sh` | 同上 | 待建（暖态 default） |
-| `tests/lib/ceph-health-check.sh` | 健康检查库（被上面三个脚本 source） | ✅ 已同步到 `scripts/tests/lib/`（生产测试脚本统一 source） |
+```bash
+# 从干净客户端节点发起（非 OSD 主机，否则 RX/TX 混算）
+# 对象大小 -b 262144(=256K) 必须与 JuiceFS 256K 卷对齐
 
-> 生产测试脚本构建要求：复用已同步的 health-check 库（`scripts/tests/lib/ceph-health-check.sh`，
-> `check_ceph_health` / `check_ceph_health_quick`），在测试前/每 fio 前/layout 后/测试后四个检查点调用。
+# 1. prefill：垫够 256K 对象（write --no-cleanup），保证 rand 读到真实冷数据
+rados bench -p "${POOL}" 120 write -b 262144 -t 16 --no-cleanup --run-name rados-l1
+
+# 2. rand：256K 随机读（-t 并发，扫 16 / 128 两档）
+rados bench -p "${POOL}" 60 rand -t 128 --run-name rados-l1
+
+# 3. cleanup：删 prefill 写的对象
+rados -p "${POOL}" cleanup --run-name rados-l1
+```
+
+> 同时采发起节点 NIC RX（`/proc/net/dev` 或 `iftop`），算放大 = NIC_RX_MBps ÷ rados_bench_有效读_MBps。
+> L1 ≈ 1.0× → 放大在 JuiceFS 内部；L1 ≈ 2.5× → 放大在 librados/EC/网络层。
+
+---
+
+## 八、测试脚本
+
+> 生产基线测试脚本：`scripts/FULLBASELINE/FULLBASELINE_V4.sh`
+> 
+> 功能：确定性预热 + 读写文件分离 + hit% 采集 + C_amp 守卫 + 每轮 config 快照 + 稳态评估。
+> 在 157 上运行，通过 SSH 跳板从 WSL 上传并执行。
+
+| 脚本 | 功能 | 检查点 |
+|------|------|--------|
+| `FULLBASELINE_V4.sh` | 全量基线（7 项 × N 轮） | 测试前 health / 每轮前 compact cooldown / 每轮后 config 快照 |
+| `scripts/tests/lib/ceph-health-check.sh` | 健康检查库（被 V4 source） | `check_ceph_health` / `check_ceph_health_quick` |
+
 > 测试 runner 节点须有 ceph CLI + admin keyring（库内 `sudo ceph health` 依赖）。
 
 ---
@@ -569,6 +638,8 @@ summary.txt 中只记录了结果摘要（如 `seqread: READ=79.2`），但：
 #!/bin/bash
 # 完整命令记录：<测试名称>
 # 日期：<日期>
+# 验收线：<ACCEPT>
+# JuiceFS 版本：<juicefs --version>
 
 # ---- 格式化卷 ----
 juicefs format ...

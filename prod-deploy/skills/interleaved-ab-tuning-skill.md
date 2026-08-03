@@ -32,7 +32,7 @@ round 4: format(新配置) → ...
 1. `juicefs format --force`（新 volume UUID）
 2. `rados purge`（清空 pool）
 3. `compact_cooldown`（清 RocksDB tombstone）
-4. 灌 layout 128G
+4. 灌 layout 3×128G（storage_test + read_test + rw_test，与 V4 文件分离一致）
 5. `compact_cooldown` + `drop_caches`
 
 否则前轮残留污染下次抽签，样本不独立。
@@ -50,7 +50,7 @@ round 4: format(新配置) → ...
 | 8 | ~57 | ~8% | ±8% |
 | 20 | ~36 | ~5% | ±5% |
 
-推荐 **n=5/侧、判据 ±10%**。成本控制：每轮仅 format + 灌主 layout 128G（跳过 seq/mseq 子目录）+ 只测受影响项，单轮 ~6-7min，10 轮 ≈ 1.2h。Δ 落灰区则加轮次。
+推荐 **n=5/侧、判据 ±10%**。成本控制：每轮仅 format + 灌 layout 3×128G（跳过 seq/mseq 子目录）+ 只测受影响项，单轮 ~10-12min，10 轮 ≈ 2h。Δ 落灰区则加轮次。
 
 ---
 
@@ -70,13 +70,13 @@ B 组呈双峰（高簇 ~1467，低簇 ~1042）。n=5 时中位数可能整组�
 
 ## 五、与锁定布局法的对比
 
-| 维度 | 锁定布局法（FULLBASELINE_V2） | 交错 A/B 法（本文） |
-|------|------------------------------|-------------------|
+| 维度 | 锁定布局法（FULLBASELINE_V4） | 交错 A/B 法（本文） |
+|------|-------------------------------|-------------------|
 | 适用 | mount 参数调优（不改 block-size/EC） | block-size/EC profile 调优 |
 | layout | 一次性，不重灌 | 每轮 format + 重灌 |
 | CV | 0.6-3.1% | ~11.5%（单次抽签） |
 | 判据 | ±5% | ±10% |
-| 成本/轮 | ~3.5-4min | ~6-7min |
+| 成本/轮 | ~3.5-4min | ~10-12min |
 | 统计方法 | 中位数 + CV | Mann-Whitney U + dot plot |
 
 ---
@@ -95,13 +95,15 @@ for round in $(seq 1 10); do
     juicefs format --block-size=${CONFIG} --force "${META}" juicefs-prod
     sudo rados purge juicefs-data --yes-i-really-really-mean-it
     compact_cooldown
-    # 2. 灌 layout
-    fio --directory="${TEST_DIR}" --name=storage_test --filesize=1G --size=1G \
-        --bs=4M --rw=write --numjobs=128 --direct=1 --ioengine=libaio \
-        --iodepth=128 --group_reporting --end_fsync=1
+    # 2. 灌 layout 3×128G（storage_test + read_test + rw_test）
+    for prefix in storage_test read_test rw_test; do
+        fio --directory="${TEST_DIR}" --name=${prefix} --filesize=1G --size=1G \
+            --bs=4M --rw=write --numjobs=128 --direct=1 --ioengine=libaio \
+            --iodepth=128 --group_reporting --end_fsync=1
+    done
     compact_cooldown; drop_caches
-    # 3. 测受影响项
-    fio --directory="${TEST_DIR}" --name=storage_test --filesize=1G --size=1G \
+    # 3. 测受影响项（read 项用 read_test，rw 项用 rw_test）
+    fio --directory="${TEST_DIR}" --name=read_test --filesize=1G --size=1G \
         --bs=256k --rw=randread --ioengine=libaio --iodepth=128 --numjobs=128 \
         --direct=1 --fallocate=none --openfiles=128 --group_reporting \
         --time_based --runtime=180 --write_bw_log=...
