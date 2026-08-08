@@ -16,11 +16,12 @@ EXPECTED_DURATION=1800
 trap 'tap_plan_end; trap - SIGINT SIGTERM' SIGINT SIGTERM
 
 # 获取 OSD 数据 LV 路径
+# cephadm 部署的 OSD 没有 host 端 ceph-volume，改用 ceph osd metadata
 _get_osd_data_lv() {
     local osd_id=$1 node=$2
-    local cv_output
-    cv_output=$(_run "$node" "sudo ceph-volume lvm list osd.${osd_id} 2>/dev/null" 2>/dev/null)
-    echo "$cv_output" | grep '\[block\]' | head -1 | awk '{print $2}'
+    local meta
+    meta=$(_run "${CEPH_PRIMARY}" "sudo cephadm shell -- ceph osd metadata ${osd_id} 2>/dev/null" 2>/dev/null)
+    echo "$meta" | grep 'bluestore_bdev_partition_path' | head -1 | awk -F'"' '{print $4}'
 }
 
 # 等待节点 SSH 恢复
@@ -121,16 +122,7 @@ _rebuild_osds_on_node() {
         sleep 5
     done
 
-    # activate + start
-    _run "$ip" "sudo ceph-volume lvm activate --all 2>/dev/null || true" 2>/dev/null
-    _run "$ip" "
-        for osd_dir in /var/lib/ceph/osd/ceph-*; do
-            [ -d \"\$osd_dir\" ] || continue
-            osd_id=\$(basename \"\$osd_dir\" | sed 's/ceph-//')
-            sudo systemctl reset-failed ceph-osd@\$osd_id 2>/dev/null || true
-            sudo systemctl start ceph-osd@\$osd_id 2>/dev/null || true
-        done
-    " 2>/dev/null
+    # cephadm 自动启动 OSD，无需 ceph-volume activate
 }
 
 # ============================================================
@@ -181,6 +173,7 @@ run_rolling_reboot() {
 
         # 4. 验证 reboot 期间数据仍可读（其他节点的 4 个 OSD 服务，EC k=4 刚好够）
         local md5_during
+        ssh_to_client "echo 3 | sudo tee /proc/sys/vm/drop_caches 2>/dev/null" 2>/dev/null
         md5_during=$(ssh_to_client "md5sum '${test_dir}/baseline.bin' 2>/dev/null" 2>/dev/null | awk '{print $1}')
         assert_eq "$md5_during" "$BASELINE_MD5" "${hostname} reboot 期间基线数据可读（EC 从剩余 OSD 读）"
 
@@ -194,6 +187,7 @@ run_rolling_reboot() {
 
         # 7. 验证重建后基线数据可读
         local md5_after
+        ssh_to_client "echo 3 | sudo tee /proc/sys/vm/drop_caches 2>/dev/null" 2>/dev/null
         md5_after=$(ssh_to_client "md5sum '${test_dir}/baseline.bin' 2>/dev/null" 2>/dev/null | awk '{print $1}')
         assert_eq "$md5_after" "$BASELINE_MD5" "${hostname} 重建后基线数据可读"
 
@@ -214,6 +208,7 @@ check_after() {
 
     # 基线数据完整
     local md5
+    ssh_to_client "echo 3 | sudo tee /proc/sys/vm/drop_caches 2>/dev/null" 2>/dev/null
     md5=$(ssh_to_client "md5sum '${test_dir}/baseline.bin' 2>/dev/null" 2>/dev/null | awk '{print $1}')
     assert_eq "$md5" "$BASELINE_MD5" "基线数据完整（3 节点重建后 md5 匹配）"
 

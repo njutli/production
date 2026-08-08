@@ -1,6 +1,6 @@
 #!/bin/bash
 # OPS-001: disk-replacement
-# 磁盘故障换盘重建：销毁 OSD A → tmpfs 备用盘替代 → 恢复后对另一盘 B 注入故障 → I/O 正常证明备用盘生效
+# 磁盘故障换盘重建：销毁 OSD A → tmpfs 备用盘替代 → 验证备用盘有数据 → down 2 OSD 验证备用盘生效
 # EXPECTED_DURATION=1200
 
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)"
@@ -12,7 +12,16 @@ TEST_ID="OPS-001"
 TEST_NAME="disk-replacement"
 EXPECTED_DURATION=1200
 
-trap 'tap_plan_end; trap - SIGINT SIGTERM' SIGINT SIGTERM
+_ORIG_MIN_SIZE=""
+
+_restore_min_size() {
+    if [ -n "$_ORIG_MIN_SIZE" ]; then
+        _run "${CEPH_PRIMARY}" "sudo cephadm shell -- ceph osd pool set juicefs-data min_size ${_ORIG_MIN_SIZE} 2>/dev/null" 2>/dev/null || true
+        _ORIG_MIN_SIZE=""
+    fi
+}
+
+trap 'ensure_osd_up "$OSD_B" 2>/dev/null; ensure_osd_up "$OSD_C" 2>/dev/null; _restore_min_size; tap_plan_end; trap - SIGINT SIGTERM' SIGINT SIGTERM
 
 # 获取 OSD 数据 LV 路径（通过 ceph osd metadata + dmsetup）
 _get_osd_data_lv() {
@@ -51,7 +60,6 @@ _destroy_osd() {
 # 清除 LV 上的 ceph LVM 标签（dd 不清 LVM 标签，需 lvremove+lvcreate 重建）
 _zap_lv() {
     local lv_path=$1 node=$2
-    # dm-4 等设备路径不能直接用于 lvs，需先通过 dmsetup 获取 mapper 路径
     local dm_name mapper_path vg_lv size vg lv
     dm_name=$(_run "$node" "sudo dmsetup info --columns --noheadings -o name ${lv_path} 2>/dev/null" 2>/dev/null | tr -d ' ')
     if [ -n "$dm_name" ]; then
@@ -69,7 +77,6 @@ _zap_lv() {
     else
         echo "  WARNING: 无法获取 dm name from ${lv_path}"
     fi
-    # 清前 10MB（BlueStore 签名）
     _run "$node" "sudo dd if=/dev/zero of=${lv_path} bs=1M count=10 2>/dev/null" 2>/dev/null || true
 }
 
@@ -80,11 +87,11 @@ _deploy_osd() {
 }
 
 # ============================================================
-# setup：前置检查 + 写入基线数据 + 选择两个目标 OSD
+# setup：前置检查 + 写入基线数据 + 选择三个目标 OSD
 # ============================================================
 setup() {
     tap_plan_start "$TEST_ID" "$TEST_NAME" \
-        "磁盘故障换盘重建：销毁 OSD A → tmpfs 备用盘替代 → 对 OSD B 注入故障验证备用盘生效"
+        "磁盘故障换盘重建：销毁 OSD A → tmpfs 备用盘替代 → down 2 OSD 验证备用盘生效"
 
     assert_wait_match get_ceph_health "^HEALTH_(OK|WARN)" 60 "集群初始健康（非 ERR）"
     assert_wait_eq get_osd_count_up "6" 10 "初始 6/6 OSD up"
@@ -97,26 +104,30 @@ setup() {
     BASELINE_MD5=$(ssh_to_client "md5sum '${test_dir}/baseline.bin'" 2>/dev/null | awk '{print $1}')
     assert_ne "$BASELINE_MD5" "" "基线数据写入成功 (md5=${BASELINE_MD5:0:16}...)"
 
-    # 选择 OSD A（要被替换的）和 OSD B（用来验证备用盘的）
-    # A 和 B 必须在不同节点上
+    # 选择 OSD A（要被替换的）和 OSD B/C（用来验证备用盘）
+    # A 在 .11，B 在 .13，C 在 .14——不同节点
     local node_a="${SLAVE_SERVERS[0]}"
     local node_b="${SLAVE_SERVERS[1]}"
+    local node_c="${SLAVE_SERVERS[2]}"
     OSD_A=$(pick_osd_on_node "$node_a")
     OSD_B=$(pick_osd_on_node "$node_b")
+    OSD_C=$(pick_osd_on_node "$node_c")
     assert_ne "$OSD_A" "" "OSD A（将被替换）: ${OSD_A} on ${node_a}"
     assert_ne "$OSD_B" "" "OSD B（验证用）: ${OSD_B} on ${node_b}"
+    assert_ne "$OSD_C" "" "OSD C（验证用）: ${OSD_C} on ${node_c}"
 
     NODE_A="$node_a"
     NODE_B="$node_b"
+    NODE_C="$node_c"
     HOST_A="${CEPH_HOSTNAMES[$NODE_A]}"
     HOST_B="${CEPH_HOSTNAMES[$NODE_B]}"
+    HOST_C="${CEPH_HOSTNAMES[$NODE_C]}"
     LV_A=$(_get_osd_data_lv "$OSD_A" "$NODE_A")
-    LV_B=$(_get_osd_data_lv "$OSD_B" "$NODE_B")
     assert_ne "$LV_A" "" "OSD A 数据 LV: ${LV_A}"
-    assert_ne "$LV_B" "" "OSD B 数据 LV: ${LV_B}"
 
     echo "# OSD A=${OSD_A} on ${NODE_A} (${LV_A}) — 将被销毁替换"
-    echo "# OSD B=${OSD_B} on ${NODE_B} (${LV_B}) — 将注入故障验证备用盘"
+    echo "# OSD B=${OSD_B} on ${NODE_B} — 将 SIGKILL 验证备用盘"
+    echo "# OSD C=${OSD_C} on ${NODE_C} — 将 SIGKILL 验证备用盘"
 }
 
 # ============================================================
@@ -136,6 +147,7 @@ phase1_destroy_and_replace() {
 
     local test_dir="${JUICEFS_MOUNT_POINT}/reliability-test"
     local md5
+    ssh_to_client "echo 3 | sudo tee /proc/sys/vm/drop_caches 2>/dev/null" 2>/dev/null
     md5=$(timeout 30 sshpass -p "${SSH_PASSWORD}" ssh ${SSH_OPTS} "${SSH_USER}@${CLIENT_SERVER}" "md5sum '${test_dir}/baseline.bin' 2>/dev/null" 2>/dev/null | awk '{print $1}')
     assert_eq "$md5" "$BASELINE_MD5" "基线数据可读（EC 容忍，md5 匹配）"
 
@@ -161,58 +173,105 @@ phase1_destroy_and_replace() {
     echo "  等待新 OSD 启动 + EC 恢复..."
     sleep 30
 
-    # 6) 等待 OSD 恢复 + 所有 PG clean（不只是部分）
+    # 6) 等待 OSD 恢复 + 所有 PG clean
     assert_wait_eq get_osd_count_up "6" 120 "备用盘加入后 6/6 OSD up"
     assert_pg_state_contains "active+clean" 600 "PG 恢复 active+clean（EC 恢复到备用盘）"
 
+    ssh_to_client "echo 3 | sudo tee /proc/sys/vm/drop_caches 2>/dev/null" 2>/dev/null
     md5=$(timeout 30 sshpass -p "${SSH_PASSWORD}" ssh ${SSH_OPTS} "${SSH_USER}@${CLIENT_SERVER}" "md5sum '${test_dir}/baseline.bin' 2>/dev/null" 2>/dev/null | awk '{print $1}')
     assert_eq "$md5" "$BASELINE_MD5" "基线数据完整（备用盘恢复后 md5 匹配）"
 
     echo "=== Phase 1 完成：备用盘已加入集群 ==="
+
+    # 等 EC 完全恢复后再注入下一个故障（backfill 未完成时叠加故障会导致 PG peering 卡住）
+    assert_wait_match get_ceph_health "HEALTH_OK" 1800 "Phase 1 后集群完全恢复 HEALTH_OK"
+
+    # 验证备用盘 OSD 有数据（kb_used > 0，HEALTH_OK = PG active+clean 数据已完整同步）
+    local osd_df spare_kb=0
+    osd_df=$(_run "${CEPH_PRIMARY}" "sudo cephadm shell -- ceph osd df --format json 2>/dev/null | sed -n '/^{/,\$p'" 2>/dev/null)
+    spare_kb=$(echo "$osd_df" | jq --argjson osd "$OSD_A" '.nodes[] | select(.id == $osd) | .kb_used' 2>/dev/null)
+    assert_gt "$spare_kb" "0" "备用盘 OSD ${OSD_A} 已有数据（${spare_kb} KB used，HEALTH_OK = 数据完整同步）"
+
+    # 验证备用盘已在所有 pool 63 PG 的 acting set 中（HEALTH_OK 只保证 5 OSD active+clean，
+    # 不保证第 6 个 OSD 已完成 backfill 加入 acting set。Phase 2 kill 2 OSD 后，如果备用盘
+    # 不在 acting set 中，acting set 只剩 3 OSD < min_size=4 → PG down → I/O error）
+    echo "#  等待备用盘 OSD ${OSD_A} 完成所有 PG backfill（加入 acting set）..."
+    local _acting_wait=0 _pg_unclean="init"
+    while [ "$_acting_wait" -lt 600 ]; do
+        _pg_unclean=$(_run "${CEPH_PRIMARY}" "sudo cephadm shell -- ceph pg ls 2>/dev/null" 2>/dev/null | grep "^63" | grep -v "active+clean" | head -1)
+        [ -z "$_pg_unclean" ] && break
+        echo "#  pool 63 仍有未 clean PG，等待 backfill...（${_acting_wait}s）"
+        sleep 30
+        _acting_wait=$((_acting_wait + 30))
+    done
+    local _acting_ok="yes"
+    [ -n "$_pg_unclean" ] && _acting_ok="no"
+    assert_eq "$_acting_ok" "yes" "备用盘已加入所有 pool 63 PG acting set（PG 全部 active+clean，等待 ${_acting_wait}s）"
 }
 
 # ============================================================
-# Phase 2：对 OSD B 注入故障，验证备用盘生效
+# Phase 2：临时降 min_size + SIGKILL B+C，验证备用盘生效
+# down 2 个非备用盘 OSD → 剩 4 个（含备用盘）→ 读需 k=4 → 必须读到备用盘 chunk
 # ============================================================
 phase2_verify_spare() {
     echo ""
-    echo "=== Phase 2: 对 OSD B 注入故障，验证备用盘生效 ==="
+    echo "=== Phase 2: SIGKILL OSD B+C，验证备用盘生效 ==="
 
-    # 1) 挂起 LV B 的 dm 设备（模拟磁盘 B I/O 超时）
-    _run "$NODE_B" "sudo dmsetup suspend ${LV_B} 2>/dev/null"
-    sleep 5
+    # 1) 临时降 min_size 到 4（默认 k=4，down 2 剩 4 >= 4 → PG active）
+    _ORIG_MIN_SIZE=$(_run "${CEPH_PRIMARY}" "sudo cephadm shell -- ceph osd pool get juicefs-data min_size --format json 2>/dev/null | sed -n '/^{/,\$p'" 2>/dev/null | jq -r '.min_size' 2>/dev/null)
+    echo "# 当前 min_size=${_ORIG_MIN_SIZE}，临时降为 4"
+    _run "${CEPH_PRIMARY}" "sudo cephadm shell -- ceph osd pool set juicefs-data min_size 4 2>&1" 2>/dev/null
+    local _verify_min_size
+    _verify_min_size=$(_run "${CEPH_PRIMARY}" "sudo cephadm shell -- ceph osd pool get juicefs-data min_size 2>/dev/null" 2>/dev/null | awk '{print $2}')
+    assert_eq "$_verify_min_size" "4" "min_size 已临时降为 4（原值 ${_ORIG_MIN_SIZE}）"
 
-    # 2) 验证集群容错
-    # dmsetup suspend 不杀 OSD 进程，OSD 仍 up，靠 slow ops 检测
-    assert_wait_match get_ceph_health "slow" 60 "集群检测到磁盘 I/O 超时（slow ops）"
-    assert_wait_match get_ceph_health "^HEALTH_(OK|WARN)" 10 "集群非 ERR"
+    # 2) SIGKILL OSD B 和 C（stop_osd 使用 systemctl stop + docker kill，cephadm 不会重启）
+    stop_osd "$OSD_B"
+    stop_osd "$OSD_C"
+    # 等 OSD 心跳超时（osd_heartbeat_grace=20s）+ peering 完成
+    echo "# 等待 OSD 心跳超时 + PG peering..."
+    sleep 30
 
-    # 核心断言：基线数据可读 → 备用盘持有数据
+    # 3) 验证 OSD B+C down → PG degraded
+    assert_pg_state_contains "degraded" 30 "PG 进入 degraded（OSD B+C SIGKILL 后 peering）"
+    assert_wait_eq get_osd_count_up "4" 30 "4/6 OSD up（OSD B+C down）"
+    assert_wait_match get_ceph_health "^HEALTH_(OK|WARN)" 10 "集群非 ERR（min_size=4，4 >= 4 可读）"
+
+    # 核心断言：基线数据可读
+    # 4 个 OSD 剩余（含备用盘），读需 k=4 → 必须读到备用盘 chunk → 证明备用盘有数据
+    # 1GB 文件在 2 OSD down（EC 重建读）下较慢，给 300s 超时
     local test_dir="${JUICEFS_MOUNT_POINT}/reliability-test"
     local md5
-    md5=$(timeout 30 sshpass -p "${SSH_PASSWORD}" ssh ${SSH_OPTS} "${SSH_USER}@${CLIENT_SERVER}" "md5sum '${test_dir}/baseline.bin' 2>/dev/null" 2>/dev/null | awk '{print $1}')
-    assert_eq "$md5" "$BASELINE_MD5" "基线数据可读（备用盘生效，md5 匹配）"
+    ssh_to_client "echo 3 | sudo tee /proc/sys/vm/drop_caches 2>/dev/null" 2>/dev/null
+    md5=$(timeout 300 sshpass -p "${SSH_PASSWORD}" ssh ${SSH_OPTS} "${SSH_USER}@${CLIENT_SERVER}" "md5sum '${test_dir}/baseline.bin' 2>/dev/null" 2>/dev/null | awk '{print $1}')
+    assert_eq "$md5" "$BASELINE_MD5" "基线数据可读（备用盘生效，4 OSD 刚好 k=4，md5 匹配）"
 
     echo "=== Phase 2 完成：备用盘验证通过 ==="
 }
 
 # ============================================================
-# Phase 3：恢复 OSD B + 最终验证
+# Phase 3：恢复 OSD B+C + 恢复 min_size + 最终验证
 # ============================================================
 phase3_recover_and_verify() {
     echo ""
-    echo "=== Phase 3: 恢复 OSD B + 最终验证 ==="
+    echo "=== Phase 3: 恢复 OSD B+C + 恢复 min_size ==="
 
-    _run "$NODE_B" "sudo dmsetup resume ${LV_B} 2>/dev/null"
-    sleep 3
-    _start_osd_via_cephadm "$OSD_B"
+    # 1) 启动 OSD B 和 C
+    start_osd "$OSD_B"
+    start_osd "$OSD_C"
 
     assert_pg_state_contains "active+clean" 600 "PG 恢复 active+clean"
     assert_wait_eq get_osd_count_up "6" 60 "6/6 OSD up"
     assert_wait_match get_ceph_health "^HEALTH_(OK|WARN)" 60 "集群恢复健康（非 ERR）"
 
+    # 2) 恢复 min_size 到原值
+    _restore_min_size
+    echo "# min_size 已恢复为 ${_ORIG_MIN_SIZE:-5}"
+    _ORIG_MIN_SIZE=""
+
     local test_dir="${JUICEFS_MOUNT_POINT}/reliability-test"
     local md5
+    ssh_to_client "echo 3 | sudo tee /proc/sys/vm/drop_caches 2>/dev/null" 2>/dev/null
     md5=$(timeout 30 sshpass -p "${SSH_PASSWORD}" ssh ${SSH_OPTS} "${SSH_USER}@${CLIENT_SERVER}" "md5sum '${test_dir}/baseline.bin' 2>/dev/null" 2>/dev/null | awk '{print $1}')
     assert_eq "$md5" "$BASELINE_MD5" "基线数据完整（最终 md5 匹配）"
 
@@ -262,11 +321,10 @@ phase4_restore_osd_a() {
         echo '  tmpfs 备用盘已清理'
     " 2>/dev/null
 
-    # 3) 恢复原始 LV（解除 dmsetup suspend）
+    # 3) 恢复原始 LV
     _run "$NODE_A" "sudo dmsetup resume ${LV_A} 2>/dev/null" 2>/dev/null || true
 
     # 4) 在原始 LV 上重建 OSD
-    # 先确保 LV 不被占用：resume dm + 清残留备用盘容器（不删其他 OSD 容器）
     _run "$NODE_A" "sudo dmsetup resume ${LV_A} 2>/dev/null" 2>/dev/null || true
     if [ -n "${spare_osd:-}" ]; then
         _run "$NODE_A" "sudo docker ps -a --format '{{.Names}}' 2>/dev/null | grep 'osd-${spare_osd}\$' | xargs -r sudo docker rm -f 2>/dev/null" 2>/dev/null || true
@@ -282,11 +340,9 @@ phase4_restore_osd_a() {
         "sudo lvs ceph-vg-ceph-node1 --noheadings -o lv_path 2>/dev/null | grep -vE 'tikv|osd_fresh|osd_second' | head -1 | tr -d ' '" \
         2>/dev/null)
     if [ -z "$rebuild_lv" ]; then
-        # LV 不存在，重建
         rebuild_lv="/dev/ceph-vg-ceph-node1/osd_rebuild"
         _run "$NODE_A" "sudo lvcreate -y -L 300G -n osd_rebuild ceph-vg-ceph-node1 2>/dev/null" 2>/dev/null
     fi
-    # dd 清残留 BlueStore 签名
     _run "$NODE_A" "sudo dd if=/dev/zero of=${rebuild_lv} bs=1M count=10 2>/dev/null" 2>/dev/null || true
 
     _deploy_osd "$HOST_A" "$rebuild_lv"
@@ -300,6 +356,7 @@ phase4_restore_osd_a() {
 
     local test_dir="${JUICEFS_MOUNT_POINT}/reliability-test"
     local md5
+    ssh_to_client "echo 3 | sudo tee /proc/sys/vm/drop_caches 2>/dev/null" 2>/dev/null
     md5=$(timeout 30 sshpass -p "${SSH_PASSWORD}" ssh ${SSH_OPTS} "${SSH_USER}@${CLIENT_SERVER}" "md5sum '${test_dir}/baseline.bin' 2>/dev/null" 2>/dev/null | awk '{print $1}')
     assert_eq "$md5" "$BASELINE_MD5" "基线数据完整（OSD A 重建后 md5 匹配）"
 
@@ -310,8 +367,9 @@ phase4_restore_osd_a() {
 # teardown：清理
 # ============================================================
 teardown() {
-    _run "$NODE_B" "sudo dmsetup resume ${LV_B} 2>/dev/null" 2>/dev/null || true
-    _run "$NODE_A" "sudo dmsetup resume ${LV_A} 2>/dev/null" 2>/dev/null || true
+    ensure_osd_up "$OSD_B" 2>/dev/null || true
+    ensure_osd_up "$OSD_C" 2>/dev/null || true
+    _restore_min_size
     local test_dir="${JUICEFS_MOUNT_POINT}/reliability-test"
     ssh_to_client "timeout 10 rm -f '${test_dir}/baseline.bin'" 2>/dev/null || true
     tap_plan_end

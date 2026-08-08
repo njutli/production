@@ -1,7 +1,22 @@
 #!/bin/bash
 # FT-007: two-mon-down
 # 停 2/3 MON（丢失 quorum），验证管理面冻结、数据面仍可访问、恢复后集群正常
-# EXPECTED_DURATION=600
+# EXPECTED_DURATION=240
+#
+# 注意：MON quorum 丢失后，librados messenger 多线程同时调用 _reopen_session() 争抢
+# monc_lock，Objecter 的 tick() 也需要 monc_lock，被阻塞期间持有 rwlock(read)，
+# 导致 op_submit() 等 rwlock(write) 被阻塞——I/O dispatch 停止。
+# 因此 MON 不可用时管理面数据和普通 I/O 数据都会被阻塞，这是预期行为。
+# 前 30s I/O 正常（tick 阻塞极短），之后逐渐退化。MON 恢复后立即正常。
+#
+# ★ 场景对比：3-MON 掉 2 台（剩 1 台在线） vs 单 MON 正常运行
+#   3-MON 剩 1 台在线：1/3 < majority（需 ≥2/3）→ 无 quorum，该 MON 为 stray（游离）态，
+#     不构成任何权威——不能提交 map 更新、不能服务客户端订阅，管理面冻结，
+#     librados 重连该 MON 也收到 no-quorum → I/O 停摆。存活 MON 救不了场（≈ 没有 MON）。
+#   单 MON 正常运行：1/1 = quorum，MON 完全权威，管理面 + 数据面全部正常。
+#   结论：判断依据是「是否构成 quorum」而非 MON 数量。健康的 1-MON 集群可用性反而
+#     高于 3-MON 掉 2 台（1/3 无 quorum）；3-MON 的价值只在掉 1 台仍保持 2/3 quorum
+#     时体现（见 FT-006，2/3 quorum 下集群全功能可用）。
 
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)"
 source "${LIB_DIR}/assert.sh"
@@ -71,7 +86,7 @@ check_during() {
 
     # 故障期间同步 I/O 测试（信息性，不 assert）
     # MON down + fio 并发 → librados 重连卡 D 状态，I/O 长时间阻塞
-    # （与 FT-006 相同的已知问题，集群状态不受影响）
+    # （集群状态不受影响，I/O 影响见 README FT-007 分析）
     local fault_io write_rc read_rc
     fault_io=$(during_fault_io_test)
     write_rc=$(echo "$fault_io" | awk '{print $1}')

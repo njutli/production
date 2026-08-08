@@ -122,15 +122,15 @@ get_osd_count_up() {
     echo "$json" | jq '[.nodes[] | select(.type == "osd" and .status == "up")] | length' 2>/dev/null
 }
 
-# → "0 1 2 3 4 5"
+# → "0 2 8 9 10 11" (only up+in OSDs)
 list_osd_ids() {
     local json
     json=$(_ceph_json osd tree)
     echo "$json" | jq -r \
-        '[.nodes[] | select(.type == "osd") | .id] | sort | map(tostring) | join(" ")' 2>/dev/null
+        '[.nodes[] | select(.type == "osd" and .status == "up" and .reweight == 1) | .id] | sort | map(tostring) | join(" ")' 2>/dev/null
 }
 
-# → random OSD id
+# → random up+in OSD id
 pick_random_osd() {
     local ids
     ids=$(list_osd_ids)
@@ -153,7 +153,7 @@ pick_osd_on_node() {
         | head -1
 }
 
-# get_osd_node <id> → node IP (e.g. "10.20.1.150")
+# get_osd_node <id> → node IP (e.g. "192.168.11.11")
 get_osd_node() {
     local osd_id=$1 json hostname ip
     json=$(_ceph_json osd tree)

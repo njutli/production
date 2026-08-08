@@ -173,6 +173,7 @@ run_rolling_reboot() {
 
         # 4. 验证 reboot 期间数据仍可读（其他节点的 4 个 OSD 服务，EC k=4 刚好够）
         local md5_during
+        ssh_to_client "echo 3 | sudo tee /proc/sys/vm/drop_caches 2>/dev/null" 2>/dev/null
         md5_during=$(ssh_to_client "md5sum '${test_dir}/baseline.bin' 2>/dev/null" 2>/dev/null | awk '{print $1}')
         assert_eq "$md5_during" "$BASELINE_MD5" "${hostname} reboot 期间基线数据可读（EC 从剩余 OSD 读）"
 
@@ -186,6 +187,7 @@ run_rolling_reboot() {
 
         # 7. 验证重建后基线数据可读
         local md5_after
+        ssh_to_client "echo 3 | sudo tee /proc/sys/vm/drop_caches 2>/dev/null" 2>/dev/null
         md5_after=$(ssh_to_client "md5sum '${test_dir}/baseline.bin' 2>/dev/null" 2>/dev/null | awk '{print $1}')
         assert_eq "$md5_after" "$BASELINE_MD5" "${hostname} 重建后基线数据可读"
 
@@ -206,6 +208,7 @@ check_after() {
 
     # 基线数据完整
     local md5
+    ssh_to_client "echo 3 | sudo tee /proc/sys/vm/drop_caches 2>/dev/null" 2>/dev/null
     md5=$(ssh_to_client "md5sum '${test_dir}/baseline.bin' 2>/dev/null" 2>/dev/null | awk '{print $1}')
     assert_eq "$md5" "$BASELINE_MD5" "基线数据完整（3 节点重建后 md5 匹配）"
 

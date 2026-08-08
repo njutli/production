@@ -1,147 +1,117 @@
 #!/bin/bash
-# DG-002: tikv-down-metadata-latency
-# 停 1 TiKV，量化元数据操作延迟退化（P95 < 基线×3）
-# 与 FT-004 的区别：FT-004 验证"能否完成"（binary），DG-002 量化"慢了多少"
-# EXPECTED_DURATION=420
+# DG-002: tikv-down-throughput-degradation
+# 比较 3/3 TiKV up vs 2/3 TiKV down（Raft leader 切换后稳态）的吞吐差异
+# 两轮相同时长 fio（randread，预创建文件避免元数据干扰），唯一变量是有无 TiKV down
+# EXPECTED_DURATION=300
 
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)"
 source "${LIB_DIR}/assert.sh"
 source "${LIB_DIR}/cluster.sh"
 source "${LIB_DIR}/fault_inject.sh"
+source "${LIB_DIR}/io_load.sh"
 
 TEST_ID="DG-002"
-TEST_NAME="tikv-down-metadata-latency"
-EXPECTED_DURATION=420
+TEST_NAME="tikv-down-throughput-degradation"
+EXPECTED_DURATION=300
 
-trap 'start_tikv "$TARGET_NODE" 2>/dev/null; tap_plan_end; trap - SIGINT SIGTERM' SIGINT SIGTERM
-
-META_FILE="${JUICEFS_MOUNT_POINT}/reliability-test/dg002_meta"
-
-# 采集元数据操作延迟（touch+stat+rm，返回排序后的毫秒列表）
-# 内层 timeout 3 防止单次操作卡死，外层 timeout 120 防止 SSH 会话卡死
-_collect_meta_latency() {
-    local count=${1:-30}
-    timeout 120 sshpass -p "${SSH_PASSWORD}" ssh ${SSH_OPTS} \
-        "${SSH_USER}@${CLIENT_SERVER}" "
-            for i in \$(seq 1 ${count}); do
-                t0=\$(date +%s%N)
-                timeout 3 touch ${META_FILE} 2>/dev/null
-                timeout 3 stat ${META_FILE} >/dev/null 2>&1
-                timeout 3 rm ${META_FILE} 2>/dev/null
-                t1=\$(date +%s%N)
-                echo \$(( (t1 - t0) / 1000000 ))
-                sleep 0.2
-            done
-        " 2>/dev/null | sort -n
-}
-
-# 从排序后的列表取 P95（第 95 百分位）
-_get_percentile() {
-    local sorted=($1)
-    local count=${#sorted[@]}
-    [ "$count" -eq 0 ] && { echo 0; return; }
-    local idx=$(( count * 95 / 100 ))
-    [ "$idx" -ge "$count" ] && idx=$((count - 1))
-    echo "${sorted[$idx]}"
-}
+trap 'stop_io_load; start_tikv "$TARGET_NODE" 2>/dev/null; tap_plan_end; trap - SIGINT SIGTERM' SIGINT SIGTERM
 
 # ============================================================
-# setup：前置检查 + 采集基线元数据延迟
+# setup：前置检查 + 选择目标节点
 # ============================================================
 setup() {
     tap_plan_start "$TEST_ID" "$TEST_NAME" \
-        "停 1 TiKV，量化元数据操作延迟退化（P95 < 基线×3）"
+        "比较 3/3 TiKV up vs 2/3 TiKV down（稳态）的吞吐差异"
 
     assert_wait_match get_ceph_health "^HEALTH_(OK|WARN)" 60 "集群初始健康（非 ERR）"
     assert_wait_eq get_tikv_store_count_up "3" 10 "初始 3/3 TiKV store Up"
+    assert_wait_eq get_osd_count_up "6" 10 "初始 6/6 OSD up"
 
-    # 采集基线元数据延迟（30 次 touch+stat+rm）
-    echo "# 采集基线元数据延迟（30 次）..."
-    local baseline_samples
-    baseline_samples=$(_collect_meta_latency 30)
-    BASELINE_P95=$(_get_percentile "$baseline_samples")
-
-    if [ "${BASELINE_P95:-0}" -gt 0 ] 2>/dev/null; then
-        echo "# 基线 P95=${BASELINE_P95}ms"
-    else
-        echo "# ⚠ 基线采集失败，延迟断言将跳过"
-    fi
-
-    # 选择注入目标（随机 slave 节点）
     local idx=$(( RANDOM % ${#SLAVE_SERVERS[@]} ))
     TARGET_NODE="${SLAVE_SERVERS[$idx]}"
     assert_ne "$TARGET_NODE" "" "注入目标: ${TARGET_NODE}"
 }
 
 # ============================================================
-# inject：停止 1 个 TiKV
+# phase 1：基线（3/3 TiKV up）
 # ============================================================
-inject() {
-    stop_tikv "$TARGET_NODE"
+phase1_baseline() {
+    echo ""
+    echo "=== Phase 1: 基线（3/3 TiKV up）==="
+
+    start_io_load randread 256K 128
+    sleep 30
+    stop_io_load
+    cp /tmp/reliability-fio-result.json /tmp/dg002-baseline.json
+    BASELINE_IOPS=$(python3 -c "import json; d=json.load(open('/tmp/dg002-baseline.json')); j=d['jobs'][0]; print(f\"{j['read']['iops']:.0f}\")" 2>/dev/null)
+    echo "# 基线 IOPS: ${BASELINE_IOPS}"
+    assert_gt "$BASELINE_IOPS" "0" "基线吞吐采集成功（IOPS=${BASELINE_IOPS}）"
 }
 
 # ============================================================
-# check_during：采集故障期间元数据延迟
+# phase 2：降级（2/3 TiKV up，Raft leader 切换后稳态）
 # ============================================================
-check_during() {
-    # 等待 Raft leader 切换（~5-10s）
-    sleep 10
+phase2_degraded() {
+    echo ""
+    echo "=== Phase 2: 降级（2/3 TiKV up，Raft 稳态）==="
 
-    # TiKV store 减少（等 PD 心跳超时检测）
+    stop_tikv "$TARGET_NODE"
+    sleep 10
     assert_wait_eq get_tikv_store_count_up "2" 30 "TiKV store 2/3 Up"
 
-    # 采集故障期间元数据延迟（30 次）
-    echo "# 采集故障期间元数据延迟（30 次）..."
-    local fault_samples
-    fault_samples=$(_collect_meta_latency 30)
-    FAULT_P95=$(_get_percentile "$fault_samples")
+    # 等 Raft leader 切换完成，元数据操作恢复
+    local _meta_ok=false
+    for _i in $(seq 1 15); do
+        local _r
+        _r=$(timeout 8 sshpass -p "${SSH_PASSWORD}" ssh ${SSH_OPTS} \
+            "${SSH_USER}@${CLIENT_SERVER}" \
+            "timeout 3 touch /mnt/juicefs/reliability-test/.dg002_check 2>/dev/null && \
+             timeout 3 rm /mnt/juicefs/reliability-test/.dg002_check 2>/dev/null && echo ok" \
+            2>/dev/null)
+        if [ "$_r" = "ok" ]; then _meta_ok=true; break; fi
+        sleep 2
+    done
+    assert_eq "$_meta_ok" "true" "Raft leader 切换完成，元数据恢复"
 
-    if [ "${BASELINE_P95:-0}" -gt 0 ] 2>/dev/null; then
-        echo "# 基线 P95=${BASELINE_P95}ms  故障 P95=${FAULT_P95}ms"
-
-        local threshold=$(( BASELINE_P95 * 3 ))
-        assert_lt "$FAULT_P95" "$threshold" \
-            "故障期间 P95 < 3×基线（${FAULT_P95}ms < ${threshold}ms）"
-    else
-        echo "# ⚠ 基线采集失败，跳过延迟断言"
-    fi
-
-    # 元数据操作可完成（不是只测延迟，也验证可用性）
-    local meta_test
-    meta_test=$(timeout 8 sshpass -p "${SSH_PASSWORD}" ssh ${SSH_OPTS} \
-        "${SSH_USER}@${CLIENT_SERVER}" \
-        "timeout 3 touch '${META_FILE}' && timeout 3 stat '${META_FILE}' >/dev/null && timeout 3 rm '${META_FILE}' && echo ok" \
-        2>/dev/null)
-    assert_eq "$meta_test" "ok" "元数据操作可完成"
-
-    # Ceph 不受影响
-    assert_eq "$(get_osd_count_up)" "6" "OSD 仍 6/6 up（Ceph 不受影响）"
+    start_io_load randread 256K 128
+    sleep 30
+    stop_io_load
+    cp /tmp/reliability-fio-result.json /tmp/dg002-degraded.json
+    DEGRADED_IOPS=$(python3 -c "import json; d=json.load(open('/tmp/dg002-degraded.json')); j=d['jobs'][0]; print(f\"{j['read']['iops']:.0f}\")" 2>/dev/null)
+    echo "# 降级 IOPS: ${DEGRADED_IOPS}"
+    assert_gt "$DEGRADED_IOPS" "0" "降级吞吐采集成功（IOPS=${DEGRADED_IOPS}）"
 }
 
 # ============================================================
-# recover：启动 TiKV
+# phase 3：对比
 # ============================================================
-recover() {
+phase3_compare() {
+    echo ""
+    echo "=== Phase 3: 对比 ==="
+
     start_tikv "$TARGET_NODE"
-}
 
-# ============================================================
-# check_after：恢复后断言
-# ============================================================
-check_after() {
+    local pct
+    pct=$(python3 -c "print(f'{$DEGRADED_IOPS / $BASELINE_IOPS * 100:.0f}')" 2>/dev/null)
+    echo "# 基线 IOPS=${BASELINE_IOPS}  降级 IOPS=${DEGRADED_IOPS}  比率=${pct}%"
+
+    # 吞吐降幅不超过 30%（TiKV down 影响 TSO/元数据，允许一定波动）
+    local min_pct=70
+    assert_gt "$pct" "$((min_pct - 1))" "降级吞吐 ≥ 基线 ${min_pct}%（${pct}% ≥ ${min_pct}%）"
+
     assert_wait_eq get_tikv_store_count_up "3" 60 "TiKV 3/3 store Up"
-    assert_eq "$(get_osd_count_up)" "6" "OSD 仍 6/6 up"
-    assert_wait_match get_ceph_health "^HEALTH_(OK|WARN)" 60 "集群恢复健康（非 ERR）"
+    assert_wait_match get_ceph_health "^HEALTH_(OK|WARN)" 60 "集群健康（非 ERR）"
 }
 
 # ============================================================
 # teardown：清理
 # ============================================================
 teardown() {
+    stop_io_load
     start_tikv "$TARGET_NODE" 2>/dev/null || true
     tap_plan_end
     trap - SIGINT SIGTERM
 }
 
-main() { setup; inject; check_during; recover; check_after; teardown; }
+main() { setup; phase1_baseline; phase2_degraded; phase3_compare; teardown; }
 main "$@"

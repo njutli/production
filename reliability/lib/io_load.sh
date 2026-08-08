@@ -375,3 +375,100 @@ during_fault_io_test() {
     echo "$result"
     echo "# during_fault_io_test: $result" >&2
 }
+
+
+# ============================================================
+# 元数据探针（后台，不杀操作，记录自然耗时）
+# ============================================================
+
+_META_PROBE_PID=""
+_META_PROBE_CSV="/tmp/meta_probe.csv"
+_META_PROBE_SCRIPT="/tmp/meta_probe.sh"
+
+# start_meta_probe <duration> — 在客户端后台启动元数据探针
+# 探针每 0.3s 做一次 touch（唯一文件名），记录 start_ns end_ns rc dur_ms 到 CSV
+# 不设 per-op timeout：阻塞的操作自然等到 TiKV 选举完成后成功
+start_meta_probe() {
+    local duration=${1:-60}
+    local lib_dir="${_io_dir:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+
+    # 拷贝探针脚本到客户端
+    scp_to "${lib_dir}/meta_probe.sh" "${CLIENT_SERVER}" "${_META_PROBE_SCRIPT}" 2>/dev/null
+    ssh_to_client "chmod +x ${_META_PROBE_SCRIPT}; rm -f ${_META_PROBE_CSV}" 2>/dev/null
+
+    # 后台启动探针
+    ssh_to_client "nohup ${_META_PROBE_SCRIPT} '${JUICEFS_MOUNT_POINT}' '${_META_PROBE_CSV}' ${duration} > /dev/null 2>&1 & echo \$!" 2>/dev/null
+
+    sleep 0.5
+    _META_PROBE_PID=$(ssh_to_client "pgrep -f 'meta_probe.sh' | head -1" 2>/dev/null)
+
+    if [ -n "$_META_PROBE_PID" ]; then
+        echo "meta_probe started: pid=${_META_PROBE_PID} duration=${duration}s"
+    else
+        echo "WARNING: meta_probe PID not found"
+    fi
+}
+
+# stop_meta_probe — 停止探针，解析 CSV，输出指标
+# 返回格式: "total=N ok=N max_dur_ms=N success_rate=P"
+stop_meta_probe() {
+    if [ -z "$_META_PROBE_PID" ]; then
+        echo "stop_meta_probe: no probe running"
+        echo "total=0 ok=0 max_dur_ms=0 success_rate=0"
+        return 1
+    fi
+
+    # 等探针自然结束（最多 30s）
+    local waited=0
+    while [ "$waited" -lt 30 ]; do
+        local still_running
+        still_running=$(ssh_to_client "kill -0 ${_META_PROBE_PID} 2>/dev/null && echo yes || echo no" 2>/dev/null)
+        [ "$still_running" = "no" ] && break
+        sleep 1
+        waited=$((waited + 1))
+    done
+
+    # 仍在运行则 kill
+    if [ "$waited" = 30 ]; then
+        ssh_to_client "kill -KILL ${_META_PROBE_PID} 2>/dev/null" 2>/dev/null
+        echo "WARNING: meta_probe did not finish in time, killed"
+    fi
+
+    _META_PROBE_PID=""
+
+    # 读取 CSV 并解析
+    local csv_data
+    csv_data=$(ssh_to_client "cat ${_META_PROBE_CSV} 2>/dev/null" 2>/dev/null)
+
+    if [ -z "$csv_data" ]; then
+        echo "stop_meta_probe: no CSV data"
+        echo "total=0 ok=0 max_dur_ms=0 success_rate=0"
+        return 1
+    fi
+
+    local total ok max_dur rate
+    total=$(echo "$csv_data" | grep -c . 2>/dev/null || echo 0)
+    ok=$(echo "$csv_data" | awk '$3 == 0 {c++} END {print c+0}' 2>/dev/null)
+    max_dur=$(echo "$csv_data" | awk '{if($4>m)m=$4} END {print m+0}' 2>/dev/null)
+
+    if [ "${total:-0}" -gt 0 ] 2>/dev/null; then
+        rate=$(( ok * 100 / total ))
+    else
+        rate=0
+    fi
+
+    # 清理残留探针文件
+    ssh_to_client "rm -f ${JUICEFS_MOUNT_POINT}/probe_* 2>/dev/null" 2>/dev/null || true
+
+    echo "total=${total} ok=${ok} max_dur_ms=${max_dur} success_rate=${rate}"
+}
+
+# get_meta_probe_max_dur — 返回探针最大延迟（ms）
+get_meta_probe_max_dur() {
+    echo "${_META_PROBE_MAX_DUR:-0}"
+}
+
+# get_meta_probe_success_rate — 返回探针成功率（0-100）
+get_meta_probe_success_rate() {
+    echo "${_META_PROBE_RATE:-0}"
+}

@@ -16,7 +16,7 @@ fi
 # ============================================================
 
 # stop_osd <id> — SIGKILL 立即杀死 OSD（模拟进程崩溃，触发 fast fail）
-# systemctl stop --no-block 防止 systemd 自动重启，podman kill --signal KILL 立即杀容器
+# systemctl stop --no-block 防止 systemd 自动重启，docker kill --signal KILL 立即杀容器
 stop_osd() {
     local osd_id=$1
     local node
@@ -26,9 +26,9 @@ stop_osd() {
         _run "$node" "sudo systemctl stop --no-block ceph-*@osd.${osd_id}.service 2>/dev/null"
         # 2. 立即 SIGKILL 容器（不等 SIGTERM 10s 超时）
         local cid
-        cid=$(_run "$node" "sudo podman ps --format '{{.Names}} {{.ID}}'" 2>/dev/null | awk -v id="osd[-.]${osd_id}\$" '$1 ~ id {print $2}')
+        cid=$(_run "$node" "sudo docker ps --format '{{.Names}} {{.ID}}'" 2>/dev/null | awk -v id="osd[-.]${osd_id}\$" '$1 ~ id {print $2}')
         if [ -n "$cid" ]; then
-            _run "$node" "sudo podman kill --signal KILL $cid 2>/dev/null"
+            _run "$node" "sudo docker kill --signal KILL $cid 2>/dev/null"
         fi
     fi
 }
@@ -71,6 +71,72 @@ start_tikv() {
     _run "$1" "sudo systemctl start tikv 2>/dev/null"
 }
 
+# freeze_tikv <ip> — kill -STOP 冻结 TiKV 进程（模拟节点假死）
+# 进程不死→不触发 Restart=always，无 TCP RST→follower 心跳超时→真实选举
+freeze_tikv() {
+    local ip=$1
+    _run "$ip" "sudo kill -STOP \$(pgrep -f tikv-server | head -1) 2>/dev/null"
+}
+
+# unfreeze_tikv <ip> — kill -CONT 恢复冻结的 TiKV
+unfreeze_tikv() {
+    local ip=$1
+    _run "$ip" "sudo kill -CONT \$(pgrep -f tikv-server | head -1) 2>/dev/null"
+}
+
+# freeze_pd <ip> — kill -STOP 冻结 PD 进程（模拟节点假死）
+freeze_pd() {
+    local ip=$1
+    _run "$ip" "sudo kill -STOP \$(pgrep -f pd-server | head -1) 2>/dev/null"
+}
+
+# unfreeze_pd <ip> — kill -CONT 恢复冻结的 PD
+unfreeze_pd() {
+    local ip=$1
+    _run "$ip" "sudo kill -CONT \$(pgrep -f pd-server | head -1) 2>/dev/null"
+}
+
+# mask_tikv_runtime <ip> — 运行时遮蔽 tikv service（在 /run/systemd/system 建遮蔽）
+# 不与 /etc/systemd/system/tikv.service 冲突，重启后自动失效
+mask_tikv_runtime() {
+    local ip=$1
+    _run "$ip" "sudo systemctl mask --runtime tikv 2>/dev/null"
+}
+
+# unmask_tikv_runtime <ip> — 取消运行时遮蔽
+unmask_tikv_runtime() {
+    local ip=$1
+    _run "$ip" "sudo systemctl unmask --runtime tikv 2>/dev/null"
+}
+
+# get_meta_region_leader_node — 查 PD API，返回 JuiceFS metadata region leader 所在节点 IP
+# 如果查询失败，返回空字符串（调用方应 fallback 到随机选择）
+get_meta_region_leader_node() {
+    local pd_ep="${TIKV_SERVERS[0]}:2379"
+    local fs_name_hex
+    fs_name_hex=$(printf '%s' "${JUICEFS_FS_NAME}" | xxd -p 2>/dev/null | tr -d '\n')
+    if [ -z "$fs_name_hex" ]; then
+        echo ""
+        return 1
+    fi
+
+    local region_json leader_store_id
+    region_json=$(curl -s --max-time 5 "http://${pd_ep}/pd/api/v1/region/key/${fs_name_hex}" 2>/dev/null)
+    leader_store_id=$(echo "$region_json" | jq -r '.leader.store_id // empty' 2>/dev/null)
+
+    if [ -z "$leader_store_id" ]; then
+        echo ""
+        return 1
+    fi
+
+    local stores_json store_addr
+    stores_json=$(curl -s --max-time 5 "http://${pd_ep}/pd/api/v1/stores" 2>/dev/null)
+    store_addr=$(echo "$stores_json" | jq -r ".stores[] | select(.store.id == ${leader_store_id}) | .store.address" 2>/dev/null)
+
+    # store_addr 格式: "192.168.11.13:20160"
+    echo "$store_addr" | cut -d: -f1
+}
+
 stop_pd() {
     _run "$1" "sudo systemctl stop pd 2>/dev/null"
 }
@@ -89,7 +155,22 @@ stop_mon() {
 start_mon() {
     local node_ip=$1
     local hostname="${CEPH_HOSTNAMES[$node_ip]}"
-    _run "${CEPH_PRIMARY}" "sudo cephadm shell -- ceph orch daemon start mon.${hostname} 2>/dev/null"
+    # 在 quorum 中的节点上跑 cephadm（如果目标节点 MON down，cephadm 在该节点可能连不上 MON）
+    local mon_up_ip=""
+    for ip in "${SLAVE_SERVERS[@]}"; do
+        [ "$ip" = "$node_ip" ] && continue
+        mon_up_ip="$ip"
+        break
+    done
+    [ -z "$mon_up_ip" ] && mon_up_ip="${SLAVE_SERVERS[0]}"
+    # cephadm 可能还在处理 stop 命令，等几秒再 start
+    sleep 3
+    echo "  start_mon: cephadm on ${mon_up_ip} starting mon.${hostname}..."
+    # cephadm 有时返回非零但实际已调度 start，不依赖退出码
+    timeout 60 sshpass -p "${SSH_PASSWORD}" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 \
+        "${SSH_USER}@${mon_up_ip}" "sudo cephadm shell -- ceph orch daemon start mon.${hostname}" 2>&1 || true
+    # 也尝试 systemctl 兜底
+    _run "$node_ip" "sudo systemctl start ceph-*@mon.${hostname}.service 2>/dev/null" 2>/dev/null || true
 }
 
 

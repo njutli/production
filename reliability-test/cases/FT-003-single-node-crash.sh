@@ -179,6 +179,7 @@ check_after() {
 
     # --- 恢复后验证文件 MD5 ---
     local post_md5
+    ssh_to_client "echo 3 | sudo tee /proc/sys/vm/drop_caches 2>/dev/null" 2>/dev/null
     post_md5=$(ssh_to_client "md5sum '${VERIFY_FILE}' 2>/dev/null | awk '{print \$1}'" 2>/dev/null)
     assert_eq "$post_md5" "$PRE_FAULT_MD5" "恢复后验证文件 MD5 一致（数据无损坏）"
 

@@ -1,7 +1,7 @@
 #!/bin/bash
-# FT-004: tikv-two-down
+# FT-005: tikv-two-down
 # 停 2/3 TiKV（Raft majority 丢失），验证元数据操作阻塞（无错误返回）、恢复后继续、无损坏
-# EXPECTED_DURATION=300
+# EXPECTED_DURATION=480
 
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)"
 source "${LIB_DIR}/assert.sh"
@@ -11,7 +11,7 @@ source "${LIB_DIR}/io_load.sh"
 
 TEST_ID="FT-005"
 TEST_NAME="tikv-two-down"
-EXPECTED_DURATION=300
+EXPECTED_DURATION=480
 
 trap 'stop_io_load; start_tikv "$TARGET_A" 2>/dev/null; start_tikv "$TARGET_B" 2>/dev/null; tap_plan_end; trap - SIGINT SIGTERM' SIGINT SIGTERM
 
@@ -69,19 +69,20 @@ check_during() {
     assert_wait_match get_ceph_health "^HEALTH_(OK|WARN)" 10 "集群非 ERR（TiKV majority 丢失）"
 
     # 核心断言：元数据操作应阻塞（不返回错误）
-    # 用 timeout 5s 测试：rc=124 表示阻塞（预期），rc=0 表示意外成功，其他 rc 表示错误（不应出现）
-    # 外层 timeout 20 确保 SSH 不会因远端 touch 卡 D 状态而永久挂起
+    # 用 timeout 10s 测试：rc=124 表示阻塞（预期），rc=0 表示意外成功，其他 rc 表示错误（不应出现）
     local rc
-    rc=$(timeout 20 ssh_to_client \
-        "timeout 5 touch '${JUICEFS_MOUNT_POINT}/reliability-test/block_check' 2>/dev/null; echo \$?" \
-        2>/dev/null)
-    assert_eq "${rc:-124}" "124" "元数据操作阻塞（timeout 5s，rc=124）— 不返回错误"
+    rc=$(timeout 30 sshpass -p "${SSH_PASSWORD}" ssh ${SSH_OPTS} \
+        "${SSH_USER}@${CLIENT_SERVER}" \
+        "timeout 10 touch '${JUICEFS_MOUNT_POINT}/reliability-test/block_check' 2>/dev/null; echo \$?" \
+        2>/dev/null | tail -1)
+    assert_eq "${rc:-124}" "124" "元数据操作阻塞（timeout 10s，rc=124）— 不返回错误"
 
-    # 确认不是偶然：再测一次 stat（也應阻塞）
+    # 确认不是偶然：再测一次 stat（也应阻塞）
     local rc2
-    rc2=$(timeout 20 ssh_to_client \
-        "timeout 5 stat '${JUICEFS_MOUNT_POINT}/reliability-test' >/dev/null 2>&1; echo \$?" \
-        2>/dev/null)
+    rc2=$(timeout 30 sshpass -p "${SSH_PASSWORD}" ssh ${SSH_OPTS} \
+        "${SSH_USER}@${CLIENT_SERVER}" \
+        "timeout 10 stat '${JUICEFS_MOUNT_POINT}/reliability-test' >/dev/null 2>&1; echo \$?" \
+        2>/dev/null | tail -1)
     assert_eq "${rc2:-124}" "124" "元数据 stat 操作也阻塞（rc=124）"
 
     # 故障期间同步 I/O 测试（带 timeout + direct，不依赖 fio）

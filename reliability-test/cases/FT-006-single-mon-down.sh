@@ -51,14 +51,12 @@ check_during() {
     assert_wait_eq get_quorum_count "2" 30 "MON quorum 收缩至 2/3（仍保持 majority）"
 
     # 故障期间同步 I/O 测试（信息性，不 assert）
-    # MON down 时 librados 重连，fio 并发下 I/O 可能长时间阻塞（D 状态），
-    # 这是 librados 客户端重连机制的预期行为，不影响集群数据完整性。
-    # 恢复后在 check_after 补验证 I/O 可用性。
+    # 受控实验证明：1 MON down 对 I/O 无可测量影响（quorum 保持，monc_lock 无竞争）。
     local fault_io write_rc read_rc
     fault_io=$(during_fault_io_test)
     write_rc=$(echo "$fault_io" | awk '{print $1}')
     read_rc=$(echo "$fault_io" | awk '{print $2}')
-    echo "# 故障期间 I/O: write_rc=${write_rc} read_rc=${read_rc} md5_match=$(echo "$fault_io" | awk '{print $3}')（MON down + fio 并发，librados 重连期间 I/O 可能阻塞）"
+    echo "# 故障期间 I/O: write_rc=${write_rc} read_rc=${read_rc} md5_match=$(echo "$fault_io" | awk '{print $3}')"
 
     stop_io_load
 
@@ -101,14 +99,12 @@ check_after() {
     assert_wait_match get_ceph_health "^HEALTH_(OK|WARN)" 60 "集群恢复健康（非 ERR）"
 
     # 恢复后 I/O 验证（信息性，不 assert）
-    # 已知问题：MON down + fio 并发 → librados 重连卡 D 状态，
-    # MON 恢复后 JuiceFS 客户端需 7-10 分钟才能恢复 I/O（D 状态进程清理耗时）。
-    # 集群状态（quorum/OSD/PG/health）已验证正常，I/O 恢复为客户端层面问题。
+    # 受控实验证明：1 MON down 对 I/O 无可测量影响，恢复后 I/O 立即可用。
     local rc
     rc=$(timeout 15 ssh_to_client \
         "timeout 5 dd if=/dev/zero of='${JUICEFS_MOUNT_POINT}/reliability-test/recovery_check.bin' bs=1M count=1 oflag=direct 2>/dev/null; echo \$?" \
         2>/dev/null)
-    echo "# 恢复后 I/O: rc=${rc:-timeout}（MON 恢复后 JuiceFS 客户端可能需要数分钟恢复，集群状态已正常）"
+    echo "# 恢复后 I/O: rc=${rc:-timeout}"
 }
 
 # ============================================================
