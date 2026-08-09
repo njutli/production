@@ -75,25 +75,25 @@ start_tikv() {
 # 进程不死→不触发 Restart=always，无 TCP RST→follower 心跳超时→真实选举
 freeze_tikv() {
     local ip=$1
-    _run "$ip" "sudo kill -STOP \$(pgrep -f tikv-server | head -1) 2>/dev/null"
+    _run "$ip" "sudo kill -STOP \$(pgrep -x tikv-server | head -1) 2>/dev/null"
 }
 
 # unfreeze_tikv <ip> — kill -CONT 恢复冻结的 TiKV
 unfreeze_tikv() {
     local ip=$1
-    _run "$ip" "sudo kill -CONT \$(pgrep -f tikv-server | head -1) 2>/dev/null"
+    _run "$ip" "sudo kill -CONT \$(pgrep -x tikv-server | head -1) 2>/dev/null"
 }
 
 # freeze_pd <ip> — kill -STOP 冻结 PD 进程（模拟节点假死）
 freeze_pd() {
     local ip=$1
-    _run "$ip" "sudo kill -STOP \$(pgrep -f pd-server | head -1) 2>/dev/null"
+    _run "$ip" "sudo kill -STOP \$(pgrep -x pd-server | head -1) 2>/dev/null"
 }
 
 # unfreeze_pd <ip> — kill -CONT 恢复冻结的 PD
 unfreeze_pd() {
     local ip=$1
-    _run "$ip" "sudo kill -CONT \$(pgrep -f pd-server | head -1) 2>/dev/null"
+    _run "$ip" "sudo kill -CONT \$(pgrep -x pd-server | head -1) 2>/dev/null"
 }
 
 # mask_tikv_runtime <ip> — 运行时遮蔽 tikv service（在 /run/systemd/system 建遮蔽）

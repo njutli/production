@@ -1,0 +1,145 @@
+--- /tmp/FULLBASELINE_V4_orig.sh	2026-08-07 17:52:35.570504308 +0800
++++ /home/lilingfeng/demo/production/prod-deploy/scripts/FULLBASELINE/FULLBASELINE_V4.sh	2026-08-07 19:58:01.725415638 +0800
+@@ -91,6 +91,16 @@
+ L2_CV_MAX="${L2_CV_MAX:-3}"
+ L3_DEV_MAX="${L3_DEV_MAX:-5}"
+ REF_LABEL="${REF_LABEL:-}"
++# ===== OBJ_GATE（2026-08-07 加，03-4 写侧漂移底噪用）=====
++# 每轮写项后把池对象数排空到 OBJ_TARGET，使每轮起点对象数对齐。
++# OBJ_GATE=0（默认）时行为与原版完全一致。
++OBJ_GATE="${OBJ_GATE:-0}"
++OBJ_TARGET="${OBJ_TARGET:-2500000}"
++OBJ_START_MAX="${OBJ_START_MAX:-3000000}"
++OBJ_WARN="${OBJ_WARN:-3110000}"
++OBJ_MAX="${OBJ_MAX:-8000000}"
++OBJ_POLL="${OBJ_POLL:-120}"
++OBJ_TIMEOUT="${OBJ_TIMEOUT:-5400}"
+ 
+ mkdir -p "${RESULTS}" "${BW_LOG_DIR}"
+ log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "${RESULTS}/test.log"; }
+@@ -587,6 +597,93 @@
+     drop_caches
+ }
+ 
++obj_gate() {
++    local item="$1" round="$2"
++    local line objects stored max_avail
++    line=$(sudo ceph df --format=json 2>/dev/null | python3 -c 'import sys,json
++p=[x for x in json.load(sys.stdin)["pools"] if x["name"]=="juicefs-data"][0]["stats"]
++print(p["objects"], p["stored"], p["max_avail"])
++' 2>/dev/null || echo "0 0 0")
++    read -r objects stored max_avail <<< "$line"
++    if [ -z "${objects}" ] || [ "${objects}" = "0" ]; then
++        log "  obj_gate: FAILED to read pool objects — STOP"
++        return 1
++    fi
++    echo -e "$(date '+%F %T')\t${LABEL}\t${item}\tr${round}\tobjects=${objects}\tstored=${stored}\tmax_avail=${max_avail}" >> "${RESULTS}/obj-gate-${LABEL}.tsv"
++    log "  obj_gate: ${item}/r${round} objects=${objects} stored=${stored}"
++    if [ "${objects}" -gt "${OBJ_MAX}" ] 2>/dev/null; then
++        log "  OBJ_MAX_EXCEEDED: objects=${objects} > OBJ_MAX=${OBJ_MAX} — STOP"
++        return 1
++    fi
++    if [ "${objects}" -gt "${OBJ_WARN}" ] 2>/dev/null; then
++        log "  obj_gate: objects=${objects} > ${OBJ_WARN} (expected during write-side, data retained)"
++    fi
++    if [ "${objects}" -gt "${OBJ_TARGET}" ] 2>/dev/null; then
++        log "  obj_gate: objects=${objects} > OBJ_TARGET=${OBJ_TARGET}, waiting for drain..."
++        local elapsed=0 prev_objects="${objects}" plateau_count=0 drain_started=0
++        while [ "${elapsed}" -lt "${OBJ_TIMEOUT}" ] 2>/dev/null; do
++            sleep "${OBJ_POLL}"
++            elapsed=$((elapsed + OBJ_POLL))
++            line=$(sudo ceph df --format=json 2>/dev/null | python3 -c 'import sys,json
++p=[x for x in json.load(sys.stdin)["pools"] if x["name"]=="juicefs-data"][0]["stats"]
++print(p["objects"], p["stored"], p["max_avail"])
++' 2>/dev/null || echo "0 0 0")
++            read -r objects stored max_avail <<< "$line"
++            if [ -z "${objects}" ] || [ "${objects}" = "0" ]; then
++                log "  obj_gate: FAILED to read pool objects during drain — STOP"
++                return 1
++            fi
++            echo -e "$(date '+%F %T')\t${LABEL}\t${item}\tr${round}\tdrain\tobjects=${objects}\tstored=${stored}\telapsed=${elapsed}" >> "${RESULTS}/obj-gate-${LABEL}.tsv"
++            log "  obj_gate: drain objects=${objects} elapsed=${elapsed}s"
++            if [ "${objects}" -le "${OBJ_TARGET}" ] 2>/dev/null; then
++                log "  obj_gate: DRAINED (objects=${objects} ≤ OBJ_TARGET=${OBJ_TARGET})"
++                return 0
++            fi
++            local delta=$(( prev_objects - objects ))
++            if [ "${delta}" -ge 30000 ] 2>/dev/null; then
++                drain_started=1
++                plateau_count=0
++            elif [ "${delta}" -ge 0 ] 2>/dev/null; then
++                plateau_count=$((plateau_count + 1))
++            fi
++            prev_objects="${objects}"
++            if [ "${drain_started}" = "1" ] && [ "${elapsed}" -ge 2400 ] 2>/dev/null && [ "${plateau_count}" -ge 3 ] 2>/dev/null; then
++                if [ "${objects}" -gt "${OBJ_START_MAX}" ] 2>/dev/null; then
++                    log "  obj_gate: OBJ_START_MAX_EXCEEDED at PLATEAU (objects=${objects} > ${OBJ_START_MAX}) — STOP"
++                    return 1
++                fi
++                log "  obj_gate: PLATEAU (objects=${objects})"
++                return 0
++            fi
++        done
++        log "  obj_gate: TIMEOUT after ${OBJ_TIMEOUT}s, trying gc --compact + 30min wait"
++        set +e
++        juicefs gc --compact "${META}" 2>&1 | tail -3
++        set -e
++        compact_cooldown
++        sleep 1800
++        line=$(sudo ceph df --format=json 2>/dev/null | python3 -c 'import sys,json
++p=[x for x in json.load(sys.stdin)["pools"] if x["name"]=="juicefs-data"][0]["stats"]
++print(p["objects"], p["stored"], p["max_avail"])
++' 2>/dev/null || echo "0 0 0")
++        read -r objects stored max_avail <<< "$line"
++        if [ -z "${objects}" ] || [ "${objects}" = "0" ]; then
++            log "  obj_gate: FAILED to read pool objects after fallback — STOP"
++            return 1
++        fi
++        echo -e "$(date '+%F %T')\t${LABEL}\t${item}\tr${round}\tfallback\tobjects=${objects}\tstored=${stored}" >> "${RESULTS}/obj-gate-${LABEL}.tsv"
++        log "  obj_gate: fallback post-gc objects=${objects}"
++        if [ "${objects}" -le "${OBJ_TARGET}" ] 2>/dev/null; then
++            log "  obj_gate: DRAINED after fallback (objects=${objects})"
++            return 0
++        else
++            log "  obj_gate: STILL NOT DRAINED after fallback, objects=${objects} — STOP AND REPORT"
++            return 1
++        fi
++    fi
++    return 0
++}
++
+ deterministic_warmup() {
+     log "  warmup: 顺序读全部 layout + prep 文件"
+     local count=0
+@@ -822,6 +919,7 @@
+             --direct=1 --fallocate=none --openfiles=${LAYOUT_JOBS} \
+             --group_reporting --time_based --runtime=${RUNTIME}
+         aggressive_cleanup
++        [ "${OBJ_GATE}" = "1" ] && obj_gate "randrw" "$r"
+     done
+ }
+ 
+@@ -832,6 +930,7 @@
+             --end_fsync=1 --direct=1 --ioengine=psync --iodepth=1 \
+             --time_based --runtime=${RUNTIME}
+         compact_cooldown
++        [ "${OBJ_GATE}" = "1" ] && obj_gate "seqwrite" "$r"
+     done
+ }
+ 
+@@ -842,6 +941,7 @@
+             --end_fsync=1 --group_reporting --direct=1 --ioengine=psync --iodepth=1 \
+             --time_based --runtime=${RUNTIME}
+         compact_cooldown
++        [ "${OBJ_GATE}" = "1" ] && obj_gate "mseqwrite" "$r"
+     done
+     aggressive_cleanup
+ }
+@@ -855,6 +955,7 @@
+             --direct=1 --fallocate=none --openfiles=${LAYOUT_JOBS} \
+             --group_reporting --time_based --runtime=${RUNTIME}
+         aggressive_cleanup
++        [ "${OBJ_GATE}" = "1" ] && obj_gate "randwrite" "$r"
+     done
+ }
+ 
