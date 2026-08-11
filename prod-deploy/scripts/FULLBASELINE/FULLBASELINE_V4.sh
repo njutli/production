@@ -10,7 +10,7 @@ export LC_ALL=C
 #   - 读项/写项文件分离（randread 用 read_test，randrw 用 rw_test，randwrite 用 storage_test）
 #   - 每轮配置快照（mount 命令行 + ceph config dump + up_from）
 #   - C_amp 守卫（NIC 首末差分 ÷ fio 读字节，default 2.0±0.1 / ra0 1.0±0.1，不在范围判无效）
-#   - 磁盘空间检查（余量 <20G abort）
+#   - 磁盘空间检查（余量 <5G abort；2026-08-11 由 20G 下调，见 03 计划 §11.2）
 #   - OSD_UP_FROM -f json 修复
 #
 # 跳过 V3 的单进程改动（"稳但瞎"已证伪，恢复 128-job）
@@ -50,7 +50,8 @@ LAYOUT_SIZE="1G"
 SEQ_SIZE="32G"
 MSEQ_JOBS=16
 MSEQ_SIZE="4G"
-DISK_SPACE_MIN_GB=20
+DISK_SPACE_MIN_GB="${DISK_SPACE_MIN_GB:-5}"   # 2026-08-11: 20→5。157 根盘 98% 满且余量由外部租户支配（docker 95G/home-server 70G/weka 48G/turboai 31G/ray 24G），
+                                              # 而本脚本全部产出仅 306M（10 run 实测）⇒ 20G 门禁使外部租户写 1G 即掐死长跑（03-4 WD11/WD12 即如此）。见 03 计划 §11.2
 CACHE_SIZE_GB="${CACHE_SIZE_GB:-30}"   # E6: OSD bluestore_cache_size=30GiB（cache-config-check 期望值；157 实测 32212254720）
 
 # ===== PG 门禁（2026-08-04 加）=====

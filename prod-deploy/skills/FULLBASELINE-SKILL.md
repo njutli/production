@@ -38,7 +38,9 @@
 ```bash
 # 1) 脚本完整性（本地 WSL 算，不在 157 算）
 md5sum scripts/FULLBASELINE/FULLBASELINE_V4.sh
-#   ⚑ 当前应为 4551ef3c0d405734ea0a4a281427a989（1373 行，含 obj_gate()，2026-08-07 起）
+#   ⚑ 当前应为 4198ea2676ba56744a3cd5eba17a5eab（1368 行，2026-08-11 起：磁盘门禁 20G→5G）
+#   ⚑ 历史值 dec5ee132fd6be25bbe744c6024466f1 = 03-4 改造后（obj_gate 去等待逻辑）
+#   ⚑ 历史值 4551ef3c0d405734ea0a4a281427a989 = 有 PLATEAU 等待逻辑的旧版（1373 行）
 #   ⚑ 历史值 3fd1281fea1c08342051d64fc8eb1348 = 无 obj_gate 的旧版
 #   🔴 上传到 157 后必须在 157 上再算一次核对 —— 用错版本会静默跑出"每轮起点不同"的废数据
 bash -n scripts/FULLBASELINE/FULLBASELINE_V4.sh          # 语法
