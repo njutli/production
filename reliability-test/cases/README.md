@@ -22,12 +22,12 @@
 > fio 用 randrw + create_on_open（有意覆盖元数据路径：文件创建走 TiKV 元数据，数据读写走 Ceph）。
 > 注：FT-004/008 改用 randread（预创建文件，避免元数据故障导致 fio 卡死），表中 FT-008 数据为旧 randrw 法。
 > P50/P99=17.1s 为 fio 直方图 bin 上限（反推有效并发 ≈ 17s × 233 IOPS ≈ 4000，远低于 128×128=16384 名义并发，FUSE 层串行化）。
+> 此表只含故障后 I/O 能自动调节完成的用例（体现故障对 I/O 过程的影响）。完全阻塞 I/O 的故障（FT-005 2 TiKV down、FT-009 2 PD down）不在表中。
 
 | 场景 | runtime | IOPS | P50 | P99 | Max(r) | Max(w) | 原始数据 |
 |------|---------|------|------|------|--------|--------|---------|
 | **基线（无故障）** | 93.0s | 233 | 17.1s | 17.1s | 88.1s | 88.9s | `/tmp/exp-baseline.json` |
-| **FT-004（1 TiKV stop）** | 95.0s | 242 | 17.1s | 17.1s | 89.2s | 90.6s | `/tmp/exp-ft004.json` |
-| **FT-005（2 TiKV down）** | — | — | — | — | — | — | ⚠️ 方法不适用（元数据全阻塞，fio 卡死需 SIGKILL） |
+| **FT-004（1 TiKV down）** | 95.0s | 242 | 17.1s | 17.1s | 89.2s | 90.6s | `/tmp/exp-ft004.json` |
 | **FT-006（1 MON down）** | 98.0s | 250 | 17.1s | 17.1s | 89.3s | 90.2s | `/tmp/exp-ft006.json` |
 | **FT-007（2 MON down，quorum 丢失）** | 125.0s | 214 | 17.1s | 17.1s | 101.6s | 105.7s | `/tmp/exp-ft007.json` |
 | **FT-008（1 PD down）** | 100.0s | 177 | 17.1s | 17.1s | 99.1s | 99.1s | `/tmp/exp-ft008-v2.json` |
