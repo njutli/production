@@ -50,13 +50,16 @@ check_during() {
     # MON quorum 收缩至 2/3（仍保持 majority，集群可操作）
     assert_wait_eq get_quorum_count "2" 30 "MON quorum 收缩至 2/3（仍保持 majority）"
 
-    # 故障期间同步 I/O 测试（信息性，不 assert）
-    # 受控实验证明：1 MON down 对 I/O 无可测量影响（quorum 保持，monc_lock 无竞争）。
-    local fault_io write_rc read_rc
+    # 故障期间 I/O 测试（assert：1 MON down 不影响数据面）
+    # quorum 2/3 保持，monc_lock 无竞争，I/O fast path 不受影响
+    local fault_io write_rc read_rc md5_match
     fault_io=$(during_fault_io_test)
     write_rc=$(echo "$fault_io" | awk '{print $1}')
     read_rc=$(echo "$fault_io" | awk '{print $2}')
-    echo "# 故障期间 I/O: write_rc=${write_rc} read_rc=${read_rc} md5_match=$(echo "$fault_io" | awk '{print $3}')"
+    md5_match=$(echo "$fault_io" | awk '{print $3}')
+    assert_eq "$write_rc" "0" "故障期间写 I/O 可用（MON down 不影响数据面）"
+    assert_eq "$read_rc" "0" "故障期间读 I/O 可用（MON down 不影响数据面）"
+    assert_eq "$md5_match" "true" "故障期间数据完整性验证（MD5 一致）"
 
     stop_io_load
 

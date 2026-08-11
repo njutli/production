@@ -1,6 +1,6 @@
 #!/bin/bash
 # FT-010: juicefs-fuse-crash
-# kill JuiceFS FUSE 进程，验证 mount 不可用、已 fsync 数据完整、重启后恢复
+# kill JuiceFS FUSE 进程，验证 mount 不可用、已 close 数据完整（无 writeback，close 即持久化）、重启后恢复
 # EXPECTED_DURATION=180
 
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)"
@@ -14,10 +14,10 @@ EXPECTED_DURATION=180
 
 trap '_restart_fuse; tap_plan_end; trap - SIGINT SIGTERM' SIGINT SIGTERM
 
-# 重启 JuiceFS FUSE（umount stale + 重新挂载）
+# 重启 JuiceFS FUSE（umount stale + 重新挂载，参数与现役挂载一致）
 _restart_fuse() {
     ssh_to_client "sudo umount -l ${JUICEFS_MOUNT_POINT} 2>/dev/null; sleep 2" 2>/dev/null
-    ssh_to_client "nohup juicefs mount '${JUICEFS_METADATA_URL}' ${JUICEFS_MOUNT_POINT} ${JUICEFS_MOUNT_OPTS[*]} > /dev/null 2>&1 &" 2>/dev/null
+    ssh_to_client "nohup juicefs mount 'tikv://192.168.11.11:2379,192.168.11.13:2379,192.168.11.14:2379/juicefs-prod?open-tso-follower-proxy=true' ${JUICEFS_MOUNT_POINT} ${JUICEFS_MOUNT_OPTS[*]} > /dev/null 2>&1 &" 2>/dev/null
     sleep 5
 }
 

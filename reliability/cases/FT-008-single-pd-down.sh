@@ -55,7 +55,7 @@ setup() {
     assert_ne "$TARGET_NODE" "" "注入目标: ${TARGET_NODE}（PD leader=${ORIGINAL_LEADER}）"
 
     # 启动 I/O 负载（数据面）
-    start_io_load randrw 256K 128
+    start_io_load randread 256K 128
 
     # 预热
     sleep 30

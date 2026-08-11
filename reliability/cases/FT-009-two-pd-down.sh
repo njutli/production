@@ -1,7 +1,7 @@
 #!/bin/bash
 # FT-009: two-pd-down
-# 停 2/3 PD（丢 quorum），验证 PD 管理面冻结、TiKV 仍可服务、新元数据操作可发起
-# EXPECTED_DURATION=300
+# 停 2/3 PD（丢 quorum），验证 PD 管理面冻结、TiKV 事务阻塞（TSO 不可用）、恢复后正常
+# EXPECTED_DURATION=480
 
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)"
 source "${LIB_DIR}/assert.sh"
@@ -11,7 +11,7 @@ source "${LIB_DIR}/io_load.sh"
 
 TEST_ID="FT-009"
 TEST_NAME="two-pd-down"
-EXPECTED_DURATION=300
+EXPECTED_DURATION=480
 
 trap 'start_pd "$NODE_A" 2>/dev/null; start_pd "$NODE_B" 2>/dev/null; tap_plan_end; trap - SIGINT SIGTERM' SIGINT SIGTERM
 
@@ -20,7 +20,7 @@ trap 'start_pd "$NODE_A" 2>/dev/null; start_pd "$NODE_B" 2>/dev/null; tap_plan_e
 # ============================================================
 setup() {
     tap_plan_start "$TEST_ID" "$TEST_NAME" \
-        "停 2/3 PD（丢 quorum），验证管理面冻结、TiKV 仍可服务、新元数据操作可发起"
+        "停 2/3 PD（丢 quorum），验证管理面冻结、TiKV 事务阻塞（TSO 不可用）、恢复后正常"
 
     assert_wait_match get_ceph_health "^HEALTH_(OK|WARN)" 60 "集群初始健康（非 ERR）"
     assert_wait_eq get_osd_count_up "6" 10 "初始 6/6 OSD up"
@@ -55,16 +55,14 @@ check_during() {
     sleep 5
 
     # 1. PD 管理面冻结：PD API 无法返回有效 leader（quorum 丢失）
-    #    _pd_api 遍历所有节点，2 个 down，1 个存活但无 quorum
     local pd_leader
     pd_leader=$(get_tikv_leader 2>/dev/null)
-    # 存活的 PD 无法选举 leader → 返回空或旧值
-    # 关键不是 leader 返回什么，而是下面验证 TiKV 仍可服务
+    assert_eq "${pd_leader:-none}" "none" "PD leader 不存在（quorum 丢失，管理面冻结）"
 
     # 2. TiKV 不受影响（3 个 TiKV 进程都活着，PD down 只影响管理面）
     assert_eq "$(get_juicefs_status)" "mounted" "JuiceFS 仍挂载"
 
-    # 3. 核心断言：新元数据操作可发起（TiKV 用本地 region cache 路由，不依赖 PD）
+    # 3. 核心断言：新元数据操作阻塞（PD quorum 丢失 → TSO 不可用 → TiKV 新事务无法启动）
     #    touch = 创建新文件 → 需要分配 inode → 写 TiKV → TiKV 用 cache 找到 region leader → 成功
     local meta_file="${JUICEFS_MOUNT_POINT}/reliability-test/ft009_new_io"
     # 故障期间同步 I/O 测试（带 timeout + direct，不依赖 fio）
@@ -118,6 +116,14 @@ check_after() {
 
     # 集群健康
     assert_wait_match get_ceph_health "^HEALTH_(OK|WARN)" 60 "集群恢复健康（非 ERR）"
+
+    # 恢复后元数据可用性验证（参考 FT-005 的恢复探针）
+    local rc
+    rc=$(timeout 15 sshpass -p "${SSH_PASSWORD}" ssh ${SSH_OPTS} \
+        "${SSH_USER}@${CLIENT_SERVER}" \
+        "timeout 5 touch '${JUICEFS_MOUNT_POINT}/reliability-test/ft009_recover_check' 2>/dev/null && echo ok" \
+        2>/dev/null | tail -1)
+    assert_eq "${rc:-blocked}" "ok" "恢复后元数据操作可用（PD quorum 恢复，TSO 可用）"
 }
 
 # ============================================================

@@ -20,6 +20,7 @@
 > 实验方法：`start_io_load` → `sleep 30`（稳态）→ 注入故障/不注入 → `sleep 60`（固定窗口）→ `stop_io_load`
 > 两组 fio 运行时长完全相同（~93s），无 check_during 干扰，唯一变量是有无故障。
 > fio 用 randrw + create_on_open（有意覆盖元数据路径：文件创建走 TiKV 元数据，数据读写走 Ceph）。
+> 注：FT-004/008 改用 randread（预创建文件，避免元数据故障导致 fio 卡死），表中 FT-008 数据为旧 randrw 法。
 > P50/P99=17.1s 为 fio 直方图 bin 上限（反推有效并发 ≈ 17s × 233 IOPS ≈ 4000，远低于 128×128=16384 名义并发，FUSE 层串行化）。
 
 | 场景 | runtime | IOPS | P50 | P99 | Max(r) | Max(w) | 原始数据 |
@@ -43,8 +44,9 @@
 > 根因：MON 不可用触发 TCP 重试回调与 timer 竞争 `monc_lock`，间接拖慢 Objecter 周期性维护。I/O 提交 fast path 不需要 `monc_lock`（用 `objecter_lock` + 缓存 map），所以不会完全卡住。
 > 详见 FT-007 用例分析。
 
-> FT-008 结论：单 PD down 对数据面 I/O **无可测量影响**。元数据最大延迟 123ms（PD 不在元数据热路径，TiKV region cache 命中时不查 PD）。
-> 使用 kill -STOP 冻结 PD（不触发 Restart=always，无 TCP RST → 真实选举）。PD Raft 选举极快（~3s），客户端几乎无感知。
+> FT-008 结论：单 PD down 对数据面 I/O **无可测量影响**（freeze+randread 版 fio 100% 正常停止）。元数据最大延迟 21.1s（PD 冻结后 gRPC keepalive 13s + PD Raft 选举 ~3s + 客户端重试 ~5s）。
+> 使用 kill -STOP 冻结 PD（不触发 Restart=always，无 TCP RST → 真实选举）。
+> 注：表中 FT-008 IOPS 233→177（-24%）为旧 SIGTERM+randrw 数据，freeze+randread 版已验证 fio 正常。
 
 > 此表仅含元数据面故障（TiKV/MON/PD），用 fio 吞吐验证"数据面不受影响"。
 > FT-001/002（数据面 OSD 故障）不在此表中——它们用 dd 1GB direct 测单流 stall 时长，
@@ -189,12 +191,14 @@ T=0      iptables DROP → 节点全部流量被丢弃
 
 **I/O 行为总结**：冻结 1 TiKV（Raft 2/3 majority 保持），数据面（Ceph OSD）完全不受影响。元数据操作在 Raft 选举期间阻塞 10-20s 后自然恢复（100% 成功率）。kill -STOP 不触发 Restart=always，无 TCP RST，follower 心跳超时后真实选举。
 
+> ⚠️ 本表数据来自 freeze 版脚本的手动运行，无 results/ 存档。181843 存档为旧版（stop + 随机选目标 + timeout 3s），结果 13/15。freeze 版实测 19/19 PASS。
+
 **实测数据**：
 
 | 指标 | 值 | 说明 |
 |------|-----|------|
-| 元数据成功率 | 76/76 = 100% | 阻塞后自然恢复 |
-| 元数据最大延迟 | **17.3s** | 落在 Raft 选举超时 10-20s 范围内 |
+| 元数据成功率 | 58/58 = 100% | 阻塞后自然恢复 |
+| 元数据最大延迟 | **19.8s** | 落在 Raft 选举超时 10-20s 范围内 |
 | fio 成功率 | 100% | 数据面不受影响 |
 | fio P99 | 17.1s | 与基线相同（稳态排队延迟） |
 | OSD | 6/6 up | 数据面完全不受影响 |
@@ -335,23 +339,24 @@ I/O 提交的 fast path 不碰 `monc_lock` → 吞吐不会降到 0。
 | 关键断言 | 元数据成功率 100%、最大延迟 < 30s、PD leader 自动切换、I/O 不中断 |
 | 预估时长 | 6min |
 
-**I/O 行为总结**：冻结 1 PD（kill -STOP），Raft majority 保持（2/3）。数据面（Ceph OSD）完全不受影响。元数据最大延迟 123ms——PD 不在元数据热路径上（TiKV region cache 命中时不查 PD），PD Raft 选举极快（~3s），客户端几乎无感知。
+**I/O 行为总结**：冻结 1 PD（kill -STOP），Raft majority 保持（2/3）。数据面（Ceph OSD）完全不受影响。元数据最大延迟 21.1s——PD 冻结后 TSO 不可用，TiKV 事务阻塞，直到 PD Raft 选举新 leader + gRPC keepalive 检测连接死亡 + 客户端重连。
 
-> 注：使用 kill -STOP（不触发 Restart=always，无 TCP RST → 真实选举），同 FT-004 方法论。
-> PD down 对 I/O 的影响远小于 TiKV down（FT-004 17.3s vs FT-008 0.1s）——TiKV 在元数据热路径上，PD 不在。
+> ⚠️ 旧版用 SIGTERM stop_pd（pgrep -f 自匹配 bug 导致 PD 从未冻结），测得 123ms 假性"零阻塞"。freeze 版实测 21.1s。
+> 受控实验表中 FT-008 IOPS 233→177（-24%）为旧 SIGTERM+randrw 数据，freeze+randread 版 fio 100% 正常停止。
+> PD down 对 I/O 的影响与 FT-004（TiKV down）机制不同：TiKV 冻结阻塞 region leader 访问（元数据热路径），PD 冻结阻塞 TSO 分配（事务启动依赖）。两者延迟量级相近（~20s）。
 
 ### FT-009：双 PD down（PD quorum 丢失）
 
 | 项 | 值 |
 |----|-----|
 | 故障注入 | 停 2/3 PD |
-| 关键断言 | PD 管理面冻结、TiKV 仍可服务（本地 cache）、新元数据操作可发起 |
+| 关键断言 | PD 管理面冻结、TiKV 事务阻塞（TSO 不可用）、恢复后元数据可用 |
 | I/O 延迟检测 | 无（PD 不在数据路径上，但 TSO 完全不可用会阻塞元数据，见下方分析） |
-| 预估时长 | 5min |
+| 预估时长 | 8min |
 
-**I/O 行为总结**：2/3 PD down → PD quorum 丢失 → TSO（时间戳分配）完全不可用 → TiKV 所有事务无法启动 → JuiceFS 元数据操作完全阻塞。数据面（Ceph 6/6 OSD）不受影响，但需要元数据的 I/O（写新 block、查新 chunk 位置）全部阻塞，不需要元数据的 I/O（读已缓存 chunk 位置的数据）不受影响。
+**I/O 行为总结**：2/3 PD down → PD quorum 丢失 → TSO（时间戳分配）完全不可用 → TiKV 所有事务无法启动（region cache 只省路由不省 TSO）→ JuiceFS 元数据操作完全阻塞。数据面（Ceph 6/6 OSD）不受影响，但需要元数据的 I/O（写新 block、查新 chunk 位置）全部阻塞，不需要元数据的 I/O（读已缓存 chunk 位置的数据）不受影响。
 
-> **和 FT-008（1 PD down）的区别**：FT-008 quorum 保持，元数据几乎无影响（123ms）。FT-009 quorum 丢失，TSO 完全不可用，元数据操作彻底阻塞直到 PD 恢复。
+> **和 FT-008（1 PD down）的区别**：FT-008 quorum 保持，元数据阻塞 ~21s 后恢复（gRPC keepalive + 选举）。FT-009 quorum 丢失，TSO 完全不可用，元数据操作彻底阻塞直到 PD 恢复。
 > **和 FT-007（2 MON down）的区别**：MON quorum 丢失是 librados `monc_lock` 锁竞争间接阻塞 I/O dispatch。PD quorum 丢失是 TSO 不可用直接阻塞 TiKV 事务，进而阻塞 JuiceFS 元数据。两者都不在数据路径上，但间接影响机制不同。
 
 ### FT-010：JuiceFS FUSE crash
@@ -359,10 +364,10 @@ I/O 提交的 fast path 不碰 `monc_lock` → 吞吐不会降到 0。
 | 项 | 值 |
 |----|-----|
 | 故障注入 | kill JuiceFS FUSE 进程 |
-| 关键断言 | mount 不可用、已 fsync 数据完整、重启 FUSE 后恢复（未 fsync 数据按 POSIX 丢失） |
+| 关键断言 | mount 不可用、已 close 数据完整（无 writeback，close 即持久化）、重启 FUSE 后恢复 |
 | 预估时长 | 3min |
 
-**I/O 行为总结**：FUSE 进程被 kill → mount 点不可用（所有 I/O 返回 ENOTCONN 或阻塞）→ 数据在 Ceph OSD 上完整（不受 FUSE crash 影响）→ 重新 mount 后 FUSE 连接 Ceph + TiKV，数据立即可读。已 fsync 的数据保证已写入 Ceph，未 fsync 的数据可能还在 FUSE 进程内存中，crash 后丢失（POSIX 语义）。
+**I/O 行为总结**：FUSE 进程被 kill → mount 点不可用（所有 I/O 返回 ENOTCONN 或阻塞）→ 数据在 Ceph OSD 上完整（不受 FUSE crash 影响）→ 重新 mount 后 FUSE 连接 Ceph + TiKV，数据立即可读。JuiceFS 无 --writeback，close() 即上传后端持久化，已 close 的数据在 crash 后完整保留。
 
 > **数据面不受影响**：Ceph OSD 和 TiKV 都是独立进程，FUSE crash 不影响它们。重新 mount 后数据立即可用。
 > **和 OSD/MON/TiKV/PD 故障的区别**：FUSE crash 影响的是客户端接入层，不是后端存储。后端存储故障影响"数据是否还在"，FUSE crash 只影响"客户端能否访问"。

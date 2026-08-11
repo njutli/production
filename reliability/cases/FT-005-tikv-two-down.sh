@@ -68,14 +68,14 @@ check_during() {
     # 集群非 ERR
     assert_wait_match get_ceph_health "^HEALTH_(OK|WARN)" 10 "集群非 ERR（TiKV majority 丢失）"
 
-    # 核心断言：元数据操作应阻塞（不返回错误）
-    # 用 timeout 10s 测试：rc=124 表示阻塞（预期），rc=0 表示意外成功，其他 rc 表示错误（不应出现）
+    # 核心断言：元数据操作阻塞（TiKV majority 丢失，事务无法完成）
+    # touch 用 timeout 10s 测短窗口：rc=124 表示阻塞（预期）
     local rc
     rc=$(timeout 30 sshpass -p "${SSH_PASSWORD}" ssh ${SSH_OPTS} \
         "${SSH_USER}@${CLIENT_SERVER}" \
         "timeout 10 touch '${JUICEFS_MOUNT_POINT}/reliability-test/block_check' 2>/dev/null; echo \$?" \
         2>/dev/null | tail -1)
-    assert_eq "${rc:-124}" "124" "元数据操作阻塞（timeout 10s，rc=124）— 不返回错误"
+    assert_eq "${rc:-124}" "124" "元数据操作阻塞（timeout 10s，rc=124）"
 
     # 确认不是偶然：再测一次 stat（也应阻塞）
     local rc2
@@ -85,12 +85,15 @@ check_during() {
         2>/dev/null | tail -1)
     assert_eq "${rc2:-124}" "124" "元数据 stat 操作也阻塞（rc=124）"
 
-    # 故障期间同步 I/O 测试（带 timeout + direct，不依赖 fio）
+    # 故障期间 dd 写测试：TiKV majority 丢失 → 事务无法完成 → dd 最终返回错误
+    # dd 写新文件需要创建 inode（TiKV 事务），事务耗尽重试后失败，dd 以 rc≠0 退出
     local fault_io write_rc read_rc
     fault_io=$(during_fault_io_test)
     write_rc=$(echo "$fault_io" | awk '{print $1}')
     read_rc=$(echo "$fault_io" | awk '{print $2}')
-    echo "# 故障期间 I/O: write_rc=${write_rc} read_rc=${read_rc} md5_match=$(echo "$fault_io" | awk '{print $3}')（TiKV majority 丢失，写可能失败）"
+    echo "# during_fault_io_test: $fault_io"
+    # 预期：write_rc≠0（事务失败），不是 rc=0（意外成功）
+    assert_ne "$write_rc" "0" "元数据写操作预期失败（rc=${write_rc}，TiKV majority 丢失，事务无法完成）"
 
     # 停止 I/O（fio 可能因元数据阻塞而卡住，stop_io_load 会 SIGINT→SIGKILL）
     stop_io_load

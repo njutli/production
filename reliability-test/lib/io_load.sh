@@ -347,7 +347,8 @@ during_fault_io_test() {
         md5_match=skip
 
         if [ \"\$write_rc\" = \"0\" ]; then
-            # 3. 读回到 /tmp（iflag=direct，从存储读，不走缓存）
+            # 3. drop cache 后读回到 /tmp（iflag=direct，从存储读，不走缓存）
+            echo 3 | sudo tee /proc/sys/vm/drop_caches 2>/dev/null >/dev/null
             timeout 90 dd if='${test_dir}/during_fault.bin' of=/tmp/df_readback.bin bs=1M count=10 iflag=direct 2>/dev/null
             read_rc=\$?
             T3=\$(date +%s)

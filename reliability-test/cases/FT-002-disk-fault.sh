@@ -131,8 +131,9 @@ rm -f "${TEST_DIR}/fault.bin" /tmp/ft002_timing.txt /tmp/ft002_fault_rc.txt /tmp
 ) &
 DD_PID=$!
 
-# --- 立即从客户端 SSH 注入 EIO（同网段，延迟 ~0.5s）---
-sshpass -p "${SSHPASS}" ssh ${SSH_OPTS} "turboai@${TARGET_NODE}" "sudo dmsetup table ${TARGET_LV} > ${DM_BACKUP} 2>/dev/null; size=\$(sudo blockdev --getsize ${TARGET_LV} 2>/dev/null); sudo dmsetup suspend ${TARGET_LV} 2>/dev/null; echo \"0 \${size} error\" | sudo dmsetup load ${TARGET_LV} 2>/dev/null; sudo dmsetup resume ${TARGET_LV} 2>/dev/null; echo injected" 2>/dev/null
+# --- 立即从客户端 SSH 注入 EIO（同网段，延迟 ~0.5s）+ 安全网 ---
+# 安全网：900s 后自动恢复 dm table（防脚本被 SIGKILL/SSH 断连后 dm error 永久残留）
+sshpass -p "${SSHPASS}" ssh ${SSH_OPTS} "turboai@${TARGET_NODE}" "sudo dmsetup table ${TARGET_LV} > ${DM_BACKUP} 2>/dev/null; size=\$(sudo blockdev --getsize ${TARGET_LV} 2>/dev/null); sudo dmsetup suspend ${TARGET_LV} 2>/dev/null; echo \"0 \${size} error\" | sudo dmsetup load ${TARGET_LV} 2>/dev/null; sudo dmsetup resume ${TARGET_LV} 2>/dev/null; nohup bash -c 'sleep 900; sudo dmsetup suspend ${TARGET_LV} 2>/dev/null; sudo dmsetup load ${TARGET_LV} < ${DM_BACKUP} 2>/dev/null; sudo dmsetup resume ${TARGET_LV} 2>/dev/null' >/dev/null 2>&1 & echo injected" 2>/dev/null
 
 # --- 等待 dd 完成 ---
 wait $DD_PID 2>/dev/null || true
