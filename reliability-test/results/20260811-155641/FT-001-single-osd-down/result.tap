@@ -1,0 +1,20 @@
+ok 1 - 集群初始健康（非 ERR） (actual='HEALTH_OK' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 2 - 初始 6/6 OSD up (actual='6' waited=0s)
+ok 3 - 初始 PG active+clean (actual='active+clean' =~ /active+clean/ waited=0s)
+ok 4 - 选中的 OSD id: 8
+ok 5 - OSD 8 所在节点: 192.168.11.13
+ok 6 - 基线 dd 写入成功（rc=0）
+ok 7 - 故障 dd 写入成功（rc=0）
+ok 8 - 基线数据 md5 一致（写后读校验）
+ok 9 - 故障期间数据 md5 一致（drop cache 后读校验）
+ok 10 - 基线写入成功（9164ms） (actual=9164 > 0)
+ok 11 - 故障写入完成（10442ms） (actual=10442 > 0)
+ok 12 - 5/6 OSD up（OSD down） (actual='5' waited=0s)
+ok 13 - PG 进入 degraded (actual='active+undersized+degraded active+clean active+undersized' =~ /degraded/ waited=0s)
+ok 14 - 集群非 ERR（EC 容忍内） (actual='HEALTH_WARN 1 osds down; Degraded data redundancy: 174293/1045698 objects degraded (16.668%), 60 pgs degraded' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 15 - 故障写入延迟 < 5000ms（实际 1278ms） (actual=1278 < 5000)
+ok 16 - PG 300s 内恢复 active+clean (actual='active+undersized+degraded active+clean active+undersized' =~ /active+clean/ waited=0s)
+ok 17 - 6/6 OSD up (actual='6' waited=19s)
+ok 18 - 集群恢复健康（非 ERR） (actual='HEALTH_WARN Degraded data redundancy: 170197/1021122 objects degraded (16.668%), 60 pgs degraded, 107 pgs undersized' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+1..18
+# Result: PASS (18/18)

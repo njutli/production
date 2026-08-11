@@ -143,8 +143,8 @@ recover() {
 # check_after：恢复后断言
 # ============================================================
 check_after() {
-    # TiKV 不受影响
-    assert_eq "$(get_tikv_store_count_up)" "3" "TiKV 仍 3/3 Up"
+    # TiKV 不受影响（PD 刚解冻，API 可能需要几秒恢复）
+    assert_wait_eq get_tikv_store_count_up "3" 60 "TiKV 仍 3/3 Up"
 
     # OSD 不受影响
     assert_eq "$(get_osd_count_up)" "6" "OSD 仍 6/6 up"

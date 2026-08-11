@@ -1,0 +1,35 @@
+TAP version 13
+# FT-004: tikv-single-down
+# 冻结 1 TiKV（kill -STOP），验证元数据选举延迟 + 成功率 + I/O 不中断
+ok 1 - 集群初始健康（非 ERR） (actual='HEALTH_OK' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 2 - 初始 6/6 OSD up (actual='6' waited=0s)
+ok 3 - 初始 3/3 TiKV store Up (actual='3' waited=0s)
+ok 4 - 初始 PG 含 active (actual='active+clean' =~ /active/ waited=0s)
+ok 5 - 注入目标: 192.168.11.14（metadata region leader）
+  prep: creating 128 × 64M files on 192.168.11.12...
+  prep: done
+fio started: type=randread bs=256K jobs=128 pid=4027464
+4030521
+meta_probe started: pid=4030521 duration=45s
+# 等待 Raft 选举完成（10-20s）...
+# meta_probe: total=71 ok=71 max_dur_ms=15463 success_rate=100
+ok 6 - 元数据成功率 100%（71/71，阻塞后自然恢复）
+ok 7 - 元数据最大延迟 15s < 30s（选举超时 10-20s + 余量） (actual=15463 < 30000)
+# during_fault_io_test: 0 0 true 724ef4d9af106424711c91d2a2cfbfbb 724ef4d9af106424711c91d2a2cfbfbb t_gen=0s t_write=1s t_read=5s t_total=6s
+ok 8 - 故障期间数据完整性验证（MD5 一致）
+ok 9 - 故障期间写 I/O 可用（direct）
+ok 10 - 故障期间读 I/O 可用（direct）
+fio stopped, results collected
+  cleanup: test files removed
+ok 11 - OSD 仍 6/6 up（数据面不受影响）
+ok 12 - PG 仍 active（数据面不受影响）
+ok 13 - 集群非 ERR（TiKV freeze） (actual='HEALTH_OK' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 14 - I/O 成功率 100%（数据面不受影响） (actual=100%)
+ok 15 - P99 < 30s (actual=17112760us < 30000000us)
+ok 16 - TiKV 3/3 store Up (actual='3' waited=0s)
+ok 17 - OSD 仍 6/6 up
+ok 18 - PG 仍 active
+ok 19 - 集群恢复健康（非 ERR） (actual='HEALTH_OK' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+stop_io_load: no fio running
+1..19
+# Result: PASS (19/19)

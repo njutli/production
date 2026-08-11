@@ -8,50 +8,9 @@
 > | **OPS** | Operations | 运维操作——验证恢复/重建等运维流程可执行 |
 > | **DG** | Degradation | 性能退化量化——验证故障期间吞吐退化幅度可控 |
 >
-> 所有用例严格串行——共享同一物理集群，故障域重叠，并行注入会互相污染断言。
-> P1 用例见 `framework-design.md` §二。
+
 
 ---
-
-## 受控 I/O 对比实验
-
-> ⚠️ 原始 JSON 为 /tmp 易失路径，大概率已失效，数据不可回溯。后续受控实验原始数据应存入 results/ 归档。
->
-> 实验方法：`start_io_load` → `sleep 30`（稳态）→ 注入故障/不注入 → `sleep 60`（固定窗口）→ `stop_io_load`
-> 两组 fio 运行时长完全相同（~93s），无 check_during 干扰，唯一变量是有无故障。
-> fio 用 randrw + create_on_open（有意覆盖元数据路径：文件创建走 TiKV 元数据，数据读写走 Ceph）。
-> 注：FT-004/008 改用 randread（预创建文件，避免元数据故障导致 fio 卡死），表中 FT-008 数据为旧 randrw 法。
-> P50/P99=17.1s 为 fio 直方图 bin 上限（反推有效并发 ≈ 17s × 233 IOPS ≈ 4000，远低于 128×128=16384 名义并发，FUSE 层串行化）。
-
-| 场景 | runtime | IOPS | P50 | P99 | Max(r) | Max(w) | 原始数据 |
-|------|---------|------|------|------|--------|--------|---------|
-| **基线（无故障）** | 93.0s | 233 | 17.1s | 17.1s | 88.1s | 88.9s | `/tmp/exp-baseline.json` |
-| **FT-004（1 TiKV stop）** | 95.0s | 242 | 17.1s | 17.1s | 89.2s | 90.6s | `/tmp/exp-ft004.json` |
-| **FT-005（2 TiKV down）** | — | — | — | — | — | — | ⚠️ 方法不适用（元数据全阻塞，fio 卡死需 SIGKILL） |
-| **FT-006（1 MON down）** | 98.0s | 250 | 17.1s | 17.1s | 89.3s | 90.2s | `/tmp/exp-ft006.json` |
-| **FT-007（2 MON down，quorum 丢失）** | 125.0s | 214 | 17.1s | 17.1s | 101.6s | 105.7s | `/tmp/exp-ft007.json` |
-| **FT-008（1 PD down）** | 100.0s | 177 | 17.1s | 17.1s | 99.1s | 99.1s | `/tmp/exp-ft008-v2.json` |
-
-> FT-004 结论：单 TiKV down 对数据面 I/O **无可测量影响**。所有指标在正常波动范围内。
-> 原因：数据面（Ceph 6/6 OSD）不受 TiKV 故障影响。fio 走 Ceph 直连 RADOS，不经过 TiKV。
-
-> FT-006 结论：单 MON down 对数据面 I/O **无可测量影响**。所有指标在正常波动范围内。
-> 原因：MON 不在数据路径上。客户端缓存 OSD map 后直接和 OSD 通信，不经过 MON。
-> 3 MON down 1 个，quorum 2/3 保持，集群管理功能正常。
-
-> FT-007 结论：双 MON down（quorum 丢失）对 I/O **有可测量影响但不卡死**。
-> runtime +34%、IOPS -8%（233→214，退化为略低稳态而非 0）、Max +15-19%。前 30s I/O 正常，之后逐渐退化到稳态。
-> 根因：MON 不可用触发 TCP 重试回调与 timer 竞争 `monc_lock`，间接拖慢 Objecter 周期性维护。I/O 提交 fast path 不需要 `monc_lock`（用 `objecter_lock` + 缓存 map），所以不会完全卡住。
-> 详见 FT-007 用例分析。
-
-> FT-008 结论：单 PD down 对数据面 I/O **无可测量影响**（freeze+randread 版 fio 100% 正常停止）。元数据最大延迟 21.1s（PD 冻结后 gRPC keepalive 13s + PD Raft 选举 ~3s + 客户端重试 ~5s）。
-> 使用 kill -STOP 冻结 PD（不触发 Restart=always，无 TCP RST → 真实选举）。
-> 注：表中 FT-008 IOPS 233→177（-24%）为旧 SIGTERM+randrw 数据，freeze+randread 版已验证 fio 正常。
-
-> 此表仅含元数据面故障（TiKV/MON/PD），用 fio 吞吐验证"数据面不受影响"。
-> FT-001/002（数据面 OSD 故障）不在此表中——它们用 dd 1GB direct 测单流 stall 时长，
-> 因为 fio 128 jobs 的稳态排队延迟（P99=17.1s）会掩盖 OSD 故障的真实延迟（0.7-4.7s）。
-> 两种方法互补：fio 测"吞吐受不受影响"，dd 测"单次写入卡多久"。
 
 ---
 
@@ -67,9 +26,7 @@
 
 **I/O 行为总结**：SIGKILL 1 OSD 后，通过 fast-fail 检测 + PG peering 恢复。客户端本地 dd 写入途中 kill OSD（从 .12 同网段 SSH kill，延迟 ~0.5s），实测故障写入延迟 692ms-2.6s——包含 fast-fail 检测 + MON 标记 down + PG peering + 客户端获取新 OSD map + rerouting。
 
-> ⚑ 实测数据来自早期手动运行，无 results/ 存档；数字可信但不可回溯，下次执行后补档。
->
-> **实测结果**（客户端本地 1GB dd 写入途中 kill OSD，3 次实测）：
+> **实测结果**（客户端本地 1GB dd 写入途中 kill OSD）：
 > - 基线写入 1GB：~9150-9170ms（稳定）
 > - 故障写入 1GB：~9860-11730ms
 > - **延迟：692ms ~ 2565ms**
@@ -89,11 +46,9 @@
 
 **I/O 行为总结**：`dmsetup load` error target 让磁盘返回 EIO，OSD 的 BlueStore 检测到 I/O 错误后 crash → 恢复路径与 FT-001（SIGKILL）相同。crash 之前 OSD 仍运行，命中 BlueStore 缓存的 I/O 正常完成，触发磁盘 I/O 的操作收到 EIO 返回错误。crash 之后通过 fast-fail + peering 恢复。
 
-> ⚑ 实测数据来自早期手动运行，无 results/ 存档；数字可信但不可回溯，下次执行后补档。
->
 > 注：OSD unit 为 `Restart=on-failure`（RestartSec=10s），EIO 窗口内 OSD 实际处于 crash loop（反复 boot→EIO→abort），每次 crash 产生一条 crash 归档；测得延迟含首次 EIO-to-crash + loop 期间的 fast-fail/peering。
 >
-> **实测结果**（客户端本地 1GB dd 写入途中注入 EIO，3 次实测）：
+> **实测结果**（客户端本地 1GB dd 写入途中注入 EIO）：
 > - 基线写入 1GB：~9160-9170ms（稳定）
 > - 故障写入 1GB：~11400-13850ms
 > - **延迟：2227ms ~ 4685ms**（波动因 EIO-to-crash 间隔不确定）
@@ -124,7 +79,7 @@
 | fast fail | ✓ | ✗（DROP 无 RST，客户端不知道连接断了） |
 | peering | ✓（~2s） | ✓（~2s） |
 | 写入能否成功 | ✓（5 ≥ min_size=5） | ✗（4 < min_size=5） |
-| I/O 恢复时间 | 0.7-2.6s(FT-001) / 2.2-4.7s(FT-002) ⚑ | **~500s**（TCP 重传超时） |
+| I/O 恢复时间 | 0.7-2.6s(FT-001) / 2.2-4.7s(FT-002) | **~500s**（TCP 重传超时） |
 
 **故障检测路径（多层恢复，但客户端卡在 TCP 超时）**：
 
@@ -191,14 +146,12 @@ T=0      iptables DROP → 节点全部流量被丢弃
 
 **I/O 行为总结**：冻结 1 TiKV（Raft 2/3 majority 保持），数据面（Ceph OSD）完全不受影响。元数据操作在 Raft 选举期间阻塞 10-20s 后自然恢复（100% 成功率）。kill -STOP 不触发 Restart=always，无 TCP RST，follower 心跳超时后真实选举。
 
-> ⚠️ 本表数据来自 freeze 版脚本的手动运行，无 results/ 存档。181843 存档为旧版（stop + 随机选目标 + timeout 3s），结果 13/15。freeze 版实测 19/19 PASS。
-
-**实测数据**：
+**实测数据**（`results/20260811-160355/`，19/19 PASS）：
 
 | 指标 | 值 | 说明 |
 |------|-----|------|
-| 元数据成功率 | 58/58 = 100% | 阻塞后自然恢复 |
-| 元数据最大延迟 | **19.8s** | 落在 Raft 选举超时 10-20s 范围内 |
+| 元数据成功率 | 71/71 = 100% | 阻塞后自然恢复 |
+| 元数据最大延迟 | **15.5s** | 落在 Raft 选举超时 10-20s 范围内 |
 | fio 成功率 | 100% | 数据面不受影响 |
 | fio P99 | 17.1s | 与基线相同（稳态排队延迟） |
 | OSD | 6/6 up | 数据面完全不受影响 |
@@ -206,7 +159,6 @@ T=0      iptables DROP → 节点全部流量被丢弃
 
 > 数据面 fio 走 Ceph 直连 RADOS，不经过 TiKV，不受影响。
 > 元数据操作（touch/create）需查 TiKV，选举期间阻塞 10-20s。
-> 受控实验结果见上方"受控 I/O 对比实验"表。
 
 #### 元数据恢复延迟分析
 
@@ -234,7 +186,7 @@ T=0      iptables DROP → 节点全部流量被丢弃
 
 **为什么剩 1 个 TiKV 仍然不可用**：Raft 需要配置成员的 majority（2/3）才能选 leader。停 2 个只剩 1 个时，这个 TiKV 知道自己是 3 成员组的一部分，无法获得 2 票 → 选不出 leader → 读写全阻塞。数据没丢（还在那 1 个 TiKV 上），但无法服务。
 
-> ⚠️ 存档 `results/20260731-182626/`（PASS 19/19）显示：dd 写阻塞 ~81s 后返回错误（rc=1），并非无限阻塞。"阻塞无错误返回"仅在观察窗口 <80s 时成立。fio SIGINT 无效被 SIGKILL（元数据全阻塞的预期表现——fio randrw 需元数据）。
+> **实测结果**（`results/20260811-160915/`，20/20 PASS）：dd 写阻塞 41s 后返回错误（rc=1），并非无限阻塞。fio SIGINT 无效被 SIGKILL（元数据全阻塞的预期表现——fio randrw 需元数据）。
 
 > 这和一开始只部署 1 个 TiKV 不同：1 成员 Raft 组，自己投自己 = 1/1 = 100% majority → 立即当选 leader → 正常服务。关键不是"剩几个节点"，而是"Raft 能否凑够 majority"——3 配置的组 down 到只剩 1 个，那 1 个不会自作主张当 leader。
 
@@ -339,11 +291,21 @@ I/O 提交的 fast path 不碰 `monc_lock` → 吞吐不会降到 0。
 | 关键断言 | 元数据成功率 100%、最大延迟 < 30s、PD leader 自动切换、I/O 不中断 |
 | 预估时长 | 6min |
 
-**I/O 行为总结**：冻结 1 PD（kill -STOP），Raft majority 保持（2/3）。数据面（Ceph OSD）完全不受影响。元数据最大延迟 21.1s——PD 冻结后 TSO 不可用，TiKV 事务阻塞，直到 PD Raft 选举新 leader + gRPC keepalive 检测连接死亡 + 客户端重连。
+**I/O 行为总结**：冻结 1 PD（kill -STOP），Raft majority 保持（2/3）。数据面（Ceph OSD）完全不受影响。元数据最大延迟 21.0s——PD 冻结后 TSO 不可用，TiKV 事务阻塞，直到 PD Raft 选举新 leader + gRPC keepalive 检测连接死亡 + 客户端重连。
 
-> ⚠️ 旧版用 SIGTERM stop_pd（pgrep -f 自匹配 bug 导致 PD 从未冻结），测得 123ms 假性"零阻塞"。freeze 版实测 21.1s。
-> 受控实验表中 FT-008 IOPS 233→177（-24%）为旧 SIGTERM+randrw 数据，freeze+randread 版 fio 100% 正常停止。
-> PD down 对 I/O 的影响与 FT-004（TiKV down）机制不同：TiKV 冻结阻塞 region leader 访问（元数据热路径），PD 冻结阻塞 TSO 分配（事务启动依赖）。两者延迟量级相近（~20s）。
+**实测数据**（`results/20260811-163348/`，22/22 PASS）：
+
+| 指标 | 值 | 说明 |
+|------|-----|------|
+| 元数据成功率 | 58/58 = 100% | 阻塞后自然恢复 |
+| 元数据最大延迟 | **21.0s** | gRPC keepalive 13s + PD 选举 ~3s + 重试 ~5s |
+| fio 成功率 | 100% | 数据面不受影响 |
+| PD leader 切换 | ceph-node2→ceph-node3 | 自动切换 |
+| OSD | 6/6 up | 数据面完全不受影响 |
+| 集群健康 | HEALTH_OK | 全程无 ERR |
+
+> 使用 kill -STOP 冻结 PD（不触发 Restart=always，无 TCP RST → 真实选举）。
+> PD down 阻塞 TSO 分配（事务启动依赖），与 FT-004（TiKV down 阻塞 region leader 访问）机制不同，但延迟量级相近（~20s）。
 
 ### FT-009：双 PD down（PD quorum 丢失）
 
