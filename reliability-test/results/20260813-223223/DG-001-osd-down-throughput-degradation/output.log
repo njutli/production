@@ -1,0 +1,38 @@
+TAP version 13
+# DG-001: osd-down-throughput-degradation
+# 比较 6/6 OSD up vs 5/6 OSD down（稳态 active+degraded）的吞吐差异
+ok 1 - 集群初始健康（非 ERR） (actual='HEALTH_WARN 3 failed cephadm daemon(s); 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 2 - 初始 6/6 OSD up (actual='6' waited=0s)
+ok 3 - 初始 PG active+clean (actual='active+clean' =~ /active+clean/ waited=0s)
+ok 4 - 选中 OSD: 2
+
+=== Phase 1: 基线（6/6 OSD up）===
+  prep: creating 128 × 64M files on 192.168.11.12...
+  prep: done
+fio started: type=randread bs=256K jobs=128 pid=3751700
+fio stopped, results collected
+  cleanup: test files removed
+# 基线 IOPS: 156
+ok 5 - 基线吞吐采集成功（IOPS=156） (actual=156 > 0)
+
+=== Phase 2: 降级（5/6 OSD up，active+degraded）===
+ok 6 - PG 进入 degraded (actual='active+clean active+undersized+degraded active+undersized' =~ /degraded/ waited=0s)
+ok 7 - 5/6 OSD up (actual='5' waited=0s)
+# 等待 PG 稳定（0s）
+  prep: creating 128 × 64M files on 192.168.11.12...
+  prep: done
+fio started: type=randread bs=256K jobs=128 pid=3770176
+fio stopped, results collected
+  cleanup: test files removed
+# 降级 IOPS: 158
+ok 8 - 降级吞吐采集成功（IOPS=158） (actual=158 > 0)
+
+=== Phase 3: 对比 ===
+Scheduled to start osd.2 on host 'ceph-node1'
+# 基线 IOPS=156  降级 IOPS=158  比率=1.01（101%）
+ok 9 - 降级吞吐 ≥ 基线 80%（101% ≥ 80%） (actual=101 > 79)
+ok 10 - 6/6 OSD up (actual='6' waited=29s)
+ok 11 - 集群健康（非 ERR） (actual='HEALTH_WARN 3 failed cephadm daemon(s); Degraded data redundancy: 112873/834177 objects degraded (13.531%), 50 pgs degraded, 92 pgs undersized; 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+stop_io_load: no fio running
+1..11
+# Result: PASS (11/11)

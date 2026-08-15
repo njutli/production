@@ -9,7 +9,7 @@ unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY all_proxy ALL_PROXY no_proxy
 # JuiceFS Client Deployment (4-Machine Topology)
 #
 # Installs JuiceFS client and formats/mounts a filesystem
-# backed by TiKV single-node (metadata) + Ceph 3-node RGW (data).
+# backed by TiKV 3-node (metadata) + Ceph RADOS direct (data).
 #
 # Client placement strategy:
 #   Data-heavy tests   → run on ${TIKV_SERVER} (set JUICEFS_CLIENT in config.sh)
@@ -19,8 +19,7 @@ unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY all_proxy ALL_PROXY no_proxy
 #
 # Prerequisites:
 #   1. deploy-tikv.sh completed
-#   2. deploy-ceph.sh completed
-#   3. RGW credentials available from .credentials/rgw-juicefs.env
+#   2. deploy-ceph.sh completed (RADOS pool + client.admin keyring on client)
 #
 # Usage: bash deploy-juicefs.sh [status|format|mount|unmount|destroy|test]
 # ============================================================
@@ -29,16 +28,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 source "${SCRIPT_DIR}/config.sh"
 
-# Load RGW credentials if available
-CREDS_FILE="${SCRIPT_DIR}/.credentials/rgw-juicefs.env"
-if [ -f "${CREDS_FILE}" ]; then
-    source "${CREDS_FILE}"
-fi
-
 ACTION="${1:-status}"
 
-METADATA_URL="tikv://${PD_ENDPOINTS}/${JUICEFS_FS_NAME}"
-BUCKET_URL="${RGW_ENDPOINT}/${JUICEFS_FS_NAME}"
+METADATA_URL="${JUICEFS_METADATA_URL}"
+BUCKET_URL="ceph://${CEPH_POOL_NAME}"
 
 # ============================================================
 # Pre-flight
@@ -46,7 +39,8 @@ BUCKET_URL="${RGW_ENDPOINT}/${JUICEFS_FS_NAME}"
 
 check_tikv() {
     echo -n "Checking TiKV PD... "
-    if curl -s --noproxy '*' --connect-timeout 5 "http://${TIKV_SERVER}:2379/pd/api/v1/health" 2>/dev/null | grep -q '"health"'; then
+    local first_pd="${TIKV_SERVERS[0]}:2379"
+    if curl -s --noproxy '*' --connect-timeout 5 "http://${first_pd}/pd/api/v1/health" 2>/dev/null | grep -q '"health"'; then
         echo "OK"
         return 0
     fi
@@ -54,9 +48,9 @@ check_tikv() {
     return 1
 }
 
-check_rgw() {
-    echo -n "Checking Ceph RGW... "
-    if curl -s --noproxy '*' --connect-timeout 5 "${RGW_ENDPOINT}" >/dev/null 2>&1; then
+check_ceph_rados() {
+    echo -n "Checking Ceph RADOS... "
+    if ssh_to_client "sudo ceph -s 2>/dev/null" | grep -q "mon:"; then
         echo "OK"
         return 0
     fi
@@ -90,7 +84,7 @@ do_status() {
     echo "  Mount point:   ${JUICEFS_MOUNT_POINT}"
     echo ""
     check_tikv
-    check_rgw
+    check_ceph_rados
     echo ""
 
     install_juicefs
@@ -117,7 +111,7 @@ do_format() {
     echo ""
 
     check_tikv || { echo "ERROR: TiKV PD not reachable."; exit 1; }
-    check_rgw || { echo "ERROR: Ceph RGW not reachable."; exit 1; }
+    check_ceph_rados || { echo "ERROR: Ceph RADOS not reachable."; exit 1; }
     install_juicefs
 
     # Check if already formatted
@@ -127,38 +121,10 @@ do_format() {
         exit 0
     fi
 
-    # Check credentials
-    if [ -z "${AWS_ACCESS_KEY_ID:-}" ] || [ -z "${AWS_SECRET_ACCESS_KEY:-}" ]; then
-        echo "ERROR: RGW credentials not set."
-        echo "  Source them: source ${CREDS_FILE}"
-        echo "  Or set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY env vars."
-        exit 1
-    fi
-
-    export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
-    export AWS_DEFAULT_REGION=""
-
-    # Pre-create S3 bucket (RGW may reject JuiceFS auto-create with region errors)
-    echo "Creating S3 bucket '${JUICEFS_FS_NAME}'..."
-    if command -v aws &>/dev/null; then
-        aws --endpoint-url="${RGW_ENDPOINT}" --no-verify-ssl \
-            s3 mb "s3://${JUICEFS_FS_NAME}" 2>/dev/null || true
-    elif command -v s3cmd &>/dev/null; then
-        s3cmd --host="${RGW_ENDPOINT}" --no-ssl mb "s3://${JUICEFS_FS_NAME}" 2>/dev/null || true
-    else
-        echo "WARNING: awscli or s3cmd not installed, cannot pre-create bucket."
-        echo "  JuiceFS will try to auto-create it (may fail on some RGW versions)."
-    fi
-
     echo ""
-    echo ">>> Running juicefs format..."
-    # --trash-days 0 for test env (trash disabled)
-    juicefs format \
-        --storage s3 \
-        --bucket "${BUCKET_URL}" \
-        --access-key "${AWS_ACCESS_KEY_ID}" \
-        --secret-key "${AWS_SECRET_ACCESS_KEY}" \
-        --trash-days 0 \
+    echo ">>> Running juicefs format (Ceph RADOS direct)..."
+    sudo CEPH_CONF=/etc/ceph/ceph.conf juicefs format \
+        "${JUICEFS_FORMAT_OPTS[@]}" \
         "${METADATA_URL}" \
         "${JUICEFS_FS_NAME}"
 
@@ -188,7 +154,10 @@ do_mount() {
     fi
 
     echo "Mounting ${METADATA_URL} -> ${JUICEFS_MOUNT_POINT}..."
-    juicefs mount -d "${METADATA_URL}" "${JUICEFS_MOUNT_POINT}"
+    sudo CEPH_CONF=/etc/ceph/ceph.conf juicefs mount -d \
+        "${JUICEFS_MOUNT_OPTS[@]}" \
+        "${METADATA_URL}" \
+        "${JUICEFS_MOUNT_POINT}"
 
     sleep 3
 
@@ -240,9 +209,9 @@ do_destroy() {
     fi
 
     echo ""
-    echo ">>> Deleting metadata + S3 data..."
-    juicefs destroy "${METADATA_URL}" "${UUID}" --yes
-    echo "  Metadata and S3 data deleted."
+    echo ">>> Deleting metadata + Ceph RADOS data..."
+    sudo CEPH_CONF=/etc/ceph/ceph.conf juicefs destroy "${METADATA_URL}" "${UUID}" --yes
+    echo "  Metadata and RADOS data deleted."
 }
 
 do_test() {
@@ -257,7 +226,7 @@ do_test() {
 
     echo ""
     echo ">>> Write test..."
-    echo "JuiceFS + TiKV + Ceph RGW production test - $(date)" > "${JUICEFS_MOUNT_POINT}/hello.txt"
+    echo "JuiceFS + TiKV + Ceph RADOS production test - $(date)" > "${JUICEFS_MOUNT_POINT}/hello.txt"
     dd if=/dev/urandom of="${JUICEFS_MOUNT_POINT}/random.bin" bs=1M count=10 2>&1 | tail -1
 
     echo ""

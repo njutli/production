@@ -16,7 +16,7 @@ fi
 # ============================================================
 
 # stop_osd <id> — SIGKILL 立即杀死 OSD（模拟进程崩溃，触发 fast fail）
-# systemctl stop --no-block 防止 systemd 自动重启，docker kill --signal KILL 立即杀容器
+# systemctl stop --no-block 防止 systemd 自动重启，podman kill --signal KILL 立即杀容器
 stop_osd() {
     local osd_id=$1
     local node
@@ -24,11 +24,11 @@ stop_osd() {
     if [ -n "$node" ] && [ "$node" != "unknown" ]; then
         # 1. 告诉 systemd 停止（--no-block 立即返回，防止 on-failure 重启）
         _run "$node" "sudo systemctl stop --no-block ceph-*@osd.${osd_id}.service 2>/dev/null"
-        # 2. 立即 SIGKILL 容器（不等 SIGTERM 10s 超时）
+        # 2. 立即 SIGKILL 容器（cephadm 用 podman，不等 SIGTERM 10s 超时）
         local cid
-        cid=$(_run "$node" "sudo docker ps --format '{{.Names}} {{.ID}}'" 2>/dev/null | awk -v id="osd[-.]${osd_id}\$" '$1 ~ id {print $2}')
+        cid=$(_run "$node" "sudo podman ps --format '{{.Names}} {{.ID}}'" 2>/dev/null | awk -v id="osd[-.]${osd_id}\$" '$1 ~ id {print $2}')
         if [ -n "$cid" ]; then
-            _run "$node" "sudo docker kill --signal KILL $cid 2>/dev/null"
+            _run "$node" "sudo podman kill --signal KILL $cid 2>/dev/null"
         fi
     fi
 }

@@ -91,14 +91,23 @@ JUICEFS_CLIENT="${CLIENT_SERVER}"   # .12
 JUICEFS_FS_NAME="${JUICEFS_FS_NAME:-juicefs-prod}"
 JUICEFS_MOUNT_POINT="/mnt/juicefs"
 
-# JuiceFS metadata URL
+# JuiceFS metadata URL (TiKV prefix = volume name)
 JUICEFS_METADATA_URL="tikv://${PD_ENDPOINTS}/${JUICEFS_FS_NAME}"
 
-# JuiceFS 挂载参数（直连 RADOS，与 prod-deploy 一致）
-JUICEFS_BASE_MOUNT_OPTS=(
+# JuiceFS format options (Ceph RADOS 直连)
+# --access-key = Ceph cluster name, --secret-key = Ceph client user name
+JUICEFS_FORMAT_OPTS=(
     --storage ceph
-    --bucket ceph://juicefs-data
+    --bucket "ceph://${CEPH_POOL_NAME}"
+    --access-key ceph
+    --secret-key client.admin
     --block-size 256K
+    --trash-days 0
+)
+
+# JuiceFS 挂载参数（直连 RADOS）
+# mount 从元数据读取 storage/bucket/access-key/secret-key，无需重复指定
+JUICEFS_BASE_MOUNT_OPTS=(
     --max-uploads 150
 )
 JUICEFS_MOUNT_OPTS=( "${JUICEFS_BASE_MOUNT_OPTS[@]}" --cache-size 0 )

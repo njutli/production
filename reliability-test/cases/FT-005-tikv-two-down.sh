@@ -145,7 +145,7 @@ check_after() {
 
     # 无元数据损坏
     local fsck_out
-    fsck_out=$(ssh_to_client "juicefs fsck '${JUICEFS_METADATA_URL}' 2>&1" 2>/dev/null)
+    fsck_out=$(ssh_to_client "sudo CEPH_CONF=/etc/ceph/ceph.conf juicefs fsck '${JUICEFS_METADATA_URL}' 2>&1" 2>/dev/null)
     local fsck_rc=$?
     assert_eq "$fsck_rc" "0" "juicefs fsck 通过（无元数据损坏）"
 }

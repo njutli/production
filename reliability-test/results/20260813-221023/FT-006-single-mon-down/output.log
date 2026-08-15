@@ -1,0 +1,42 @@
+TAP version 13
+# FT-006: single-mon-down
+# 停 1 MON（仍保持 quorum），验证集群可操作、数据面不受影响
+ok 1 - 集群初始健康（非 ERR） (actual='HEALTH_WARN 3 failed cephadm daemon(s); 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 2 - 初始 6/6 OSD up (actual='6' waited=0s)
+ok 3 - 初始 3/3 MON quorum (actual='3' waited=0s)
+ok 4 - 初始 PG active+clean (actual='active+clean' =~ /active+clean/ waited=0s)
+ok 5 - 注入目标: 192.168.11.13
+fio started: type=randrw bs=256K jobs=128 pid=3619981
+Scheduled to stop mon.ceph-node2 on host 'ceph-node2'
+ok 6 - MON quorum 收缩至 2/3（仍保持 majority） (actual='2' waited=5s)
+# during_fault_io_test: 0 0 true bd3501f6f8d0f3c74dfa4371e97b3adc bd3501f6f8d0f3c74dfa4371e97b3adc t_gen=0s t_write=2s t_read=5s t_total=7s
+ok 7 - 故障期间写 I/O 可用（MON down 不影响数据面）
+ok 8 - 故障期间读 I/O 可用（MON down 不影响数据面）
+ok 9 - 故障期间数据完整性验证（MD5 一致）
+fio stopped, results collected
+  cleanup: test files removed
+ok 10 - ceph osd tree 可执行（集群仍可操作）
+ok 11 - OSD 仍 6/6 up（MON down 不影响数据面）
+ok 12 - PG 仍 active+clean（MON down 不影响数据面）
+ok 13 - JuiceFS 仍挂载
+ok 14 - 集群非 ERR (actual='HEALTH_WARN 3 failed cephadm daemon(s); 1/3 mons down, quorum ceph-node1,ceph-node3; 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+  start_mon: cephadm on 192.168.11.11 starting mon.ceph-node2...
+Inferring fsid 073f28e0-5fe0-11f1-8ce6-7369ee2be5a1
+Inferring config /var/lib/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1/mon.ceph-node1/config
+Using ceph image with id '259b35566514' and tag '<none>' created on 2024-11-26 00:45:38 +0000 UTC
+quay.io/ceph/ceph@sha256:80d288f7e4e7b3a95c1c611e4e9ed017f2214da42e9cf525bda8c6c8222a8887
+Scheduled to start mon.ceph-node2 on host 'ceph-node2'
+ok 15 - MON quorum 恢复 3/3 (actual='3' waited=0s)
+ok 16 - OSD 仍 6/6 up
+ok 17 - PG 仍 active+clean
+ok 18 - 集群恢复健康（非 ERR） (actual='HEALTH_WARN 3 failed cephadm daemon(s); 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+# 恢复后 I/O: rc=timeout
+stop_io_load: no fio running
+  start_mon: cephadm on 192.168.11.11 starting mon.ceph-node2...
+Inferring fsid 073f28e0-5fe0-11f1-8ce6-7369ee2be5a1
+Inferring config /var/lib/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1/mon.ceph-node1/config
+Using ceph image with id '259b35566514' and tag '<none>' created on 2024-11-26 00:45:38 +0000 UTC
+quay.io/ceph/ceph@sha256:80d288f7e4e7b3a95c1c611e4e9ed017f2214da42e9cf525bda8c6c8222a8887
+Scheduled to start mon.ceph-node2 on host 'ceph-node2'
+1..18
+# Result: PASS (18/18)

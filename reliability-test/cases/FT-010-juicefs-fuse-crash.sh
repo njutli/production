@@ -17,7 +17,7 @@ trap '_restart_fuse; tap_plan_end; trap - SIGINT SIGTERM' SIGINT SIGTERM
 # 重启 JuiceFS FUSE（umount stale + 重新挂载，参数与现役挂载一致）
 _restart_fuse() {
     ssh_to_client "sudo umount -l ${JUICEFS_MOUNT_POINT} 2>/dev/null; sleep 2" 2>/dev/null
-    ssh_to_client "nohup juicefs mount 'tikv://192.168.11.11:2379,192.168.11.13:2379,192.168.11.14:2379/juicefs-prod?open-tso-follower-proxy=true' ${JUICEFS_MOUNT_POINT} ${JUICEFS_MOUNT_OPTS[*]} > /dev/null 2>&1 &" 2>/dev/null
+    ssh_to_client "sudo CEPH_CONF=/etc/ceph/ceph.conf nohup juicefs mount '${JUICEFS_METADATA_URL}?open-tso-follower-proxy=true' ${JUICEFS_MOUNT_POINT} ${JUICEFS_MOUNT_OPTS[*]} > /dev/null 2>&1 &" 2>/dev/null
     sleep 5
 }
 

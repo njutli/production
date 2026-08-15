@@ -1,0 +1,32 @@
+解析 24 轮  root=/tmp/opencode-fullbaseline-v4  labels=['PROBE-T38-A1', 'PROBE-T38-A2', 'PROBE-T38-B1', 'PROBE-T38-B2', 'T38-A1', 'T38-A2', 'T38-B1', 'T38-B2']  instr=/tmp/opencode-t3.8
+
+label      item        n   有效MiB/s    FUSE尺寸    FUSE延迟     GET延迟     PUT延迟     meta延迟  GET/IO    RX放大    TX放大    在飞GET    在飞meta     核数
+---------------------------------------------------------------------------------------------------------------------------------------
+PROBE-T38-A1 mseqread    2      3960   261879B      919u     5534u      nanu       379u    1.00    1.02     nan       88         0   6.56
+PROBE-T38-A2 mseqread    2      3268   261819B     1131u     6015u      nanu       370u    1.00    1.01     nan       79         0   5.45
+PROBE-T38-B1 mseqread    2      2934   261786B     1267u     6780u      nanu       367u    1.00    1.01     nan       80         0   5.02
+PROBE-T38-B2 mseqread    2      4228   261896B      855u     5622u      nanu       379u    1.00    1.02     nan       95         0   6.90
+T38-A1     randrw      2      3839   261597B     6532u     8625u     7351u      2301u    1.15    1.21    1.19       76        43  13.24
+T38-A1     randwrite   2      3296        0B    10123u     6316u     7410u    117820u   39.84     nan    1.26        5      1382  14.31
+T38-A2     randrw      2      3155   261479B     7981u    12615u     7889u      1588u    1.15    1.17    1.15       92        24  12.43
+T38-A2     randwrite   2      2984        0B    11397u     6783u     6625u    159906u   37.18     nan    1.48        5      1739  15.11
+T38-B1     randrw      2      3159   261466B     7972u    12267u     8006u      1696u    1.15    1.19    1.17       90        26  11.88
+T38-B1     randwrite   2       551        0B    56608u     2253u     6157u      5991u    1.40     nan    1.10        0        13   2.45
+T38-B2     randrw      2      3919   261603B     6383u     7509u     5996u      3393u    1.15    1.24    1.22       68        65  15.34
+T38-B2     randwrite   2       551        0B    56549u     1654u     5177u      6988u    2.95     nan    1.35        0        15   2.45
+
+label      item           OSD读延迟     OSD写延迟   buffer峰    读buffer峰  RTT_p50  RTT_p99    核数p95     管理网RX     管理网TX
+PROBE-T38-A1 mseqread         nanu       nanu      nanM        nanM     nanm     nanm      nan      nanM      nanM
+PROBE-T38-A2 mseqread         nanu       nanu      nanM        nanM     nanm     nanm      nan      nanM      nanM
+PROBE-T38-B1 mseqread         nanu       nanu      nanM        nanM     nanm     nanm      nan      nanM      nanM
+PROBE-T38-B2 mseqread         nanu       nanu      nanM        nanM     nanm     nanm      nan      nanM      nanM
+T38-A1     randrw           nanu       nanu      nanM        nanM     nanm     nanm      nan      nanM      nanM
+T38-A1     randwrite        nanu       nanu      nanM        nanM     nanm     nanm      nan      nanM      nanM
+T38-A2     randrw           nanu       nanu      nanM        nanM     nanm     nanm      nan      nanM      nanM
+T38-A2     randwrite        nanu       nanu      nanM        nanM     nanm     nanm      nan      nanM      nanM
+T38-B1     randrw           nanu       nanu      nanM        nanM     nanm     nanm      nan      nanM      nanM
+T38-B1     randwrite        nanu       nanu      nanM        nanM     nanm     nanm      nan      nanM      nanM
+T38-B2     randrw           nanu       nanu      nanM        nanM     nanm     nanm      nan      nanM      nanM
+T38-B2     randwrite        nanu       nanu      nanM        nanM     nanm     nanm      nan      nanM      nanM
+
+逐轮 TSV 已写入 /tmp/opencode-t3.8/budget.tsv（24 行 × 39 列）

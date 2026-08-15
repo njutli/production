@@ -2,6 +2,7 @@
 
 > 目的：杜绝因命令误操作导致生产节点不可达的事故。
 > 创建：2026-07-27（node1/node2 chown -R / 事故后）
+> 更新：2026-08-13（.13 擅自 reboot 事故后，新增 §1.7 重启禁令 + §2.5 脚本预扫描）
 > 适用范围：**所有远程操作，无例外**
 
 ---
@@ -43,9 +44,10 @@ ssh jump "ssh target 'chown -R 167:167 \$VAR/'"
 
 向脚本中添加 sudo 操作命令或手动执行 sudo 操作命令前，**必须经用户确认**（只读命令除外）。
 
-- **需确认**：`sudo rm`、`sudo chown`、`sudo chmod`、`sudo systemctl stop`、`sudo umount`、`sudo wipefs`、`sudo dd`、`sudo podman rm` 等一切会改变系统状态的 sudo 命令
-- **无需确认**：`sudo ls`、`sudo cat`、`sudo mount | grep`、`sudo podman ps` 等只读命令
+- **需确认**：`sudo rm`、`sudo chown`、`sudo chmod`、`sudo systemctl stop`、`sudo systemctl restart`、`sudo umount`、`sudo wipefs`、`sudo dd`、`sudo podman rm`、`sudo lvremove`、`sudo lvcreate`、`sudo reboot`、`sudo shutdown`、`sudo halt`、`sudo poweroff` 等一切会改变系统状态的 sudo 命令
+- **无需确认**：`sudo ls`、`sudo cat`、`sudo mount | grep`、`sudo podman ps`、`sudo ceph -s`、`sudo lvs`、`sudo cephadm shell -- ceph osd tree` 等只读命令
 - 确认时须列出完整命令和目标节点，用户明确回复"确认"后方可执行
+- **运行包含 sudo 写操作的测试脚本前**，必须先 grep 扫描脚本内容，列出所有 sudo 写操作，经用户确认后方可执行
 
 ### 1.4 禁止多节点并行执行破坏性命令
 
@@ -64,6 +66,18 @@ chown 167:167 "$DIR/file1" "$DIR/file2" "$DIR/file3"
 ### 1.6 禁止在未确认执行环境的情况下执行命令
 
 执行任何命令前，必须确认当前所在的机器（WSL 本地 vs 157 远程 vs slave 节点）。混淆本地与远程环境会导致命令在错误机器上执行。远程操作必须通过显式 SSH 进行。
+
+### 1.7 禁止未经确认执行重启/关机命令
+
+**`reboot`、`shutdown`、`halt`、`poweroff` 及其 sudo/systemctl 变体属于最高危操作，绝对禁止未经用户明确确认就执行。** opencode 权限规则已在 bash 工具层面对这些命令设置 `deny`，但脚本内部的调用不会被拦截。
+
+**运行任何测试脚本前**，必须先扫描脚本内容：
+```bash
+grep -nE 'sudo (reboot|shutdown|halt|poweroff|systemctl (reboot|poweroff))|reboot|shutdown' cases/*.sh
+```
+若发现匹配，必须列出具体命令和所在文件，经用户确认后方可运行该脚本。
+
+**事故案例（2026-08-13）**：运行 OPS-002 测试时，脚本内部执行 `sudo reboot` 重启 .13 节点，节点重启后 15+ 分钟未恢复，导致节点不可达。根因：测试脚本包含 `sudo reboot` 但运行前未扫描、未确认。
 
 ---
 
@@ -141,6 +155,23 @@ find "$OSDDIR" -maxdepth 1 -type f | head -10
 # chown -R 167:167 "$OSDDIR/"
 ```
 
+### 2.5 测试脚本预扫描（运行前强制）
+
+运行任何测试脚本（`run.sh`、`bash *.sh`）前，必须扫描脚本及其调用的子脚本中的 sudo 写操作和重启命令：
+
+```bash
+# 扫描直接目标脚本
+grep -nE 'sudo (reboot|shutdown|halt|poweroff|systemctl (stop|restart|reboot|poweroff)|rm |chown|chmod|dd |wipefs|lvremove|lvcreate|umount|podman rm|docker rm)' cases/OPS-002-*.sh
+
+# 若脚本通过 run.sh 调用，也扫描 run.sh 和 lib/*.sh
+grep -rnE 'sudo (reboot|shutdown|halt|poweroff|systemctl (stop|restart))' cases/ lib/
+```
+
+发现匹配后：
+1. 列出每个匹配的文件名、行号、完整命令
+2. 标注哪些是目标节点操作（通过 SSH 远程执行）
+3. 经用户逐条确认后方可运行
+
 ---
 
 ## 三、SSH 嵌套操作规范
@@ -215,3 +246,6 @@ ssh thailand "
 - [ ] 确认 dry-run 输出无误
 - [ ] 逐节点执行（不并行）
 - [ ] 改完一个节点，验证可达 + 服务正常，再做下一个
+- [ ] **运行测试脚本前**：已 grep 扫描脚本中的 sudo 写操作和重启命令
+- [ ] **所有 sudo 写操作**：已逐条列出并经用户确认
+- [ ] **重启/关机命令**：已特别标注并经用户确认

@@ -1,0 +1,19 @@
+[2026-08-14 10:34:53] 环境信息 → repro-out-20260814-103453/env-info.txt
+[2026-08-14 10:34:53] === 臂 stock：挂载 /tmp/juicefs-n6311r-ff ===
+2026/08/14 10:34:58.553561 juicefs[3328635] <INFO>: Meta address: <redacted-meta-url> [NewClient@interface.go:652]
+2026/08/14 10:34:58.553687 juicefs[3328635] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:90]
+2026/08/14 10:34:58.561508 juicefs[3328635] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:565]
+2026/08/14 10:34:58.569863 juicefs[3328635] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:619]
+2026/08/14 10:34:59.073425 juicefs[3328635] <INFO>: [92mOK[0m, juicefs-prod is ready at "/mnt/juicefs" [checkMountpoint@mount_unix.go:327]
+[2026-08-14 10:35:04] stock max_read=262144（期望 = BS 字节数）
+stock	rc=0	max_read=262144	  WRITE: bw=1379MiB/s (1446MB/s), 1379MiB/s-1379MiB/s (1446MB/s-1446MB/s), io=163GiB (175GB), run=121071-121071msec
+[2026-08-14 10:37:12] === 臂 patched：挂载 /tmp/juicefs-n6311r-ff ===
+2026/08/14 10:37:17.385558 juicefs[3353925] <INFO>: Meta address: <redacted-meta-url> [NewClient@interface.go:652]
+2026/08/14 10:37:17.385677 juicefs[3353925] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:90]
+2026/08/14 10:37:17.393621 juicefs[3353925] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:565]
+2026/08/14 10:37:17.402151 juicefs[3353925] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:619]
+2026/08/14 10:37:17.905573 juicefs[3353925] <INFO>: [92mOK[0m, juicefs-prod is ready at "/mnt/juicefs" [checkMountpoint@mount_unix.go:327]
+[2026-08-14 10:37:22] patched max_read=262144（期望 = BS 字节数）
+patched	rc=0	max_read=262144	  WRITE: bw=891MiB/s (935MB/s), 891MiB/s-891MiB/s (935MB/s-935MB/s), io=114GiB (122GB), run=130627-130627msec
+[2026-08-14 10:39:48] === 完成。结果：repro-out-20260814-103453/summary.tsv ===
+[2026-08-14 10:39:48] 预期：stock ≈ 550 MiB/s（崩塌），patched ≈ 3000 MiB/s（恢复）；缓冲/延迟证据见 sample-*.tsv

@@ -1,0 +1,17 @@
+ok 1 - 集群初始健康（非 ERR） (actual='HEALTH_WARN 3 failed cephadm daemon(s); 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 2 - 初始 6/6 OSD up (actual='6' waited=0s)
+ok 3 - 初始 3/3 MON quorum (actual='3' waited=0s)
+ok 4 - 初始 PG active+clean (actual='active+clean' =~ /active+clean/ waited=0s)
+ok 5 - 注入目标 A: 192.168.11.14
+ok 6 - 注入目标 B: 192.168.11.11
+ok 7 - 两个目标不同
+ok 8 - MON quorum 不再是 3（当前=0，quorum 丢失）
+ok 9 - 管理面不可操作（ceph osd tree 无输出，quorum 丢失）
+ok 10 - JuiceFS 仍挂载（数据面不受影响）
+ok 11 - MON quorum 恢复 3/3 (actual='3' waited=0s)
+ok 12 - 管理面恢复（ceph osd tree 可执行）
+ok 13 - OSD 仍 6/6 up
+ok 14 - PG 仍 active+clean
+ok 15 - 集群恢复健康（非 ERR） (actual='HEALTH_WARN 3 failed cephadm daemon(s); 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+1..15
+# Result: PASS (15/15)

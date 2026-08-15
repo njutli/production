@@ -1,0 +1,21 @@
+ok 1 - 集群初始健康（非 ERR） (actual='HEALTH_WARN 3 failed cephadm daemon(s); 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 2 - 初始 6/6 OSD up (actual='6' waited=0s)
+ok 3 - 初始 3/3 TiKV store Up (actual='3' waited=0s)
+ok 4 - 初始 PG active+clean (actual='active+clean' =~ /active+clean/ waited=0s)
+ok 5 - 注入目标 A: 192.168.11.14
+ok 6 - 注入目标 B: 192.168.11.11
+ok 7 - 两个目标不同
+ok 8 - PD leader 不存在（quorum 丢失，管理面冻结）
+ok 9 - JuiceFS 仍挂载
+ok 10 - 新元数据操作阻塞（PD quorum 丢失，需 PD 路由的新操作不可用）
+ok 11 - OSD 仍 6/6 up（Ceph 不受影响）
+ok 12 - PG 仍 active+clean（Ceph 不受影响）
+ok 13 - 集群非 ERR (actual='HEALTH_WARN 3 failed cephadm daemon(s); 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 14 - TiKV 仍 3/3 Up (actual='3' waited=10s)
+ok 15 - PD leader 已选举（ceph-node2）
+ok 16 - OSD 仍 6/6 up
+ok 17 - PG 仍 active+clean
+ok 18 - 集群恢复健康（非 ERR） (actual='HEALTH_WARN 3 failed cephadm daemon(s); 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 19 - 恢复后元数据操作可用（PD quorum 恢复，TSO 可用）
+1..19
+# Result: PASS (19/19)

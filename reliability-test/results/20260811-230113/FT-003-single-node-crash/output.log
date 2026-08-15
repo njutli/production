@@ -1,0 +1,111 @@
+TAP version 13
+# FT-003: single-node-crash
+# 强制断电 ceph-node3（2 OSD + 1 MON + 1 TiKV + 1 PD），验证数据可用 + 服务自启
+ok 1 - 集群初始健康（非 ERR） (actual='HEALTH_OK' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 2 - 初始 6/6 OSD up (actual='6' waited=0s)
+ok 3 - 初始 3/3 MON quorum (actual='3' waited=0s)
+ok 4 - 初始 3/3 TiKV store Up (actual='3' waited=0s)
+ok 5 - 初始 PG active+clean (actual='active+clean' =~ /active+clean/ waited=0s)
+ok 6 - 断电目标: 192.168.11.14（ceph-node3）
+ok 7 - 验证文件写入成功（md5=4810bedd41df2396...）
+  prep: creating 128 × 64M files on 192.168.11.12...
+  prep: done
+fio started: type=randread bs=256K jobs=128 pid=1954789
+
+==========================================
+  请在 ceph-node3 带外管理界面执行强制断电
+  目标 IP: 192.168.11.14
+==========================================
+
+  等待 ceph-node3 不可达...
+  仍在等待断电...（30s）
+  仍在等待断电...（60s）
+  仍在等待断电...（90s）
+  仍在等待断电...（120s）
+  仍在等待断电...（150s）
+  仍在等待断电...（180s）
+  仍在等待断电...（210s）
+  仍在等待断电...（240s）
+  仍在等待断电...（270s）
+  仍在等待断电...（300s）
+  仍在等待断电...（330s）
+  仍在等待断电...（360s）
+  仍在等待断电...（390s）
+  仍在等待断电...（420s）
+  仍在等待断电...（450s）
+  仍在等待断电...（480s）
+  仍在等待断电...（510s）
+  仍在等待断电...（540s）
+  仍在等待断电...（570s）
+  仍在等待断电...（600s）
+  仍在等待断电...（630s）
+  仍在等待断电...（660s）
+  仍在等待断电...（690s）
+  仍在等待断电...（720s）
+  仍在等待断电...（750s）
+  仍在等待断电...（780s）
+  仍在等待断电...（810s）
+  仍在等待断电...（840s）
+  仍在等待断电...（870s）
+  仍在等待断电...（900s）
+  仍在等待断电...（930s）
+  仍在等待断电...（960s）
+  仍在等待断电...（990s）
+  仍在等待断电...（1020s）
+  仍在等待断电...（1050s）
+  仍在等待断电...（1080s）
+  仍在等待断电...（1110s）
+  仍在等待断电...（1140s）
+  仍在等待断电...（1170s）
+  仍在等待断电...（1200s）
+  仍在等待断电...（1230s）
+  仍在等待断电...（1260s）
+  仍在等待断电...（1290s）
+  仍在等待断电...（1320s）
+  仍在等待断电...（1350s）
+  仍在等待断电...（1380s）
+  仍在等待断电...（1410s）
+  仍在等待断电...（1440s）
+  仍在等待断电...（1470s）
+  仍在等待断电...（1500s）
+  仍在等待断电...（1530s）
+  仍在等待断电...（1560s）
+  仍在等待断电...（1590s）
+  仍在等待断电...（1620s）
+  仍在等待断电...（1650s）
+  仍在等待断电...（1680s）
+  仍在等待断电...（1710s）
+  仍在等待断电...（1740s）
+  仍在等待断电...（1770s）
+  仍在等待断电...（1800s）
+not ok 8 - ceph-node3 已断电不可达（1800s） # actual=1800 >= 1800
+  等待 OSD 心跳超时 + OSD map 更新...
+not ok 9 - 4/6 OSD up（断电节点 2 OSD down，EC k=4 可读） # actual='6' expected='4' timeout=60s
+not ok 10 - MON quorum 2/3（majority 保持） # actual='3' expected='2' timeout=60s
+not ok 11 - TiKV 2/3 store Up（majority 保持） # actual='3' expected='2' timeout=120s
+ok 12 - 集群非 ERR（EC 极限容忍内） (actual='HEALTH_OK' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+not ok 13 - 故障期间验证文件可读 + MD5 一致（EC 从剩余 4 OSD 读） # actual='' expected='4810bedd41df2396a90410dc773814b4'
+fio stopped, results collected
+  cleanup: test files removed
+# fio 成功率: 100%（故障期间 randread 从 4 OSD 读，EC k=4）
+
+==========================================
+  请在 ceph-node3 带外管理界面执行上电
+  目标 IP: 192.168.11.14
+==========================================
+
+  等待 ceph-node3 SSH 恢复...
+  ceph-node3 SSH 恢复（0s）
+ok 14 - ceph-node3 SSH 恢复（0s） (actual=0 < 300)
+  等待 OSD 自启（最多 120s）...
+  OSD 已自启 6/6（0s）
+ok 15 - 6/6 OSD up（OSD 自启） (actual='6' waited=0s)
+ok 16 - 3/3 MON quorum（cephadm 自启） (actual='3' waited=0s)
+ok 17 - 3/3 TiKV Up（systemd 自启） (actual='3' waited=0s)
+ok 18 - PG 恢复 active+clean (actual='active+clean' =~ /active+clean/ waited=0s)
+ok 19 - 集群恢复健康（非 ERR） (actual='HEALTH_OK' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 20 - 恢复后验证文件 MD5 一致（数据无损坏）
+ok 21 - juicefs fsck 通过（无元数据损坏）
+stop_io_load: no fio running
+1..21
+# Result: FAIL (16/21)

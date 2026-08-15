@@ -1,0 +1,38 @@
+TAP version 13
+# FT-008: single-pd-down
+# 冻结 1 PD（kill -STOP），验证 PD leader 选举延迟 + 元数据成功率 + I/O 不中断
+ok 1 - 集群初始健康（非 ERR） (actual='HEALTH_WARN 3 failed cephadm daemon(s); 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 2 - 初始 6/6 OSD up (actual='6' waited=0s)
+ok 3 - 初始 3/3 TiKV store Up (actual='3' waited=0s)
+ok 4 - 初始 PG 含 active (actual='active+clean' =~ /active/ waited=0s)
+ok 5 - 当前 PD leader: ceph-node1
+ok 6 - 注入目标: 192.168.11.11（PD leader=ceph-node1）
+  prep: creating 128 × 64M files on 192.168.11.12...
+  prep: done
+fio started: type=randread bs=256K jobs=128 pid=3667328
+3670475
+meta_probe started: pid=3670475 duration=45s
+# 等待 PD Raft 选举 + 客户端重连...
+# meta_probe: total=80 ok=80 max_dur_ms=12954 success_rate=100
+ok 7 - 元数据成功率 100%（80/80，PD 选举期间阻塞后恢复）
+ok 8 - 元数据最大延迟 12s < 30s (actual=12954 < 30000)
+# during_fault_io_test: 0 0 true 8dd7f20993bbcc77de664b9572335850 8dd7f20993bbcc77de664b9572335850 t_gen=0s t_write=1s t_read=4s t_total=5s
+ok 9 - 故障期间数据完整性验证（MD5 一致）
+ok 10 - 故障期间写 I/O 可用（direct）
+ok 11 - 故障期间读 I/O 可用（direct）
+fio stopped, results collected
+  cleanup: test files removed
+ok 12 - PD leader 30s 内切换（原=ceph-node1） (actual='ceph-node2' != 'ceph-node1' waited=0s)
+ok 13 - TiKV 仍 3/3 Up（PD down ≠ TiKV down）
+ok 14 - OSD 仍 6/6 up（数据面不受影响）
+ok 15 - PG 仍 active（数据面不受影响）
+ok 16 - 集群非 ERR（PD freeze） (actual='HEALTH_WARN 3 failed cephadm daemon(s); 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 17 - I/O 成功率 100%（数据面不受影响） (actual=100%)
+ok 18 - P99 < 30s (actual=17112760us < 30000000us)
+ok 19 - TiKV 仍 3/3 Up (actual='3' waited=0s)
+ok 20 - OSD 仍 6/6 up
+ok 21 - PG 仍 active
+ok 22 - 集群恢复健康（非 ERR） (actual='HEALTH_WARN 3 failed cephadm daemon(s); 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+stop_io_load: no fio running
+1..22
+# Result: PASS (22/22)

@@ -1,0 +1,208 @@
+TAP version 13
+# OPS-001: disk-replacement
+# 磁盘故障换盘重建：销毁 OSD A → tmpfs 备用盘替代 → down 2 OSD 验证备用盘生效
+Scheduled to start osd.0 on host 'ceph-node1'
+Scheduled to start osd.2 on host 'ceph-node1'
+Scheduled to start osd.3 on host 'ceph-node3'
+Scheduled to start osd.4 on host 'ceph-node3'
+Scheduled to start osd.8 on host 'ceph-node2'
+Scheduled to start osd.9 on host 'ceph-node2'
+osd.0: {}
+osd.2: {}
+osd.3: {}
+osd.4: {}
+osd.8: {}
+osd.9: {}
+ok 1 - 集群初始健康（非 ERR） (actual='HEALTH_WARN 1 failed cephadm daemon(s)' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 2 - 初始 6/6 OSD up (actual='6' waited=0s)
+ok 3 - 初始 PG active+clean (actual='active+clean' =~ /active+clean/ waited=0s)
+ok 4 - 基线数据写入成功 (md5=3d3d53af58540586...)
+ok 5 - OSD A（将被替换）: 2 on 192.168.11.11
+ok 6 - OSD B（验证用）: 9 on 192.168.11.13
+ok 7 - OSD C（验证用）: 4 on 192.168.11.14
+ok 8 - OSD A 数据 LV: /dev/dm-3
+# OSD A=2 on 192.168.11.11 (/dev/dm-3) — 将被销毁替换
+# OSD B=9 on 192.168.11.13 — 将 SIGKILL 验证备用盘
+# OSD C=4 on 192.168.11.14 — 将 SIGKILL 验证备用盘
+
+=== Phase 1: 销毁 OSD A + 原盘重建 ===
+Scheduled to stop osd.2 on host 'ceph-node1'
+ok 9 - OSD A down: 5/6 OSD up (actual='5' waited=0s)
+ok 10 - PG degraded（OSD A 故障） (actual='active+clean peering active+undersized+degraded active+undersized' =~ /degraded/ waited=0s)
+3
+ok 11 - 基线数据可读（EC 容忍，md5 匹配）
+Scheduled to stop osd.2 on host 'ceph-node1'
+Removed osd.2 from host 'ceph-node1'
+/dev/dm-3: 22 bytes were erased at offset 0x00000000 (ceph_bluestore): 62 6c 75 65 73 74 6f 72 65 20 62 6c 6f 63 6b 20 64 65 76 69 63 65
+Inferring fsid 073f28e0-5fe0-11f1-8ce6-7369ee2be5a1
+Inferring config /var/lib/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1/mon.ceph-node1/config
+Using ceph image with id '259b35566514' and tag '<none>' created on 2024-11-26 00:45:38 +0000 UTC
+quay.io/ceph/ceph@sha256:80d288f7e4e7b3a95c1c611e4e9ed017f2214da42e9cf525bda8c6c8222a8887
+Error EINVAL: Traceback (most recent call last):
+  File "/usr/share/ceph/mgr/mgr_module.py", line 1820, in _handle_command
+    return self.handle_command(inbuf, cmd)
+  File "/usr/share/ceph/mgr/orchestrator/_interface.py", line 171, in handle_command
+    return dispatch[cmd['prefix']].call(self, cmd, inbuf)
+  File "/usr/share/ceph/mgr/mgr_module.py", line 463, in call
+    return self.func(mgr, **kwargs)
+  File "/usr/share/ceph/mgr/orchestrator/_interface.py", line 107, in <lambda>
+    wrapper_copy = lambda *l_args, **l_kwargs: wrapper(*l_args, **l_kwargs)  # noqa: E731
+  File "/usr/share/ceph/mgr/orchestrator/_interface.py", line 96, in wrapper
+    return func(*args, **kwargs)
+  File "/usr/share/ceph/mgr/orchestrator/module.py", line 969, in _daemon_add_osd
+    raise_if_exception(completion)
+  File "/usr/share/ceph/mgr/orchestrator/_interface.py", line 228, in raise_if_exception
+    raise e
+RuntimeError: cephadm exited with an error code: 1, stderr:Inferring config /var/lib/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1/mon.ceph-node1/config
+Non-zero exit code 1 from /usr/bin/podman run --rm --ipc=host --stop-signal=SIGTERM --net=host --entrypoint /usr/sbin/ceph-volume --privileged --group-add=disk --init -e CONTAINER_IMAGE=quay.io/ceph/ceph@sha256:a0f373aaaf5a5ca5c4379c09da24c771b8266a09dc9e2181f90eacf423d7326f -e NODE_NAME=ceph-node1 -e CEPH_USE_RANDOM_NONCE=1 -e CEPH_VOLUME_OSDSPEC_AFFINITY=None -e CEPH_VOLUME_SKIP_RESTORECON=yes -e CEPH_VOLUME_DEBUG=1 -v /var/run/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1:/var/run/ceph:z -v /var/log/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1:/var/log/ceph:z -v /var/lib/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1/crash:/var/lib/ceph/crash:z -v /run/systemd/journal:/run/systemd/journal -v /dev:/dev -v /run/udev:/run/udev -v /sys:/sys -v /run/lvm:/run/lvm -v /run/lock/lvm:/run/lock/lvm -v /:/rootfs -v /etc/hosts:/etc/hosts:ro -v /tmp/ceph-tmpj17yfake:/etc/ceph/ceph.conf:z -v /tmp/ceph-tmpxp3z35b0:/var/lib/ceph/bootstrap-osd/ceph.keyring:z quay.io/ceph/ceph@sha256:a0f373aaaf5a5ca5c4379c09da24c771b8266a09dc9e2181f90eacf423d7326f lvm batch --no-auto /dev/dm-3 --yes --no-systemd
+/usr/bin/podman: stderr --> passed data devices: 0 physical, 1 LVM
+/usr/bin/podman: stderr --> relative data size: 1.0
+/usr/bin/podman: stderr Traceback (most recent call last):
+/usr/bin/podman: stderr   File "/usr/sbin/ceph-volume", line 33, in <module>
+/usr/bin/podman: stderr     sys.exit(load_entry_point('ceph-volume==1.0.0', 'console_scripts', 'ceph-volume')())
+/usr/bin/podman: stderr   File "/usr/lib/python3.9/site-packages/ceph_volume/main.py", line 54, in __init__
+/usr/bin/podman: stderr     self.main(self.argv)
+/usr/bin/podman: stderr   File "/usr/lib/python3.9/site-packages/ceph_volume/decorators.py", line 59, in newfunc
+/usr/bin/podman: stderr     return f(*a, **kw)
+/usr/bin/podman: stderr   File "/usr/lib/python3.9/site-packages/ceph_volume/main.py", line 166, in main
+/usr/bin/podman: stderr     terminal.dispatch(self.mapper, subcommand_args)
+/usr/bin/podman: stderr   File "/usr/lib/python3.9/site-packages/ceph_volume/terminal.py", line 194, in dispatch
+/usr/bin/podman: stderr     instance.main()
+/usr/bin/podman: stderr   File "/usr/lib/python3.9/site-packages/ceph_volume/devices/lvm/main.py", line 46, in main
+/usr/bin/podman: stderr     terminal.dispatch(self.mapper, self.argv)
+/usr/bin/podman: stderr   File "/usr/lib/python3.9/site-packages/ceph_volume/terminal.py", line 194, in dispatch
+/usr/bin/podman: stderr     instance.main()
+/usr/bin/podman: stderr   File "/usr/lib/python3.9/site-packages/ceph_volume/decorators.py", line 16, in is_root
+/usr/bin/podman: stderr     return func(*a, **kw)
+/usr/bin/podman: stderr   File "/usr/lib/python3.9/site-packages/ceph_volume/devices/lvm/batch.py", line 437, in main
+/usr/bin/podman: stderr     plan = self.get_plan(self.args)
+/usr/bin/podman: stderr   File "/usr/lib/python3.9/site-packages/ceph_volume/devices/lvm/batch.py", line 474, in get_plan
+/usr/bin/podman: stderr     plan = self.get_deployment_layout(args, args.devices, args.db_devices,
+/usr/bin/podman: stderr   File "/usr/lib/python3.9/site-packages/ceph_volume/devices/lvm/batch.py", line 495, in get_deployment_layout
+/usr/bin/podman: stderr     plan.extend(get_lvm_osds(lvm_devs, args))
+/usr/bin/podman: stderr   File "/usr/lib/python3.9/site-packages/ceph_volume/devices/lvm/batch.py", line 94, in get_lvm_osds
+/usr/bin/podman: stderr     disk.Size(b=int(lv.lvs[0].lv_size)),
+/usr/bin/podman: stderr IndexError: list index out of range
+Traceback (most recent call last):
+  File "/var/lib/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1/cephadm.7e3b0dde6c97fe504c103129ea955f64bdfac48cbd7c0d3df2cae253cc294bc0", line 9930, in <module>
+    main()
+  File "/var/lib/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1/cephadm.7e3b0dde6c97fe504c103129ea955f64bdfac48cbd7c0d3df2cae253cc294bc0", line 9918, in main
+    r = ctx.func(ctx)
+  File "/var/lib/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1/cephadm.7e3b0dde6c97fe504c103129ea955f64bdfac48cbd7c0d3df2cae253cc294bc0", line 2196, in _infer_config
+    return func(ctx)
+  File "/var/lib/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1/cephadm.7e3b0dde6c97fe504c103129ea955f64bdfac48cbd7c0d3df2cae253cc294bc0", line 2112, in _infer_fsid
+    return func(ctx)
+  File "/var/lib/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1/cephadm.7e3b0dde6c97fe504c103129ea955f64bdfac48cbd7c0d3df2cae253cc294bc0", line 2224, in _infer_image
+    return func(ctx)
+  File "/var/lib/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1/cephadm.7e3b0dde6c97fe504c103129ea955f64bdfac48cbd7c0d3df2cae253cc294bc0", line 2099, in _validate_fsid
+    return func(ctx)
+  File "/var/lib/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1/cephadm.7e3b0dde6c97fe504c103129ea955f64bdfac48cbd7c0d3df2cae253cc294bc0", line 6469, in command_ceph_volume
+    out, err, code = call_throws(ctx, c.run_cmd(), verbosity=CallVerbosity.QUIET_UNLESS_ERROR)
+  File "/var/lib/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1/cephadm.7e3b0dde6c97fe504c103129ea955f64bdfac48cbd7c0d3df2cae253cc294bc0", line 1887, in call_throws
+    raise RuntimeError('Failed command: %s' % ' '.join(command))
+RuntimeError: Failed command: /usr/bin/podman run --rm --ipc=host --stop-signal=SIGTERM --net=host --entrypoint /usr/sbin/ceph-volume --privileged --group-add=disk --init -e CONTAINER_IMAGE=quay.io/ceph/ceph@sha256:a0f373aaaf5a5ca5c4379c09da24c771b8266a09dc9e2181f90eacf423d7326f -e NODE_NAME=ceph-node1 -e CEPH_USE_RANDOM_NONCE=1 -e CEPH_VOLUME_OSDSPEC_AFFINITY=None -e CEPH_VOLUME_SKIP_RESTORECON=yes -e CEPH_VOLUME_DEBUG=1 -v /var/run/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1:/var/run/ceph:z -v /var/log/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1:/var/log/ceph:z -v /var/lib/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1/crash:/var/lib/ceph/crash:z -v /run/systemd/journal:/run/systemd/journal -v /dev:/dev -v /run/udev:/run/udev -v /sys:/sys -v /run/lvm:/run/lvm -v /run/lock/lvm:/run/lock/lvm -v /:/rootfs -v /etc/hosts:/etc/hosts:ro -v /tmp/ceph-tmpj17yfake:/etc/ceph/ceph.conf:z -v /tmp/ceph-tmpxp3z35b0:/var/lib/ceph/bootstrap-osd/ceph.keyring:z quay.io/ceph/ceph@sha256:a0f373aaaf5a5ca5c4379c09da24c771b8266a09dc9e2181f90eacf423d7326f lvm batch --no-auto /dev/dm-3 --yes --no-systemd
+
+  等待新 OSD 启动 + EC 恢复...
+not ok 12 - OSD 重建后 6/6 OSD up # actual='5' expected='6' timeout=120s
+ok 13 - PG 恢复 active+clean（EC 恢复到重建 OSD） (actual='active+clean active+clean+remapped active+undersized+degraded' =~ /active+clean/ waited=0s)
+3
+ok 14 - 基线数据完整（OSD 重建后 md5 匹配）
+=== Phase 1 完成：OSD A 已在原盘重建 ===
+ok 15 - Phase 1 后 PG 全部 active+clean（EC 恢复完成） (actual='active+clean active+clean+remapped active+undersized+degraded' =~ /active+clean/ waited=0s)
+not ok 16 - 重建 OSD 2 已有数据（ KB used） # actual= <= 0
+#  等待 OSD 2 完成所有 PG backfill（加入 acting set）...
+#  pool 63 仍有未 clean PG，等待 backfill...（0s）
+#  pool 63 仍有未 clean PG，等待 backfill...（30s）
+#  pool 63 仍有未 clean PG，等待 backfill...（60s）
+#  pool 63 仍有未 clean PG，等待 backfill...（90s）
+#  pool 63 仍有未 clean PG，等待 backfill...（120s）
+#  pool 63 仍有未 clean PG，等待 backfill...（150s）
+#  pool 63 仍有未 clean PG，等待 backfill...（180s）
+#  pool 63 仍有未 clean PG，等待 backfill...（210s）
+#  pool 63 仍有未 clean PG，等待 backfill...（240s）
+#  pool 63 仍有未 clean PG，等待 backfill...（270s）
+#  pool 63 仍有未 clean PG，等待 backfill...（300s）
+#  pool 63 仍有未 clean PG，等待 backfill...（330s）
+#  pool 63 仍有未 clean PG，等待 backfill...（360s）
+#  pool 63 仍有未 clean PG，等待 backfill...（390s）
+#  pool 63 仍有未 clean PG，等待 backfill...（420s）
+#  pool 63 仍有未 clean PG，等待 backfill...（450s）
+#  pool 63 仍有未 clean PG，等待 backfill...（480s）
+#  pool 63 仍有未 clean PG，等待 backfill...（510s）
+#  pool 63 仍有未 clean PG，等待 backfill...（540s）
+#  pool 63 仍有未 clean PG，等待 backfill...（570s）
+#  pool 63 仍有未 clean PG，等待 backfill...（600s）
+#  pool 63 仍有未 clean PG，等待 backfill...（630s）
+#  pool 63 仍有未 clean PG，等待 backfill...（660s）
+#  pool 63 仍有未 clean PG，等待 backfill...（690s）
+#  pool 63 仍有未 clean PG，等待 backfill...（720s）
+#  pool 63 仍有未 clean PG，等待 backfill...（750s）
+#  pool 63 仍有未 clean PG，等待 backfill...（780s）
+#  pool 63 仍有未 clean PG，等待 backfill...（810s）
+#  pool 63 仍有未 clean PG，等待 backfill...（840s）
+#  pool 63 仍有未 clean PG，等待 backfill...（870s）
+#  pool 63 仍有未 clean PG，等待 backfill...（900s）
+#  pool 63 仍有未 clean PG，等待 backfill...（930s）
+#  pool 63 仍有未 clean PG，等待 backfill...（960s）
+#  pool 63 仍有未 clean PG，等待 backfill...（990s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1020s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1050s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1080s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1110s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1140s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1170s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1200s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1230s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1260s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1290s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1320s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1350s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1380s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1410s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1440s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1470s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1500s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1530s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1560s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1590s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1620s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1650s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1680s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1710s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1740s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1770s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1800s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1830s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1860s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1890s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1920s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1950s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1980s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2010s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2040s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2070s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2100s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2130s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2160s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2190s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2220s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2250s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2280s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2310s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2340s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2370s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2400s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2430s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2460s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2490s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2520s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2550s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2580s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2610s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2640s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2670s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2700s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2730s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2760s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2790s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2820s）

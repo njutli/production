@@ -1,0 +1,24 @@
+ok 1 - 集群初始健康（非 ERR） (actual='HEALTH_WARN 3 failed cephadm daemon(s); 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 2 - 初始 6/6 OSD up (actual='6' waited=0s)
+ok 3 - 初始 3/3 TiKV store Up (actual='3' waited=0s)
+ok 4 - 初始 3/3 MON quorum (actual='3' waited=0s)
+ok 5 - 初始 PG active+clean (actual='active+clean' =~ /active+clean/ waited=0s)
+ok 6 - reboot 目标: 192.168.11.14（ceph-node3）
+ok 7 - 目标节点 OSD: 3
+ok 8 - 基线数据写入成功（md5=ef391d24ffef3fd674ff9865b2521d09）
+ok 9 - ceph-node3 SSH 恢复（210s） (actual=210 < 300)
+ok 10 - reboot 后基线数据可读（EC 从剩余 OSD 读）
+ok 11 - 6/6 OSD up（OSD 自启） (actual='6' waited=0s)
+ok 12 - 3/3 TiKV Up（systemd 自启） (actual='3' waited=0s)
+ok 13 - 3/3 MON quorum（cephadm 自启） (actual='3' waited=0s)
+ok 14 - PG 恢复 active+clean (actual='active+clean' =~ /active+clean/ waited=0s)
+ok 15 - 集群恢复健康 (actual='HEALTH_WARN 3 failed cephadm daemon(s); 1 hosts fail cephadm check; 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 16 - 恢复后基线数据完整（md5 匹配）
+ok 17 - 最终 6/6 OSD up
+ok 18 - 最终 3/3 TiKV Up
+ok 19 - 最终 3/3 MON quorum
+ok 20 - 最终 PG active+clean
+ok 21 - 集群恢复健康（非 ERR） (actual='HEALTH_WARN 3 failed cephadm daemon(s); 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+not ok 22 - juicefs fsck 通过（无元数据损坏） # actual='1' expected='0'
+1..22
+# Result: FAIL (21/22)

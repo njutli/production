@@ -1,0 +1,51 @@
+From: DeepSeek
+Subject: [PATCH] vfs: allocate slice ID synchronously to avoid first-write flush skip
+
+When a write creates a new slice, its ID is allocated asynchronously
+(go s.prepareID(...)). If the very first write fills the slice to
+blockSize (write request size == block size, e.g. randwrite with
+max-fuse-io >= block size), FlushTo() checks `s.id > 0` before the
+async allocation has landed, so the upload is skipped permanently.
+Pure random overwrite workloads never revisit the slice: data lingers
+in memory until the freeze chain or the 10s forced flush, the client
+buffer fills up, and the buffer throttle collapses throughput ~5.8x
+(551 MiB/s vs ~3000 MiB/s on a 256 KiB-block volume).
+
+NewSlice() is a local counter (microsecond level; a metadata roundtrip
+only once per 4096 slices), so allocating it synchronously in the
+write path is safe. On error, fall back to the original async path.
+
+Base: main (edabf9c2) - reference variant; on main the collapse is already
+fixed by #6311, so this patch is for the record / alternative-fix
+discussion only.
+
+NOTE on upstream status: the collapse is fixed on main by #6311
+("refactor: improve lock management in commitThread", 2025-08-21).
+Reverting #6311 on main reproduces the collapse exactly (543/539
+MiB/s); applying this patch on top of the revert also fixes it
+(1379 MiB/s). Full 2x2 verification matrix in the bugzilla report.
+
+diff --git a/pkg/vfs/writer.go b/pkg/vfs/writer.go
+index 91297fa4..937a6a20 100644
+--- a/pkg/vfs/writer.go
++++ b/pkg/vfs/writer.go
+@@ -280,7 +280,18 @@ func (f *fileWriter) writeChunk(ctx meta.Context, indx uint32, off uint32, data
+ 			notify:  utils.NewCond(&f.Mutex),
+ 			started: time.Now(),
+ 		}
+-		go s.prepareID(meta.Background(), false)
++		// Allocate the slice ID synchronously: NewSlice is a local counter
++		// (a metadata roundtrip only once per 4096 slices). The old async
++		// registration leaves a window where the first (and for random
++		// writes, the only) write fills the slice to blockSize while
++		// s.id is still 0, so FlushTo() skips the upload permanently.
++		var id uint64
++		if st := f.w.m.NewSlice(meta.Background(), &id); st == 0 {
++			s.id = id
++			s.writer.SetID(id)
++		} else {
++			go s.prepareID(meta.Background(), false)
++		}
+ 		c.slices = append(c.slices, s)
+ 		if len(c.slices) == 1 {
+ 			f.w.Lock()

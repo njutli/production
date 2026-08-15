@@ -1,0 +1,36 @@
+TAP version 13
+# DG-002: tikv-down-throughput-degradation
+# 比较 3/3 TiKV up vs 2/3 TiKV down（稳态）的吞吐差异
+ok 1 - 集群初始健康（非 ERR） (actual='HEALTH_WARN 3 failed cephadm daemon(s); Degraded data redundancy: 102580/834177 objects degraded (12.297%), 24 pgs degraded, 24 pgs undersized; 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 2 - 初始 3/3 TiKV store Up (actual='3' waited=0s)
+ok 3 - 初始 6/6 OSD up (actual='6' waited=0s)
+ok 4 - 注入目标: 192.168.11.13
+
+=== Phase 1: 基线（3/3 TiKV up）===
+  prep: creating 128 × 64M files on 192.168.11.12...
+  prep: done
+fio started: type=randread bs=256K jobs=128 pid=3799155
+fio stopped, results collected
+  cleanup: test files removed
+# 基线 IOPS: 160
+ok 5 - 基线吞吐采集成功（IOPS=160） (actual=160 > 0)
+
+=== Phase 2: 降级（2/3 TiKV up，Raft 稳态）===
+ok 6 - TiKV store 2/3 Up (actual='2' waited=6s)
+ok 7 - Raft leader 切换完成，元数据恢复
+  prep: creating 128 × 64M files on 192.168.11.12...
+  prep: done
+fio started: type=randread bs=256K jobs=128 pid=3819713
+fio stopped, results collected
+  cleanup: test files removed
+# 降级 IOPS: 150
+ok 8 - 降级吞吐采集成功（IOPS=150） (actual=150 > 0)
+
+=== Phase 3: 对比 ===
+# 基线 IOPS=160  降级 IOPS=150  比率=94%
+ok 9 - 降级吞吐 ≥ 基线 70%（94% ≥ 70%） (actual=94 > 69)
+ok 10 - TiKV 3/3 store Up (actual='3' waited=10s)
+ok 11 - 集群健康（非 ERR） (actual='HEALTH_WARN 3 failed cephadm daemon(s); Degraded data redundancy: 130689/1178991 objects degraded (11.085%), 22 pgs degraded, 22 pgs undersized; 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+stop_io_load: no fio running
+1..11
+# Result: PASS (11/11)

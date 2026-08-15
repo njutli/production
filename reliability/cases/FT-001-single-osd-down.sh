@@ -96,7 +96,7 @@ rm -f "${TEST_DIR}/fault.bin" /tmp/ft001_timing.txt /tmp/ft001_fault_rc.txt /tmp
 DD_PID=$!
 
     # --- 立即从客户端 SSH kill OSD（同网段，延迟 ~0.5s）---
-    sshpass -p "${SSHPASS}" ssh ${SSH_OPTS} "turboai@${TARGET_NODE}" "sudo systemctl stop --no-block ceph-*@osd.${TARGET_OSD}.service 2>/dev/null; cid=\$(sudo docker ps --format '{{.Names}} {{.ID}}' 2>/dev/null | awk -v id=\"osd[-.]${TARGET_OSD}\$\" '\$1 ~ id {print \$2}'); [ -n \"\$cid\" ] && sudo docker kill --signal KILL \$cid 2>/dev/null; echo killed" 2>/dev/null
+    sshpass -p "${SSHPASS}" ssh ${SSH_OPTS} "turboai@${TARGET_NODE}" "sudo systemctl stop --no-block ceph-*@osd.${TARGET_OSD}.service 2>/dev/null; cid=\$(sudo podman ps --format '{{.Names}} {{.ID}}' 2>/dev/null | awk -v id=\"osd[-.]${TARGET_OSD}\$\" '\$1 ~ id {print \$2}'); [ -n \"\$cid\" ] && sudo podman kill --signal KILL \$cid 2>/dev/null; echo killed" 2>/dev/null
 
 # --- 等待 dd 完成 ---
 wait $DD_PID 2>/dev/null || true

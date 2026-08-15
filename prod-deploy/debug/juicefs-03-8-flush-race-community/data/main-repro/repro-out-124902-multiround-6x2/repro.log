@@ -1,0 +1,42 @@
+[2026-08-14 12:49:02] 环境信息 → repro-out-20260814-124902/env-info.txt
+[2026-08-14 12:49:02] === 臂 stock：挂载 /tmp/juicefs-main-stock（6 轮 × 120s，单挂载）===
+2026/08/14 12:49:07.718820 juicefs[400495] <INFO>: Meta address: <redacted-meta-url> [NewClient@interface.go:652]
+2026/08/14 12:49:07.718956 juicefs[400495] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:90]
+2026/08/14 12:49:07.726495 juicefs[400495] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:565]
+2026/08/14 12:49:07.734431 juicefs[400495] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:619]
+2026/08/14 12:49:08.237581 juicefs[400495] <INFO>: [92mOK[0m, juicefs-prod is ready at "/mnt/juicefs" [checkMountpoint@mount_unix.go:327]
+[2026-08-14 12:49:13] stock max_read=262144（期望 = BS 字节数）
+[2026-08-14 12:49:13] === stock 第 1/6 轮 ===
+stock	r1	rc=0	max_read=262144	  WRITE: bw=1193MiB/s (1250MB/s), 1193MiB/s-1193MiB/s (1250MB/s-1250MB/s), io=172GiB (185GB), run=148024-148024msec
+[2026-08-14 12:52:06] === stock 第 2/6 轮 ===
+stock	r2	rc=128	max_read=262144	  WRITE: bw=799MiB/s (838MB/s), 799MiB/s-799MiB/s (838MB/s-838MB/s), io=118GiB (127GB), run=151592-151592msec
+[2026-08-14 12:55:13] === stock 第 3/6 轮 ===
+stock	r3	rc=0	max_read=262144	  WRITE: bw=794MiB/s (832MB/s), 794MiB/s-794MiB/s (832MB/s-832MB/s), io=123GiB (132GB), run=159079-159079msec
+[2026-08-14 12:58:48] === stock 第 4/6 轮 ===
+stock	r4	rc=0	max_read=262144	  WRITE: bw=721MiB/s (756MB/s), 721MiB/s-721MiB/s (756MB/s-756MB/s), io=115GiB (123GB), run=163159-163159msec
+[2026-08-14 13:02:27] === stock 第 5/6 轮 ===
+stock	r5	rc=0	max_read=262144	  WRITE: bw=728MiB/s (764MB/s), 728MiB/s-728MiB/s (764MB/s-764MB/s), io=112GiB (120GB), run=156975-156975msec
+[2026-08-14 13:05:52] === stock 第 6/6 轮 ===
+stock	r6	rc=0	max_read=262144	  WRITE: bw=707MiB/s (741MB/s), 707MiB/s-707MiB/s (741MB/s-741MB/s), io=117GiB (126GB), run=170090-170090msec
+[2026-08-14 13:09:25] === 臂 patched：挂载 /tmp/juicefs-main-patched（6 轮 × 120s，单挂载）===
+2026/08/14 13:09:30.913931 juicefs[619372] <INFO>: Meta address: <redacted-meta-url> [NewClient@interface.go:652]
+2026/08/14 13:09:30.914064 juicefs[619372] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:90]
+2026/08/14 13:09:30.922245 juicefs[619372] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:565]
+2026/08/14 13:09:30.930725 juicefs[619372] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:619]
+2026/08/14 13:09:31.433721 juicefs[619372] <INFO>: [92mOK[0m, juicefs-prod is ready at "/mnt/juicefs" [checkMountpoint@mount_unix.go:327]
+[2026-08-14 13:09:36] patched max_read=262144（期望 = BS 字节数）
+[2026-08-14 13:09:36] === patched 第 1/6 轮 ===
+patched	r1	rc=0	max_read=262144	  WRITE: bw=675MiB/s (708MB/s), 675MiB/s-675MiB/s (708MB/s-708MB/s), io=112GiB (120GB), run=169775-169775msec
+[2026-08-14 13:13:16] === patched 第 2/6 轮 ===
+patched	r2	rc=0	max_read=262144	  WRITE: bw=661MiB/s (694MB/s), 661MiB/s-661MiB/s (694MB/s-694MB/s), io=107GiB (115GB), run=165120-165120msec
+[2026-08-14 13:17:02] === patched 第 3/6 轮 ===
+patched	r3	rc=0	max_read=262144	  WRITE: bw=630MiB/s (660MB/s), 630MiB/s-630MiB/s (660MB/s-660MB/s), io=100GiB (107GB), run=162761-162761msec
+[2026-08-14 13:20:46] === patched 第 4/6 轮 ===
+patched	r4	rc=0	max_read=262144	  WRITE: bw=662MiB/s (694MB/s), 662MiB/s-662MiB/s (694MB/s-694MB/s), io=103GiB (111GB), run=160014-160014msec
+[2026-08-14 13:24:14] === patched 第 5/6 轮 ===
+patched	r5	rc=0	max_read=262144	  WRITE: bw=679MiB/s (712MB/s), 679MiB/s-679MiB/s (712MB/s-712MB/s), io=110GiB (118GB), run=165395-165395msec
+[2026-08-14 13:27:49] === patched 第 6/6 轮 ===
+patched	r6	rc=0	max_read=262144	  WRITE: bw=632MiB/s (663MB/s), 632MiB/s-632MiB/s (663MB/s-663MB/s), io=103GiB (111GB), run=167084-167084msec
+[2026-08-14 13:31:26] === 完成。结果：repro-out-20260814-124902/summary.tsv ===
+[2026-08-14 13:31:26] 预期：stock 臂随轮次进入塌态（~550，自锁）；patched 臂全程健康（~3000）。
+[2026-08-14 13:31:26] 判读：stock 全程健康 ⇒ 环境仍新鲜，加大 ROUNDS 或预热后重跑；缓冲/延迟证据见 sample-*.tsv

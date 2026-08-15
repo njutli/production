@@ -1,0 +1,19 @@
+[2026-08-14 09:41:37] 环境信息 → repro-out-20260814-094136/env-info.txt
+[2026-08-14 09:41:37] === 臂 stock：挂载 /tmp/juicefs-main-stock ===
+2026/08/14 09:41:42.106344 juicefs[2813562] <INFO>: Meta address: <redacted-meta-url> [NewClient@interface.go:652]
+2026/08/14 09:41:42.106470 juicefs[2813562] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:90]
+2026/08/14 09:41:42.114740 juicefs[2813562] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:565]
+2026/08/14 09:41:42.123190 juicefs[2813562] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:619]
+2026/08/14 09:41:42.626889 juicefs[2813562] <INFO>: [92mOK[0m, juicefs-prod is ready at "/mnt/juicefs" [checkMountpoint@mount_unix.go:327]
+[2026-08-14 09:41:47] stock max_read=262144（期望 = BS 字节数）
+stock	rc=0	max_read=262144	  WRITE: bw=3815MiB/s (4000MB/s), 3815MiB/s-3815MiB/s (4000MB/s-4000MB/s), io=447GiB (480GB), run=120011-120011msec
+[2026-08-14 09:44:00] === 臂 patched：挂载 /tmp/juicefs-main-patched ===
+2026/08/14 09:44:05.518667 juicefs[2838749] <INFO>: Meta address: <redacted-meta-url> [NewClient@interface.go:652]
+2026/08/14 09:44:05.518800 juicefs[2838749] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:90]
+2026/08/14 09:44:05.526990 juicefs[2838749] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:565]
+2026/08/14 09:44:05.535502 juicefs[2838749] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:619]
+2026/08/14 09:44:06.039043 juicefs[2838749] <INFO>: [92mOK[0m, juicefs-prod is ready at "/mnt/juicefs" [checkMountpoint@mount_unix.go:327]
+[2026-08-14 09:44:11] patched max_read=262144（期望 = BS 字节数）
+patched	rc=0	max_read=262144	  WRITE: bw=2206MiB/s (2314MB/s), 2206MiB/s-2206MiB/s (2314MB/s-2314MB/s), io=259GiB (278GB), run=120068-120068msec
+[2026-08-14 09:46:49] === 完成。结果：repro-out-20260814-094136/summary.tsv ===
+[2026-08-14 09:46:49] 预期：stock ≈ 550 MiB/s（崩塌），patched ≈ 3000 MiB/s（恢复）；缓冲/延迟证据见 sample-*.tsv

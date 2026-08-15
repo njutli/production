@@ -1,0 +1,19 @@
+[2026-08-14 10:05:29] 环境信息 → repro-out-20260814-100529/env-info.txt
+[2026-08-14 10:05:29] === 臂 stock：挂载 /tmp/juicefs-n6311r ===
+2026/08/14 10:05:35.049029 juicefs[3044386] <INFO>: Meta address: <redacted-meta-url> [NewClient@interface.go:652]
+2026/08/14 10:05:35.049184 juicefs[3044386] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:90]
+2026/08/14 10:05:35.056655 juicefs[3044386] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:565]
+2026/08/14 10:05:35.064837 juicefs[3044386] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:619]
+2026/08/14 10:05:35.567864 juicefs[3044386] <INFO>: [92mOK[0m, juicefs-prod is ready at "/mnt/juicefs" [checkMountpoint@mount_unix.go:327]
+[2026-08-14 10:05:40] stock max_read=262144（期望 = BS 字节数）
+stock	rc=0	max_read=262144	  WRITE: bw=543MiB/s (569MB/s), 543MiB/s-543MiB/s (569MB/s-569MB/s), io=63.7GiB (68.4GB), run=120151-120151msec
+[2026-08-14 10:07:46] === 臂 patched：挂载 /tmp/juicefs-n6311r ===
+2026/08/14 10:07:52.004925 juicefs[3069432] <INFO>: Meta address: <redacted-meta-url> [NewClient@interface.go:652]
+2026/08/14 10:07:52.005092 juicefs[3069432] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:90]
+2026/08/14 10:07:52.014200 juicefs[3069432] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:565]
+2026/08/14 10:07:52.023539 juicefs[3069432] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:619]
+2026/08/14 10:07:52.526612 juicefs[3069432] <INFO>: [92mOK[0m, juicefs-prod is ready at "/mnt/juicefs" [checkMountpoint@mount_unix.go:327]
+[2026-08-14 10:07:57] patched max_read=262144（期望 = BS 字节数）
+patched	rc=0	max_read=262144	  WRITE: bw=539MiB/s (565MB/s), 539MiB/s-539MiB/s (565MB/s-565MB/s), io=63.2GiB (67.9GB), run=120060-120060msec
+[2026-08-14 10:10:03] === 完成。结果：repro-out-20260814-100529/summary.tsv ===
+[2026-08-14 10:10:03] 预期：stock ≈ 550 MiB/s（崩塌），patched ≈ 3000 MiB/s（恢复）；缓冲/延迟证据见 sample-*.tsv

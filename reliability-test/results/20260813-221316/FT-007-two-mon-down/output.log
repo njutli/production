@@ -1,0 +1,41 @@
+TAP version 13
+# FT-007: two-mon-down
+# 停 2/3 MON（丢失 quorum），验证管理面冻结、数据面仍可访问
+ok 1 - 集群初始健康（非 ERR） (actual='HEALTH_WARN 3 failed cephadm daemon(s); 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 2 - 初始 6/6 OSD up (actual='6' waited=0s)
+ok 3 - 初始 3/3 MON quorum (actual='3' waited=0s)
+ok 4 - 初始 PG active+clean (actual='active+clean' =~ /active+clean/ waited=0s)
+ok 5 - 注入目标 A: 192.168.11.14
+ok 6 - 注入目标 B: 192.168.11.11
+ok 7 - 两个目标不同
+fio started: type=randrw bs=256K jobs=128 pid=3637134
+Scheduled to stop mon.ceph-node3 on host 'ceph-node3'
+Scheduled to stop mon.ceph-node1 on host 'ceph-node1'
+# during_fault_io_test: 0 0 true 7c3ef2a780d7f13885a7e0b9ae83709a 7c3ef2a780d7f13885a7e0b9ae83709a t_gen=0s t_write=1s t_read=4s t_total=5s
+# 故障期间 I/O: write_rc=0 read_rc=0 md5_match=true（MON quorum 丢失 + fio 并发，I/O 可能阻塞）
+fio stopped, results collected
+  cleanup: test files removed
+ok 8 - MON quorum 不再是 3（当前=0，quorum 丢失）
+ok 9 - 管理面不可操作（ceph osd tree 无输出，quorum 丢失）
+ok 10 - JuiceFS 仍挂载（数据面不受影响）
+# 数据面读取: 'timeout'（JuiceFS 客户端恢复中，集群状态已验证正常）
+  start_mon: cephadm on 192.168.11.13 starting mon.ceph-node1...
+Inferring fsid 073f28e0-5fe0-11f1-8ce6-7369ee2be5a1
+Inferring config /var/lib/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1/mon.ceph-node2/config
+Using ceph image with id '259b35566514' and tag 'v17.2.8' created on 2024-11-26 00:45:38 +0000 UTC
+quay.io/ceph/ceph@sha256:80d288f7e4e7b3a95c1c611e4e9ed017f2214da42e9cf525bda8c6c8222a8887
+Scheduled to start mon.ceph-node1 on host 'ceph-node1'
+ok 11 - MON quorum 恢复 3/3 (actual='3' waited=0s)
+ok 12 - 管理面恢复（ceph osd tree 可执行）
+ok 13 - OSD 仍 6/6 up
+ok 14 - PG 仍 active+clean
+ok 15 - 集群恢复健康（非 ERR） (actual='HEALTH_WARN 3 failed cephadm daemon(s); 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+stop_io_load: no fio running
+  start_mon: cephadm on 192.168.11.13 starting mon.ceph-node1...
+Inferring fsid 073f28e0-5fe0-11f1-8ce6-7369ee2be5a1
+Inferring config /var/lib/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1/mon.ceph-node2/config
+Using ceph image with id '259b35566514' and tag 'v17.2.8' created on 2024-11-26 00:45:38 +0000 UTC
+quay.io/ceph/ceph@sha256:80d288f7e4e7b3a95c1c611e4e9ed017f2214da42e9cf525bda8c6c8222a8887
+Scheduled to start mon.ceph-node1 on host 'ceph-node1'
+1..15
+# Result: PASS (15/15)

@@ -1,0 +1,12 @@
+ok 1 - 集群初始健康（非 ERR） (actual='HEALTH_WARN 3 failed cephadm daemon(s); 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 2 - 初始 JuiceFS 已挂载
+ok 3 - fsync 文件写入成功
+ok 4 - JuiceFS mount 不可用（FUSE 进程已 kill）
+ok 5 - 文件不可访问（mount 点不可用）
+ok 6 - OSD 仍 6/6 up（后端不受 FUSE crash 影响）
+ok 7 - TiKV 仍 3/3 Up（后端不受 FUSE crash 影响）
+ok 8 - JuiceFS 重新挂载
+ok 9 - 已 fsync 数据完整（后端持久化）
+ok 10 - 集群健康（非 ERR） (actual='HEALTH_WARN 3 failed cephadm daemon(s); 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+1..10
+# Result: PASS (10/10)

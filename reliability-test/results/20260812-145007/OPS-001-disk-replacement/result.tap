@@ -1,0 +1,31 @@
+ok 1 - 集群初始健康（非 ERR） (actual='HEALTH_WARN 1 failed cephadm daemon(s)' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 2 - 初始 6/6 OSD up (actual='6' waited=0s)
+ok 3 - 初始 PG active+clean (actual='active+clean' =~ /active+clean/ waited=0s)
+ok 4 - 基线数据写入成功 (md5=d5103ebda45eff61...)
+ok 5 - OSD A（将被替换）: 2 on 192.168.11.11
+ok 6 - OSD B（验证用）: 9 on 192.168.11.13
+ok 7 - OSD C（验证用）: 4 on 192.168.11.14
+ok 8 - OSD A 数据 LV: /dev/dm-4
+ok 9 - OSD A down: 5/6 OSD up (actual='5' waited=0s)
+ok 10 - PG degraded（OSD A 故障） (actual='active+clean active+undersized+degraded active+undersized stale+active+clean' =~ /degraded/ waited=0s)
+ok 11 - 基线数据可读（EC 容忍，md5 匹配）
+ok 12 - 备用盘加入后 6/6 OSD up (actual='6' waited=0s)
+ok 13 - PG 恢复 active+clean（EC 恢复到备用盘） (actual='active+clean active+undersized+degraded+remapped+backfill_wait active+undersized+degraded+remapped active+remapped+backfill_wait active+undersized+degraded+remapped+backfilling' =~ /active+clean/ waited=0s)
+ok 14 - 基线数据完整（备用盘恢复后 md5 匹配）
+not ok 15 - Phase 1 后集群完全恢复 HEALTH_OK # actual='HEALTH_ERR 1 failed cephadm daemon(s); 4/364592 objects unfound (0.001%); Possible data damage: 4 pgs backfill_unfound; Degraded data redundancy: 132588/2186883 objects degraded (6.063%), 17 pgs degraded, 17 pgs undersized' !~ /HEALTH_OK/ timeout=1800s
+ok 16 - 备用盘 OSD 2 已有数据（16593484 KB used，HEALTH_OK = 数据完整同步） (actual=16593484 > 0)
+not ok 17 - 备用盘已加入所有 pool 63 PG acting set（PG 全部 active+clean，等待 600s） # actual='no' expected='yes'
+ok 18 - PG 进入 degraded（OSD B+C SIGKILL 后 peering） (actual='active+undersized+degraded active+undersized active+clean undersized+peered undersized+degraded+peered down+remapped active+undersized+degraded+remapped' =~ /degraded/ waited=0s)
+ok 19 - 4/6 OSD up（OSD B+C down） (actual='4' waited=0s)
+ok 20 - 集群非 ERR（min_size=4，4 >= 4 可读） (actual='HEALTH_WARN 1 failed cephadm daemon(s); 2 osds down; Reduced data availability: 8 pgs inactive, 7 pgs down; Degraded data redundancy: 569557/2186883 objects degraded (26.044%), 53 pgs degraded' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+not ok 21 - 基线数据可读（备用盘生效，4 OSD 刚好 k=4，md5 匹配） # actual='' expected='d5103ebda45eff61f20554c5aff910a8'
+ok 22 - PG 恢复 active+clean (actual='active+undersized+degraded active+undersized active+clean undersized+peered undersized+degraded+peered down+remapped active+undersized+degraded+remapped' =~ /active+clean/ waited=0s)
+ok 23 - 6/6 OSD up (actual='6' waited=22s)
+ok 24 - 集群恢复健康（非 ERR） (actual='HEALTH_WARN 1 failed cephadm daemon(s); Reduced data availability: 7 pgs inactive, 7 pgs down; Degraded data redundancy: 284772/2186883 objects degraded (13.022%), 44 pgs degraded, 32 pgs undersized' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 25 - 基线数据完整（最终 md5 匹配）
+ok 26 - OSD A 重建后 6/6 OSD up (actual='6' waited=0s)
+ok 27 - PG 恢复 active+clean（OSD A 重建后） (actual='active+clean active+undersized+degraded+remapped+backfill_wait active+remapped+backfill_wait active+undersized+degraded+remapped active+recovery_unfound+undersized+degraded+remapped active+undersized+degraded+remapped+backfilling active+undersized+remapped+backfill_wait' =~ /active+clean/ waited=0s)
+not ok 28 - 集群恢复健康 # actual='HEALTH_ERR 1 failed cephadm daemon(s); 3/364592 objects unfound (0.001%); Possible data damage: 3 pgs recovery_unfound; Degraded data redundancy: 336773/2186883 objects degraded (15.400%), 33 pgs degraded, 34 pgs undersized' !~ /^HEALTH_(OK|WARN)/ timeout=60s
+ok 29 - 基线数据完整（OSD A 重建后 md5 匹配）
+1..29
+# Result: FAIL (25/29)

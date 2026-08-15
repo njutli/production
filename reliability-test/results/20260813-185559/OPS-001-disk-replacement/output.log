@@ -1,0 +1,83 @@
+TAP version 13
+# OPS-001: disk-replacement
+# 磁盘故障换盘重建：销毁 OSD A → tmpfs 备用盘替代 → down 2 OSD 验证备用盘生效
+Scheduled to start osd.0 on host 'ceph-node1'
+Scheduled to start osd.2 on host 'ceph-node1'
+Scheduled to start osd.3 on host 'ceph-node3'
+Scheduled to start osd.4 on host 'ceph-node3'
+Scheduled to start osd.8 on host 'ceph-node2'
+Scheduled to start osd.9 on host 'ceph-node2'
+osd.0: {}
+osd.2: {}
+osd.3: {}
+osd.4: {}
+osd.8: {}
+osd.9: {}
+ok 1 - 集群初始健康（非 ERR） (actual='HEALTH_WARN 1 failed cephadm daemon(s)' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 2 - 初始 6/6 OSD up (actual='6' waited=0s)
+ok 3 - 初始 PG active+clean (actual='active+clean' =~ /active+clean/ waited=0s)
+ok 4 - 基线数据写入成功 (md5=34fe31cb8383d094...)
+ok 5 - OSD A（将被替换）: 2 on 192.168.11.11
+ok 6 - OSD B（验证用）: 9 on 192.168.11.13
+ok 7 - OSD C（验证用）: 4 on 192.168.11.14
+ok 8 - OSD A 数据 LV: /dev/ceph-vg-ceph-node1/osd_2
+# OSD A=2 on 192.168.11.11 (/dev/ceph-vg-ceph-node1/osd_2) — 将被销毁替换
+# OSD B=9 on 192.168.11.13 — 将 SIGKILL 验证备用盘
+# OSD C=4 on 192.168.11.14 — 将 SIGKILL 验证备用盘
+
+=== Phase 1: 销毁 OSD A + 原盘重建 ===
+Scheduled to stop osd.2 on host 'ceph-node1'
+ok 9 - OSD A down: 5/6 OSD up (actual='5' waited=0s)
+ok 10 - PG degraded（OSD A 故障） (actual='active+clean active+undersized+degraded active+undersized peering' =~ /degraded/ waited=0s)
+3
+ok 11 - 基线数据可读（EC 容忍，md5 匹配）
+Scheduled to stop osd.2 on host 'ceph-node1'
+Removed osd.2 from host 'ceph-node1'
+  Logical volume "osd_2" successfully removed
+  Wiping ceph_bluestore signature on /dev/ceph-vg-ceph-node1/osd_2.
+  Logical volume "osd_2" created.
+  LV 重建完成（清除 LVM ceph 标签）
+Inferring fsid 073f28e0-5fe0-11f1-8ce6-7369ee2be5a1
+Inferring config /var/lib/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1/mon.ceph-node1/config
+Using ceph image with id '259b35566514' and tag '<none>' created on 2024-11-26 00:45:38 +0000 UTC
+quay.io/ceph/ceph@sha256:80d288f7e4e7b3a95c1c611e4e9ed017f2214da42e9cf525bda8c6c8222a8887
+Created osd(s) 2 on host 'ceph-node1'
+  等待新 OSD 启动 + EC 恢复...
+ok 12 - OSD 重建后 6/6 OSD up (actual='6' waited=0s)
+ok 13 - PG 恢复 active+clean（EC 恢复到重建 OSD） (actual='active+clean active+remapped' =~ /active+clean/ waited=0s)
+3
+ok 14 - 基线数据完整（OSD 重建后 md5 匹配）
+=== Phase 1 完成：OSD A 已在原盘重建 ===
+ok 15 - Phase 1 后 PG 全部 active+clean（EC 恢复完成） (actual='active+clean' =~ /active+clean/ waited=0s)
+ok 16 - 重建 OSD 2 已有数据（338320 KB used） (actual=338320 > 0)
+#  等待 OSD 2 完成所有 PG backfill（加入 acting set）...
+ok 17 - OSD 已加入所有 pool 63 PG acting set（PG 全部 active+clean，等待 0s）
+
+=== Phase 2: SIGKILL OSD B+C，验证备用盘生效 ===
+# 等待 OSD 心跳超时 + PG peering...
+ok 18 - PG 进入 degraded（OSD B+C SIGKILL 后 peering） (actual='active+undersized+degraded active+undersized active+clean undersized+peered undersized+degraded+peered' =~ /degraded/ waited=0s)
+ok 19 - 4/6 OSD up（OSD B+C down） (actual='4' waited=0s)
+ok 20 - 集群非 ERR（min_size=4，4 >= 4 可读） (actual='HEALTH_WARN 1 failed cephadm daemon(s); 2 osds down; Reduced data availability: 10 pgs inactive; Degraded data redundancy: 1022/3084 objects degraded (33.139%), 59 pgs degraded' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+3
+ok 21 - 基线数据可读（备用盘生效，4 OSD 刚好 k=4，md5 匹配）
+=== Phase 2 完成：备用盘验证通过 ===
+
+=== Phase 3: 恢复 OSD B+C ===
+Scheduled to start osd.9 on host 'ceph-node2'
+Scheduled to start osd.4 on host 'ceph-node3'
+ok 22 - PG 恢复 active+clean (actual='active+undersized+degraded active+undersized active+clean undersized+peered undersized+degraded+peered' =~ /active+clean/ waited=0s)
+ok 23 - 6/6 OSD up (actual='6' waited=8s)
+ok 24 - 集群恢复健康（非 ERR） (actual='HEALTH_WARN 1 failed cephadm daemon(s); Degraded data redundancy: 517/3084 objects degraded (16.764%), 52 pgs degraded, 35 pgs undersized' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+3
+ok 25 - 基线数据完整（最终 md5 匹配）
+=== Phase 3 完成 ===
+
+=== Phase 4: 最终验证 ===
+ok 26 - 最终 6/6 OSD up (actual='6' waited=0s)
+ok 27 - PG 恢复 active+clean (actual='active+clean' =~ /active+clean/ waited=0s)
+ok 28 - 集群恢复健康 (actual='HEALTH_WARN 1 failed cephadm daemon(s)' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+3
+ok 29 - 基线数据完整（最终 md5 匹配）
+=== Phase 4 完成 ===
+1..29
+# Result: PASS (29/29)

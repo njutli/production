@@ -1,0 +1,21 @@
+ok 1 - 集群初始健康（非 ERR） (actual='HEALTH_WARN 3 failed cephadm daemon(s); 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 2 - 初始 6/6 OSD up (actual='6' waited=0s)
+ok 3 - 初始 PG active+clean (actual='active+clean' =~ /active+clean/ waited=0s)
+ok 4 - 选中的 OSD id: 5
+ok 5 - OSD 5 所在节点: 192.168.11.13
+ok 6 - OSD 数据 LV: /dev/dm-0
+ok 7 - 基线 dd 写入成功（rc=0）
+ok 8 - 故障 dd 写入成功（rc=0）
+ok 9 - 基线数据 md5 一致（写后读校验）
+ok 10 - 故障期间数据 md5 一致（drop cache 后读校验）
+ok 11 - dm 设备 /dev/dm-0 已替换为 error target
+ok 12 - 5/6 OSD up（OSD crash） (actual='5' waited=0s)
+ok 13 - PG 进入 degraded (actual='active+clean active+undersized+degraded active+undersized' =~ /degraded/ waited=0s)
+ok 14 - 集群非 ERR（EC 容忍内） (actual='HEALTH_WARN 3 failed cephadm daemon(s); 1 osds down; Degraded data redundancy: 87/705 objects degraded (12.340%), 51 pgs degraded; 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 15 - 故障写入延迟 < 8000ms（实际 1506ms） (actual=1506 < 8000)
+ok 16 - dm 设备 /dev/dm-0 已恢复为 linear
+ok 17 - PG 300s 内恢复 active+clean (actual='active+clean active+undersized+degraded active+undersized' =~ /active+clean/ waited=0s)
+ok 18 - 6/6 OSD up (actual='6' waited=14s)
+ok 19 - 集群恢复健康（非 ERR） (actual='HEALTH_WARN 3 failed cephadm daemon(s); Degraded data redundancy: 87/705 objects degraded (12.340%), 40 pgs degraded, 95 pgs undersized; 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+1..19
+# Result: PASS (19/19)

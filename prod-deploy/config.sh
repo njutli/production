@@ -212,6 +212,17 @@ JUICEFS_MOUNT_OPTS=( "${JUICEFS_BASE_MOUNT_OPTS[@]}" "${_jfs_cache_args[@]}" )
 # --- JuiceFS metadata URL ---
 JUICEFS_METADATA_URL="tikv://${PD_ENDPOINTS}/${JUICEFS_FS_NAME}"
 
+# --- JuiceFS format options (Ceph RADOS 直连) ---
+# --access-key = Ceph cluster name, --secret-key = Ceph client user name
+JUICEFS_FORMAT_OPTS=(
+    --storage ceph
+    --bucket "ceph://${CEPH_POOL_NAME}"
+    --access-key ceph
+    --secret-key client.admin
+    --block-size 256K
+    --trash-days 0
+)
+
 # --- Ceph pool / cephx ---
 CEPH_POOL_NAME="juicefs-data"
 CEPHX_CLIENT="client.juicefs"

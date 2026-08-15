@@ -1,0 +1,24 @@
+ok 1 - 集群初始健康（非 ERR） (actual='HEALTH_WARN 1 failed cephadm daemon(s)' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 2 - 初始 6/6 OSD up (actual='6' waited=0s)
+ok 3 - 初始 3/3 TiKV store Up (actual='3' waited=0s)
+ok 4 - 初始 3/3 MON quorum (actual='3' waited=0s)
+ok 5 - 初始 PG active+clean (actual='active+clean' =~ /active+clean/ waited=0s)
+ok 6 - reboot 目标: 192.168.11.13（ceph-node2）
+ok 7 - 目标节点 OSD: 8
+ok 8 - 基线数据写入成功（md5=83479fd3e73bda79b5112ebe01bc5e1c）
+not ok 9 - ceph-node2 SSH 恢复（300s） # actual=300 >= 300
+ok 10 - reboot 后基线数据可读（EC 从剩余 OSD 读）
+not ok 11 - 6/6 OSD up（OSD 自启） # actual='4' expected='6' timeout=120s
+not ok 12 - 3/3 TiKV Up（systemd 自启） # actual='2' expected='3' timeout=60s
+not ok 13 - 3/3 MON quorum（cephadm 自启） # actual='2' expected='3' timeout=120s
+not ok 14 - PG 恢复 active+clean # actual='active+undersized active+undersized+degraded active+undersized+degraded+remapped' !~ /active+clean/ timeout=300s
+ok 15 - 集群恢复健康 (actual='HEALTH_WARN 1 failed cephadm daemon(s); 1 hosts fail cephadm check; 1/3 mons down, quorum ceph-node1,ceph-node3; 1 osds down; 1 host (2 osds) down; Degraded data redundancy: 808/3087 objects degraded (26.174%), 76 pgs degraded, 161 pgs undersized' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 16 - 恢复后基线数据完整（md5 匹配）
+not ok 17 - 最终 6/6 OSD up # actual='4' expected='6'
+not ok 18 - 最终 3/3 TiKV Up # actual='2' expected='3'
+not ok 19 - 最终 3/3 MON quorum # actual='2' expected='3'
+not ok 20 - 最终 PG active+clean # actual='active+undersized active+undersized+degraded active+undersized+degraded+remapped' !~ /active+clean/
+ok 21 - 集群恢复健康（非 ERR） (actual='HEALTH_WARN 1 failed cephadm daemon(s); 1 hosts fail cephadm check; 1/3 mons down, quorum ceph-node1,ceph-node3; 1 osds down; 1 host (2 osds) down; Degraded data redundancy: 808/3087 objects degraded (26.174%), 76 pgs degraded, 161 pgs undersized' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+not ok 22 - juicefs fsck 通过（无元数据损坏） # actual='1' expected='0'
+1..22
+# Result: FAIL (12/22)

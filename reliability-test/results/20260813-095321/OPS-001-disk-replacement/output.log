@@ -1,0 +1,219 @@
+TAP version 13
+# OPS-001: disk-replacement
+# 磁盘故障换盘重建：销毁 OSD A → tmpfs 备用盘替代 → down 2 OSD 验证备用盘生效
+Scheduled to start osd.0 on host 'ceph-node1'
+Scheduled to start osd.2 on host 'ceph-node1'
+Scheduled to start osd.3 on host 'ceph-node3'
+Scheduled to start osd.4 on host 'ceph-node3'
+Scheduled to start osd.8 on host 'ceph-node2'
+Scheduled to start osd.9 on host 'ceph-node2'
+osd.0: {}
+osd.2: {}
+osd.3: {}
+osd.4: {}
+osd.8: {}
+osd.9: {}
+ok 1 - 集群初始健康（非 ERR） (actual='HEALTH_WARN 1 failed cephadm daemon(s)' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 2 - 初始 6/6 OSD up (actual='6' waited=0s)
+ok 3 - 初始 PG active+clean (actual='active+clean active+remapped+backfill_wait active+remapped+backfilling' =~ /active+clean/ waited=0s)
+ok 4 - 基线数据写入成功 (md5=3616cbe4d8e428f5...)
+ok 5 - OSD A（将被替换）: 2 on 192.168.11.11
+ok 6 - OSD B（验证用）: 9 on 192.168.11.13
+ok 7 - OSD C（验证用）: 4 on 192.168.11.14
+ok 8 - OSD A 数据 LV: /dev/dm-4
+# OSD A=2 on 192.168.11.11 (/dev/dm-4) — 将被销毁替换
+# OSD B=9 on 192.168.11.13 — 将 SIGKILL 验证备用盘
+# OSD C=4 on 192.168.11.14 — 将 SIGKILL 验证备用盘
+
+=== Phase 1: 销毁 OSD A + tmpfs 备用盘替代 ===
+Scheduled to stop osd.2 on host 'ceph-node1'
+ok 9 - OSD A down: 5/6 OSD up (actual='5' waited=0s)
+ok 10 - PG degraded（OSD A 故障） (actual='active+clean active+undersized+degraded active+undersized active+remapped+backfill_wait active+remapped+backfilling active+clean+remapped' =~ /degraded/ waited=0s)
+3
+ok 11 - 基线数据可读（EC 容忍，md5 匹配）
+Scheduled to stop osd.2 on host 'ceph-node1'
+Removed osd.2 from host 'ceph-node1'
+  Physical volume "/dev/loop3" successfully created.
+  Volume group "ceph-vg-spare" successfully created
+  Logical volume "osd" created.
+device ready
+  tmpfs 备用盘准备完成
+device ready
+Inferring fsid 073f28e0-5fe0-11f1-8ce6-7369ee2be5a1
+Inferring config /var/lib/ceph/073f28e0-5fe0-11f1-8ce6-7369ee2be5a1/mon.ceph-node1/config
+Using ceph image with id '259b35566514' and tag '<none>' created on 2024-11-26 00:45:38 +0000 UTC
+quay.io/ceph/ceph@sha256:80d288f7e4e7b3a95c1c611e4e9ed017f2214da42e9cf525bda8c6c8222a8887
+Running command: /usr/bin/ceph-authtool --gen-print-key
+Running command: /usr/bin/ceph --cluster ceph --name client.bootstrap-osd --keyring /var/lib/ceph/bootstrap-osd/ceph.keyring -i - osd new 0d13b9e5-e8f2-4e28-b15c-83bbe6a1e7dd
+Running command: /usr/bin/ceph-authtool --gen-print-key
+Running command: /usr/bin/mount -t tmpfs tmpfs /var/lib/ceph/osd/ceph-2
+Running command: /usr/bin/chown -h ceph:ceph /dev/ceph-vg-spare/osd
+Running command: /usr/bin/chown -R ceph:ceph /dev/dm-6
+Running command: /usr/bin/ln -s /dev/ceph-vg-spare/osd /var/lib/ceph/osd/ceph-2/block
+Running command: /usr/bin/ceph --cluster ceph --name client.bootstrap-osd --keyring /var/lib/ceph/bootstrap-osd/ceph.keyring mon getmap -o /var/lib/ceph/osd/ceph-2/activate.monmap
+ stderr: got monmap epoch 5
+--> Creating keyring file for osd.2
+Running command: /usr/bin/chown -R ceph:ceph /var/lib/ceph/osd/ceph-2/keyring
+Running command: /usr/bin/chown -R ceph:ceph /var/lib/ceph/osd/ceph-2/
+Running command: /usr/bin/ceph-osd --cluster ceph --osd-objectstore bluestore --mkfs -i 2 --monmap /var/lib/ceph/osd/ceph-2/activate.monmap --keyfile - --osd-data /var/lib/ceph/osd/ceph-2/ --osd-uuid 0d13b9e5-e8f2-4e28-b15c-83bbe6a1e7dd --setuser ceph --setgroup ceph
+ stderr: 2026-08-13T01:55:25.968+0000 7eff18e35440 -1 bluestore(/var/lib/ceph/osd/ceph-2/) _read_fsid unparsable uuid
+ stderr: 2026-08-13T01:55:26.532+0000 7eff18e35440 -1 bluestore::NCB::__restore_allocator::Failed open_for_read with error-code -2
+ stderr: 2026-08-13T01:55:27.324+0000 7eff18e35440 -1 bluestore::NCB::__restore_allocator::Failed open_for_read with error-code -2
+--> ceph-volume lvm prepare successful for: ceph-vg-spare/osd
+Running command: /usr/bin/chown -R ceph:ceph /var/lib/ceph/osd/ceph-2
+Running command: /usr/bin/ceph-bluestore-tool --cluster=ceph prime-osd-dir --dev /dev/ceph-vg-spare/osd --path /var/lib/ceph/osd/ceph-2 --no-mon-config
+Running command: /usr/bin/ln -snf /dev/ceph-vg-spare/osd /var/lib/ceph/osd/ceph-2/block
+Running command: /usr/bin/chown -h ceph:ceph /var/lib/ceph/osd/ceph-2/block
+Running command: /usr/bin/chown -R ceph:ceph /dev/dm-6
+Running command: /usr/bin/chown -R ceph:ceph /var/lib/ceph/osd/ceph-2
+Running command: /usr/bin/systemctl enable ceph-volume@lvm-2-0d13b9e5-e8f2-4e28-b15c-83bbe6a1e7dd
+ stderr: Created symlink /etc/systemd/system/multi-user.target.wants/ceph-volume@lvm-2-0d13b9e5-e8f2-4e28-b15c-83bbe6a1e7dd.service → /usr/lib/systemd/system/ceph-volume@.service.
+Running command: /usr/bin/systemctl enable --runtime ceph-osd@2
+ stderr: Created symlink /run/systemd/system/ceph-osd.target.wants/ceph-osd@2.service → /usr/lib/systemd/system/ceph-osd@.service.
+Running command: /usr/bin/systemctl start ceph-osd@2
+ stderr: Failed to connect to bus: No such file or directory
+--> Was unable to complete a new OSD, will rollback changes
+Running command: /usr/bin/ceph --cluster ceph --name client.bootstrap-osd --keyring /var/lib/ceph/bootstrap-osd/ceph.keyring osd purge-new osd.2 --yes-i-really-mean-it
+ stderr: purged osd.2
+--> Zapping: /dev/ceph-vg-spare/osd
+--> Unmounting /var/lib/ceph/osd/ceph-2
+Running command: /usr/bin/umount -v /var/lib/ceph/osd/ceph-2
+ stderr: umount: /var/lib/ceph/osd/ceph-2 unmounted
+Running command: /usr/bin/dd if=/dev/zero of=/dev/ceph-vg-spare/osd bs=1M count=10 conv=fsync
+ stderr: 10+0 records in
+10+0 records out
+ stderr: 10485760 bytes (10 MB, 10 MiB) copied, 0.0391854 s, 268 MB/s
+--> Only 1 LV left in VG, will proceed to destroy volume group ceph-vg-spare
+Running command: nsenter --mount=/rootfs/proc/1/ns/mnt --ipc=/rootfs/proc/1/ns/ipc --net=/rootfs/proc/1/ns/net --uts=/rootfs/proc/1/ns/uts /sbin/vgremove -v -f ceph-vg-spare
+ stderr: Removing ceph--vg--spare-osd (253:6)
+ stderr: Archiving volume group "ceph-vg-spare" metadata (seqno 3).
+ stderr: Releasing logical volume "osd"
+ stderr: Creating volume group backup "/etc/lvm/backup/ceph-vg-spare" (seqno 4).
+ stdout: Logical volume "osd" successfully removed
+ stdout: Volume group "ceph-vg-spare" successfully removed
+ stderr: Removing physical volume "/dev/loop3" from volume group "ceph-vg-spare"
+Running command: nsenter --mount=/rootfs/proc/1/ns/mnt --ipc=/rootfs/proc/1/ns/ipc --net=/rootfs/proc/1/ns/net --uts=/rootfs/proc/1/ns/uts /sbin/pvremove -v -f -f /dev/loop3
+ stdout: Labels on physical volume "/dev/loop3" successfully wiped.
+--> Zapping: /dev/ceph-vg-ceph-node1/osd_new11
+Running command: /usr/bin/dd if=/dev/zero of=/dev/ceph-vg-ceph-node1/osd_new11 bs=1M count=10 conv=fsync
+ stderr: 10+0 records in
+10+0 records out
+ stderr: 10485760 bytes (10 MB, 10 MiB) copied, 0.018635 s, 563 MB/s
+--> More than 1 LV left in VG, will proceed to destroy LV only
+--> Removing LV because --destroy was given: /dev/ceph-vg-ceph-node1/osd_new11
+Running command: nsenter --mount=/rootfs/proc/1/ns/mnt --ipc=/rootfs/proc/1/ns/ipc --net=/rootfs/proc/1/ns/net --uts=/rootfs/proc/1/ns/uts /sbin/lvremove -v -f /dev/ceph-vg-ceph-node1/osd_new11
+ stdout: Logical volume "osd_new11" successfully removed
+ stderr: Removing ceph--vg--ceph--node1-osd_new11 (253:4)
+ stderr: Archiving volume group "ceph-vg-ceph-node1" metadata (seqno 240).
+ stderr: Releasing logical volume "osd_new11"
+ stderr: Creating volume group backup "/etc/lvm/backup/ceph-vg-ceph-node1" (seqno 241).
+--> Zapping successful for OSD: 2
+-->  RuntimeError: command returned non-zero exit status: 1
+  等待新 OSD 启动 + EC 恢复...
+not ok 12 - 备用盘加入后 6/6 OSD up # actual='5' expected='6' timeout=120s
+ok 13 - PG 恢复 active+clean（EC 恢复到备用盘） (actual='active+clean active+undersized+degraded+remapped+backfill_wait active+clean+remapped active+undersized+degraded active+remapped+backfill_wait active+undersized+degraded+remapped+backfilling' =~ /active+clean/ waited=0s)
+3
+ok 14 - 基线数据完整（备用盘恢复后 md5 匹配）
+=== Phase 1 完成：备用盘已加入集群 ===
+ok 15 - Phase 1 后 PG 全部 active+clean（EC 恢复完成） (actual='active+clean active+undersized+degraded+remapped+backfill_wait active+clean+remapped active+undersized+degraded active+remapped+backfill_wait active+undersized+degraded+remapped+backfilling' =~ /active+clean/ waited=0s)
+not ok 16 - 备用盘 OSD 2 已有数据（ KB used，HEALTH_OK = 数据完整同步） # actual= <= 0
+#  等待备用盘 OSD 2 完成所有 PG backfill（加入 acting set）...
+#  pool 63 仍有未 clean PG，等待 backfill...（0s）
+#  pool 63 仍有未 clean PG，等待 backfill...（30s）
+#  pool 63 仍有未 clean PG，等待 backfill...（60s）
+#  pool 63 仍有未 clean PG，等待 backfill...（90s）
+#  pool 63 仍有未 clean PG，等待 backfill...（120s）
+#  pool 63 仍有未 clean PG，等待 backfill...（150s）
+#  pool 63 仍有未 clean PG，等待 backfill...（180s）
+#  pool 63 仍有未 clean PG，等待 backfill...（210s）
+#  pool 63 仍有未 clean PG，等待 backfill...（240s）
+#  pool 63 仍有未 clean PG，等待 backfill...（270s）
+#  pool 63 仍有未 clean PG，等待 backfill...（300s）
+#  pool 63 仍有未 clean PG，等待 backfill...（330s）
+#  pool 63 仍有未 clean PG，等待 backfill...（360s）
+#  pool 63 仍有未 clean PG，等待 backfill...（390s）
+#  pool 63 仍有未 clean PG，等待 backfill...（420s）
+#  pool 63 仍有未 clean PG，等待 backfill...（450s）
+#  pool 63 仍有未 clean PG，等待 backfill...（480s）
+#  pool 63 仍有未 clean PG，等待 backfill...（510s）
+#  pool 63 仍有未 clean PG，等待 backfill...（540s）
+#  pool 63 仍有未 clean PG，等待 backfill...（570s）
+#  pool 63 仍有未 clean PG，等待 backfill...（600s）
+#  pool 63 仍有未 clean PG，等待 backfill...（630s）
+#  pool 63 仍有未 clean PG，等待 backfill...（660s）
+#  pool 63 仍有未 clean PG，等待 backfill...（690s）
+#  pool 63 仍有未 clean PG，等待 backfill...（720s）
+#  pool 63 仍有未 clean PG，等待 backfill...（750s）
+#  pool 63 仍有未 clean PG，等待 backfill...（780s）
+#  pool 63 仍有未 clean PG，等待 backfill...（810s）
+#  pool 63 仍有未 clean PG，等待 backfill...（840s）
+#  pool 63 仍有未 clean PG，等待 backfill...（870s）
+#  pool 63 仍有未 clean PG，等待 backfill...（900s）
+#  pool 63 仍有未 clean PG，等待 backfill...（930s）
+#  pool 63 仍有未 clean PG，等待 backfill...（960s）
+#  pool 63 仍有未 clean PG，等待 backfill...（990s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1020s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1050s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1080s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1110s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1140s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1170s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1200s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1230s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1260s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1290s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1320s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1350s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1380s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1410s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1440s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1470s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1500s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1530s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1560s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1590s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1620s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1650s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1680s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1710s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1740s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1770s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1800s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1830s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1860s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1890s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1920s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1950s）
+#  pool 63 仍有未 clean PG，等待 backfill...（1980s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2010s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2040s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2070s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2100s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2130s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2160s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2190s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2220s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2250s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2280s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2310s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2340s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2370s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2400s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2430s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2460s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2490s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2520s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2550s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2580s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2610s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2640s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2670s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2700s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2730s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2760s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2790s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2820s）
+#  pool 63 仍有未 clean PG，等待 backfill...（2850s）
+Terminated                 sleep 30
+1..16
+# Result: FAIL (14/16)

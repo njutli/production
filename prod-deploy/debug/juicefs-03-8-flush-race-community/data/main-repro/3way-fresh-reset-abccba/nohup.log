@@ -1,0 +1,28 @@
+bash: warning: setlocale: LC_ALL: cannot change locale (zh_CN.utf8)
+=== 复位前 2026-08-14 16:31:47 ===
+HEALTH_OK
+objects= 8885305 stored= 2329342115840
+[2026-08-14 16:31:48] 复位：gc --compact ...
+[2026-08-14 16:41:48]   ⚠ gc --compact 非零退出（继续）
+[2026-08-14 16:41:48] 复位：OSD compact + 追平 ...
+[2026-08-14 16:42:00]   compact ✅ (~15s)
+[2026-08-14 16:42:00] 复位：drop_caches ...
+[2026-08-14 16:42:23]   drop_caches 10.20.1.150 ✅
+[2026-08-14 16:42:42]   drop_caches 10.20.1.151 ✅
+[2026-08-14 16:43:02]   drop_caches 10.20.1.152 ✅
+=== 复位后 2026-08-14 16:43:02 ===
+HEALTH_OK
+objects= 5506447 stored= 1443594895360
+ts	key	value
+S  juicefs version 1.3.1+2025-12-02.e0032b2  WRITE: bw=544MiB/s
+ts	key	value
+P  juicefs version 1.3.1+2026-08-13.e0032b2a-03-8-ceph  WRITE: bw=2647MiB/s
+ts	key	value
+M  juicefs version 1.5.0-dev+2026-08-14.edabf9c2  WRITE: bw=1437MiB/s
+ts	key	value
+M  juicefs version 1.5.0-dev+2026-08-14.edabf9c2  WRITE: bw=1505MiB/s
+ts	key	value
+P  juicefs version 1.3.1+2026-08-13.e0032b2a-03-8-ceph  WRITE: bw=1206MiB/s
+ts	key	value
+S  juicefs version 1.3.1+2025-12-02.e0032b2  WRITE: bw=544MiB/s
+[2026-08-14 16:59:23] === FRESH-3WAY DONE ===

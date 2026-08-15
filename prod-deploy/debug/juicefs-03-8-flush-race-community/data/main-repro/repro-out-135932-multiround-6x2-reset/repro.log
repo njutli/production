@@ -1,0 +1,72 @@
+[2026-08-14 13:59:32] 环境信息 → repro-out-20260814-135932/env-info.txt
+[2026-08-14 13:59:32] === 臂 stock：挂载 /tmp/juicefs-main-stock（6 轮 × 120s，单挂载）===
+[2026-08-14 13:59:32] === 环境复位（stock-pre）：gc --compact + OSD compact 追平 + drop_caches ===
+2026/08/14 13:59:32.261921 juicefs[1108952] <INFO>: Meta address: <redacted-meta-url> [NewClient@interface.go:652]
+2026/08/14 13:59:32.262031 juicefs[1108952] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:90]
+2026/08/14 13:59:32.276260 juicefs[1108952] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [gc@gc.go:100]
+2026/08/14 14:11:13.100280 juicefs[1108952] <INFO>: Compacted 2375 chunks (1143158 slices, 334806122496 bytes). [gc@gc.go:180]
+2026/08/14 14:11:27.904241 juicefs[1108952] <INFO>: using 9665 slices (1094911787008 bytes) [gc@gc.go:262]
+2026/08/14 14:12:22.844812 juicefs[1108952] <INFO>: Deleted 3929315 pending slices [gc@gc.go:376]
+2026/08/14 14:12:22.846754 juicefs[1108952] <INFO>: scanned 4066669 objects, 1839290 valid, 1638020 pending delete (429397114880 bytes), 0 compacted (0 bytes), 18534 leaked (4858576896 bytes), 0 delslices (0 bytes), 0 delfiles (0 bytes), 570825 skipped (149638348800 bytes) [gc@gc.go:389]
+2026/08/14 14:12:22.846810 juicefs[1108952] <INFO>: Please add `--delete` to clean leaked objects [gc@gc.go:392]
+2026/08/14 14:12:22.846833 juicefs[1108952] <INFO>: flush session 0: [FlushSession@base.go:1003]
+2026/08/14 14:12:22.846921 juicefs[1108952] <INFO>: close session 0: <nil> [CloseSession@base.go:992]
+[2026-08-14 14:12:29]   compact ✅ (~10s)
+[2026-08-14 14:13:11]   drop_caches 10.20.1.150 ✅
+[2026-08-14 14:13:28]   drop_caches 10.20.1.151 ✅
+[2026-08-14 14:13:45]   drop_caches 10.20.1.152 ✅
+2026/08/14 14:13:50.862384 juicefs[1238215] <INFO>: Meta address: <redacted-meta-url> [NewClient@interface.go:652]
+2026/08/14 14:13:50.862700 juicefs[1238215] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:90]
+2026/08/14 14:13:50.872338 juicefs[1238215] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:565]
+2026/08/14 14:13:50.880292 juicefs[1238215] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:619]
+2026/08/14 14:13:51.383777 juicefs[1238215] <INFO>: [92mOK[0m, juicefs-prod is ready at "/mnt/juicefs" [checkMountpoint@mount_unix.go:327]
+[2026-08-14 14:13:56] stock max_read=262144（期望 = BS 字节数）
+[2026-08-14 14:13:56] === stock 第 1/6 轮 ===
+stock	r1	rc=0	max_read=262144	  WRITE: bw=3425MiB/s (3592MB/s), 3425MiB/s-3425MiB/s (3592MB/s-3592MB/s), io=402GiB (431GB), run=120064-120064msec
+[2026-08-14 14:16:26] === stock 第 2/6 轮 ===
+stock	r2	rc=0	max_read=262144	  WRITE: bw=1886MiB/s (1978MB/s), 1886MiB/s-1886MiB/s (1978MB/s-1978MB/s), io=221GiB (238GB), run=120091-120091msec
+[2026-08-14 14:19:04] === stock 第 3/6 轮 ===
+stock	r3	rc=0	max_read=262144	  WRITE: bw=1394MiB/s (1461MB/s), 1394MiB/s-1394MiB/s (1461MB/s-1461MB/s), io=163GiB (175GB), run=120056-120056msec
+[2026-08-14 14:21:52] === stock 第 4/6 轮 ===
+stock	r4	rc=0	max_read=262144	  WRITE: bw=1298MiB/s (1361MB/s), 1298MiB/s-1298MiB/s (1361MB/s-1361MB/s), io=152GiB (163GB), run=120028-120028msec
+[2026-08-14 14:24:42] === stock 第 5/6 轮 ===
+stock	r5	rc=0	max_read=262144	  WRITE: bw=1099MiB/s (1152MB/s), 1099MiB/s-1099MiB/s (1152MB/s-1152MB/s), io=136GiB (146GB), run=126725-126725msec
+[2026-08-14 14:27:47] === stock 第 6/6 轮 ===
+stock	r6	rc=0	max_read=262144	  WRITE: bw=927MiB/s (972MB/s), 927MiB/s-927MiB/s (972MB/s-972MB/s), io=130GiB (140GB), run=144049-144049msec
+[2026-08-14 14:31:12] === 臂 patched：挂载 /tmp/juicefs-main-patched（6 轮 × 120s，单挂载）===
+[2026-08-14 14:31:12] === 环境复位（patched-pre）：gc --compact + OSD compact 追平 + drop_caches ===
+2026/08/14 14:31:12.694243 juicefs[1423799] <INFO>: Meta address: <redacted-meta-url> [NewClient@interface.go:652]
+2026/08/14 14:31:12.694359 juicefs[1423799] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:90]
+2026/08/14 14:31:12.709545 juicefs[1423799] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [gc@gc.go:100]
+2026/08/14 14:42:13.594246 juicefs[1423799] <INFO>: Compacted 2375 chunks (1074168 slices, 316284076032 bytes). [gc@gc.go:180]
+2026/08/14 14:42:30.110674 juicefs[1423799] <INFO>: using 9665 slices (1113957335040 bytes) [gc@gc.go:262]
+2026/08/14 14:43:24.523974 juicefs[1423799] <INFO>: Deleted 3553579 pending slices [gc@gc.go:376]
+2026/08/14 14:43:24.525445 juicefs[1423799] <INFO>: scanned 4135142 objects, 1839290 valid, 1684557 pending delete (441596510208 bytes), 0 compacted (0 bytes), 18534 leaked (4858576896 bytes), 0 delslices (0 bytes), 0 delfiles (0 bytes), 592761 skipped (155388739584 bytes) [gc@gc.go:389]
+2026/08/14 14:43:24.525524 juicefs[1423799] <INFO>: Please add `--delete` to clean leaked objects [gc@gc.go:392]
+2026/08/14 14:43:24.525549 juicefs[1423799] <INFO>: flush session 0: [FlushSession@base.go:1003]
+2026/08/14 14:43:24.525589 juicefs[1423799] <INFO>: close session 0: <nil> [CloseSession@base.go:992]
+[2026-08-14 14:43:31]   compact ✅ (~10s)
+[2026-08-14 14:43:49]   drop_caches 10.20.1.150 ✅
+[2026-08-14 14:44:06]   drop_caches 10.20.1.151 ✅
+[2026-08-14 14:44:22]   drop_caches 10.20.1.152 ✅
+2026/08/14 14:44:28.012226 juicefs[1543717] <INFO>: Meta address: <redacted-meta-url> [NewClient@interface.go:652]
+2026/08/14 14:44:28.013024 juicefs[1543717] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:90]
+2026/08/14 14:44:28.022839 juicefs[1543717] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:565]
+2026/08/14 14:44:28.031250 juicefs[1543717] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:619]
+2026/08/14 14:44:28.535083 juicefs[1543717] <INFO>: [92mOK[0m, juicefs-prod is ready at "/mnt/juicefs" [checkMountpoint@mount_unix.go:327]
+[2026-08-14 14:44:33] patched max_read=262144（期望 = BS 字节数）
+[2026-08-14 14:44:33] === patched 第 1/6 轮 ===
+patched	r1	rc=0	max_read=262144	  WRITE: bw=3421MiB/s (3587MB/s), 3421MiB/s-3421MiB/s (3587MB/s-3587MB/s), io=401GiB (431GB), run=120154-120154msec
+[2026-08-14 14:47:04] === patched 第 2/6 轮 ===
+patched	r2	rc=0	max_read=262144	  WRITE: bw=1837MiB/s (1926MB/s), 1837MiB/s-1837MiB/s (1926MB/s-1926MB/s), io=215GiB (231GB), run=120077-120077msec
+[2026-08-14 14:49:47] === patched 第 3/6 轮 ===
+patched	r3	rc=0	max_read=262144	  WRITE: bw=1431MiB/s (1501MB/s), 1431MiB/s-1431MiB/s (1501MB/s-1501MB/s), io=168GiB (180GB), run=120165-120165msec
+[2026-08-14 14:52:34] === patched 第 4/6 轮 ===
+patched	r4	rc=0	max_read=262144	  WRITE: bw=1227MiB/s (1287MB/s), 1227MiB/s-1227MiB/s (1287MB/s-1287MB/s), io=144GiB (155GB), run=120217-120217msec
+[2026-08-14 14:55:26] === patched 第 5/6 轮 ===
+patched	r5	rc=0	max_read=262144	  WRITE: bw=995MiB/s (1043MB/s), 995MiB/s-995MiB/s (1043MB/s-1043MB/s), io=135GiB (145GB), run=138586-138586msec
+[2026-08-14 14:58:36] === patched 第 6/6 轮 ===
+patched	r6	rc=0	max_read=262144	  WRITE: bw=916MiB/s (960MB/s), 916MiB/s-916MiB/s (960MB/s-960MB/s), io=128GiB (138GB), run=143355-143355msec
+[2026-08-14 15:01:52] === 完成。结果：repro-out-20260814-135932/summary.tsv ===
+[2026-08-14 15:01:52] 预期：stock 臂随轮次进入塌态（~550，自锁）；patched 臂全程健康（~3000）。
+[2026-08-14 15:01:52] 判读：stock 全程健康 ⇒ 环境仍新鲜，加大 ROUNDS 或预热后重跑；缓冲/延迟证据见 sample-*.tsv

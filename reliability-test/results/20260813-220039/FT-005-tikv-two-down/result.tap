@@ -1,0 +1,22 @@
+ok 1 - 集群初始健康（非 ERR） (actual='HEALTH_WARN 3 failed cephadm daemon(s); 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 2 - 初始 6/6 OSD up (actual='6' waited=0s)
+ok 3 - 初始 3/3 TiKV store Up (actual='3' waited=0s)
+ok 4 - 初始 PG 含 active (actual='active+clean' =~ /active/ waited=0s)
+ok 5 - 注入目标 A: 192.168.11.14
+ok 6 - 注入目标 B: 192.168.11.11
+ok 7 - 两个目标不同
+ok 8 - TiKV store 1/3 Up（majority 丢失） (actual='1' waited=18s)
+ok 9 - OSD 仍 6/6 up（数据面不受影响）
+ok 10 - PG 仍 active（数据面不受影响）
+ok 11 - 集群非 ERR（TiKV majority 丢失） (actual='HEALTH_WARN 3 failed cephadm daemon(s); 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 12 - 元数据操作阻塞（timeout 10s，rc=124）
+ok 13 - 元数据 stat 操作也阻塞（rc=124）
+ok 14 - 元数据写操作预期失败（rc=timeout，TiKV majority 丢失，事务无法完成）
+ok 15 - TiKV 3/3 store Up (actual='3' waited=10s)
+ok 16 - 元数据操作恢复（第 1s 恢复） (actual=1 > 0)
+ok 17 - OSD 仍 6/6 up
+ok 18 - PG 仍 active
+ok 19 - 集群恢复健康（非 ERR） (actual='HEALTH_WARN 3 failed cephadm daemon(s); 30 daemons have recently crashed' =~ /^HEALTH_(OK|WARN)/ waited=0s)
+ok 20 - juicefs fsck 通过（无元数据损坏）
+1..20
+# Result: PASS (20/20)

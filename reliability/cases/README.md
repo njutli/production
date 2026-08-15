@@ -20,7 +20,7 @@
 
 | 项 | 值 |
 |----|-----|
-| 故障注入 | 内联 SIGKILL（同 `stop_osd` 逻辑：`systemctl stop --no-block` + `docker kill --signal KILL`） |
+| 故障注入 | 内联 SIGKILL（同 `stop_osd` 逻辑：`systemctl stop --no-block` + `podman kill --signal KILL`） |
 | 关键断言 | fault 期间 I/O 写入延迟 < 5000ms、PG degraded、恢复后 PG clean + 恢复时间 < 300s |
 | 预估时长 | 5min |
 
@@ -33,8 +33,7 @@
 > - I/O 成功率 100%（dd 退出码 rc=0，1GB 全部写入成功无失败）
 >
 > 延迟构成：fast-fail 检测 + MON 标记 down + PG peering + 客户端获取新 OSD map + rerouting。
-> SSH 从客户端到存储节点同网段延迟 ~0.3-0.5s，仍会部分掩盖延迟。
-> 所有 I/O 最终成功（EC 4+2 容忍 1 OSD down，min_size=5）。OSD 不会自动恢复（cephadm 管理的 OSD 被 `systemctl stop` 后不会自动重启——OSD unit 为 `Restart=on-failure`，手动 stop 不触发重启；TiKV 是 kill -9 被 `Restart=always` 拉起，机制不同）。
+> **波动原因**：kill 时机相对于 dd 写入进度的随机性。1GB dd 写 ~9s，kill 发生在写入中途某随机时刻。若 dd 当前正好写 killed OSD 的 chunk → 立即失败 → 低延迟（~692ms）；若在写其他 OSD 的 chunk → 延迟到后续 chunk 命中 killed OSD 才触发 rerouting → 高延迟（~2565ms）。
 
 ### FT-002：单盘故障——磁盘故障
 
@@ -55,85 +54,58 @@
 > - I/O 成功率 100%（dd 退出码 rc=0，1GB 全部写入成功无失败）
 >
 > 延迟构成：EIO-to-crash（不确定，~1-3.5s）+ fast-fail + peering + rerouting（~1s，与 FT-001 一致）。
-> EIO-to-crash 间隔取决于 OSD 何时做磁盘 I/O：命中 BlueStore 缓存的操作不碰 EIO，crash 慢；触发磁盘 I/O 的操作立即碰到 EIO，crash 快。
-> **与 FT-001 的关键区别**：FT-001 SIGKILL 延迟 692-2565ms（无 EIO-to-crash 间隔），FT-002 多了不确定的 EIO-to-crash 延迟。crash 之后的恢复路径两者一致。
+> **波动原因**：FT-001 的全部随机性 **+ EIO-to-crash 间隔**（0~3.5s 随机）。EIO 注入后 OSD 不立即 crash，要等磁盘 I/O 才碰到 EIO。命中 BlueStore 缓存 → 不碰磁盘 → crash 慢 → 高延迟；立即做磁盘 I/O → crash 快 → 低延迟。crash 之后的恢复路径与 FT-001 一致。
 
 ### FT-003：节点宕机（2 OSD + 1 MON + 1 TiKV + 1 PD 同时失效）
 
 | 项 | 值 |
 |----|-----|
-| 故障注入 | `crash_node_storage <ip>`（iptables 隔离节点全部流量，模拟节点不可达） |
-| 关键断言 | PD leader 切换、OSD count=4、MON quorum 2/3、I/O 恢复、恢复后数据完整 |
-| 预估时长 | 10min |
+| 故障注入 | 带外管理强制断电 .14（模拟真实硬件故障/断电） |
+| 关键断言 | OSD count=4、MON quorum 2/3、数据可读（min_size=4 PG active+degraded）、服务自启、数据完整 |
+| I/O 负载 | randread 128 jobs（只读） |
+| 预估时长 | 15min |
 
-**I/O 行为总结**：节点隔离同时影响数据面（2 OSD down）和元数据面（PD leader + 1 TiKV down）。集群恢复快（PD leader 切换 ~16s + OSD heartbeat 20s + peering 2s ≈ 38s），但 **JuiceFS 客户端检测不到 TiKV/PD 连接断开**（iptables DROP 不回 RST，TCP 连接半开），I/O 实际阻塞 ~500s（8 分钟），直到 TCP 重传超时后客户端切换到健康节点。2 OSD down 导致 4 可用 < min_size(5)，**写入在整个故障期间不可用**，直到节点恢复。
-
-#### I/O 行为分析（实测数据）
+**实测结果**（21/21 PASS）：断电 .14 后 4/6 OSD up、MON 2/3、TiKV 2/3（majority 保持）。I/O 恢复探测 T+26s 首次读取成功 + MD5 一致，fio 成功率 100%。上电后 OSD/MON/TiKV/PD 全部自启，PG 恢复 active+clean，数据 MD5 一致 + fsck 通过。
 
 **与 FT-001/FT-002 的关键区别**：
 
-| | FT-001/FT-002（1 OSD SIGKILL/EIO） | FT-003（节点隔离） |
+| | FT-001/FT-002（1 OSD SIGKILL/EIO） | FT-003（断电） |
 |---|---|---|
 | 故障范围 | 1 OSD | 2 OSD + 1 MON + 1 TiKV + 1 PD |
-| 网络行为 | TCP RST（进程退出） | **iptables DROP**（不回 RST） |
-| fast fail | ✓ | ✗（DROP 无 RST，客户端不知道连接断了） |
-| peering | ✓（~2s） | ✓（~2s） |
-| 写入能否成功 | ✓（5 ≥ min_size=5） | ✗（4 < min_size=5） |
-| I/O 恢复时间 | 0.7-2.6s(FT-001) / 2.2-4.7s(FT-002) | **~500s**（TCP 重传超时） |
+| 网络行为 | TCP RST（进程退出，内核发 RST） | 断电不回 RST（TCP 连接半开） |
+| 写入能否成功 | ✓（5 ≥ min_size=4） | ✗（4 OSD，EC 4+2 写需 6 chunk） |
+| I/O 恢复时间 | 0.7-2.6s(FT-001) / 2.2-4.7s(FT-002) | ~22s（新读）/ ~32s（旧读最坏） |
 
-**故障检测路径（多层恢复，但客户端卡在 TCP 超时）**：
+**故障检测与 I/O 恢复时间线**：
 
 ```
-T=0      iptables DROP → 节点全部流量被丢弃
-         │
-         ├─ Ceph 数据面：
-         │  OSD 进程活着但无法通信 → heartbeat 20s 超时 → MON 标记 down
-         │  → peering ~2s → PG active+degraded
-         │  → 4 OSD 可用，读可以（EC k=4），写不行（4 < min_size=5）
-         │
-         ├─ TiKV/PD 元数据面：
-         │  PD leader 隔离 → Raft 选举 → 新 leader ~16s
-         │  TiKV store 隔离 → PD 标记 store Down
-         │  → 集群层面元数据面已恢复
-         │
-         └─ JuiceFS 客户端（.12）：
-            TCP 连接到宕机节点的 PD/TiKV → 半开（DROP 无 RST）
-            → 客户端不知道连接断了 → 持续重传
-            → TCP 重传超时（~500s）→ 检测到连接断开
-            → 切换到健康节点的 PD/TiKV → I/O 恢复
-            ↑
-            这才是 500s 的真正来源
+T=0      断电 → 节点全部停止
+T~20s    OSD heartbeat 超时 → MON 标记 down → PG peering ~2s → active+degraded
+         元数据面：MON 2/3 + TiKV 2/3 + PD 2/3（majority 保持，Raft 选举完成）
+T~22s    客户端拿到新 OSD map → 新读直接路由到 up OSD → I/O 恢复
 ```
 
-> **集群恢复快（~38s），但客户端恢复慢（~500s）**：peering 和 PD leader 切换都在 38s 内完成，但 JuiceFS 客户端的 TCP 连接被 iptables DROP 半开，客户端无法感知连接已断，持续重传直到 TCP 超时。
-> 这是 **iptables DROP 模拟节点宕机的固有缺陷**——真实宕机（断电）会让 TCP 连接立即超时（对端无响应 + ARP 失败），客户端能更快感知。
+> **新读 vs 旧读**：心跳超时前（0~20s 窗口）发起的读，若命中 .14 的 OSD → TCP hang（断电不回 RST）→ 等 `rados_osd_op_timeout=30` 超时 → ETIMEDOUT → 重试到 up OSD → 最坏 ~32s。心跳超时后（20s+）发起的新读，客户端已拿到新 OSD map，直接路由到 up OSD → ~22s 恢复。
 
 **各类 I/O 表现**：
 
 | I/O 类型 | 故障期间 | 恢复后 |
 |----------|---------|--------|
-| 读（命中 4 个存活 OSD 的 PG） | **阻塞**（客户端 TCP 连接到宕机节点的 TiKV 半开，metadata 不可用） | 恢复后正常 |
-| 写 | **失败**（4 < min_size=5，EC 降级写入不满足） | 节点恢复后正常（6 ≥ min_size=5） |
-| in-flight 读 | 阻塞（同上） | — |
-| in-flight 写 | 阻塞，peering 后也失败（min_size 不满足） | — |
+| 新读（心跳超时后发起） | ~22s 恢复（heartbeat 20s + peering 2s + map 传播） | 恢复后正常 |
+| 旧读（心跳超时前命中 down OSD） | 阻塞 ~30s（rados_osd_op_timeout）后重试成功 | — |
+| 写 | **不可用**（EC 4+2 写需 6 chunk，4 OSD 不足） | 节点恢复后正常 |
 
-> **写入和 FT-001/FT-002 的关键区别**：FT-001/FT-002 只 down 1 OSD，5 ≥ min_size(5)，写入可成功。FT-003 down 2 OSD，4 < min_size(5)，写入在整个故障期间不可用。
-> **读取也不同于 FT-001/FT-002**：即使 Ceph peering 完成（4 OSD 可用，EC k=4 可读），JuiceFS 客户端的 metadata 请求仍卡在半开 TCP 连接上，导致读取也无法完成。
+**恢复后行为**（上电后）：
 
-**实测数据**（最近一次 FT-003 运行）：
+| 服务 | 自启方式 | 预计恢复 |
+|------|---------|---------|
+| OSD | cephadm（数据在持久 LV，DB/WAL 在数据盘上） | ~0s |
+| MON | cephadm（systemd unit） | ~10-20s |
+| TiKV | systemd Restart=always | ~0s |
+| PD | systemd Restart=always | ~0s |
+| PG | EC 重建（2 OSD 重新加入） | ~2s active+clean |
 
-| 指标 | 值 | 说明 |
-|------|-----|------|
-| PD leader 切换 | 16s | Raft 选举完成 |
-| OSD 标记 down | ~22s | heartbeat 20s grace + 处理 |
-| peering | ~2s | 与 FT-001 一致 |
-| 集群恢复总计 | ~38s | PD + OSD + MON 全部恢复 |
-| I/O 恢复（首次读成功） | **~500s** | 探测耗时 558s，8 次失败（每次 60s timeout） |
-| I/O 恢复后写入 | 不可用 | 4 < min_size(5)，节点恢复后写入才可用 |
-| 恢复后成功率 | 100% | 节点恢复后 I/O 全部正常 |
-
-> I/O 恢复的 ~500s 远超集群恢复的 ~38s，差额 ~462s 是 JuiceFS 客户端 TCP 重传超时。
-> 探测机制每 15s 发起一次读取（loop 变量），但每次失败的 dd 有 60s timeout，实际每次迭代耗时 ~62s。8 次失败 = 8 × 62s = 496s，第 9 次成功。
+> 上电后所有服务自启，无需手动恢复。OSD 数据在持久 LV，断电不丢失。
 
 ### FT-004：单 TiKV down（元数据面选举延迟 + 数据面不受影响）
 
@@ -151,14 +123,14 @@ T=0      iptables DROP → 节点全部流量被丢弃
 | 指标 | 值 | 说明 |
 |------|-----|------|
 | 元数据成功率 | 71/71 = 100% | 阻塞后自然恢复 |
-| 元数据最大延迟 | **15.5s** | 落在 Raft 选举超时 10-20s 范围内 |
+| 元数据最大延迟 | **15.5s** | gRPC keepalive 13s + 客户端硬编码 ~4s（非 Raft 选举，选举 1-2s 完成） |
 | fio 成功率 | 100% | 数据面不受影响 |
 | fio P99 | 17.1s | 与基线相同（稳态排队延迟） |
 | OSD | 6/6 up | 数据面完全不受影响 |
 | 集群健康 | HEALTH_OK | 全程无 ERR |
 
 > 数据面 fio 走 Ceph 直连 RADOS，不经过 TiKV，不受影响。
-> 元数据操作（touch/create）需查 TiKV，选举期间阻塞 10-20s。
+> 元数据操作（touch/create）需查 TiKV，阻塞 ~15s（客户端检测链，非 Raft 选举——选举 1-2s 完成，但客户端要 13s 才检测到连接死亡 + ~4s 重连）。
 
 #### 元数据恢复延迟分析
 
@@ -194,9 +166,14 @@ T=0      iptables DROP → 节点全部流量被丢弃
 
 | 项 | 值 |
 |----|-----|
-| 考察点 | 备用盘（tmpfs 模拟）能加入集群并发挥作用 |
-| 验证方式 | 销毁 OSD A → tmpfs 备用盘替代 → 恢复后对另一盘 B 注入故障 → I/O 正常说明备用盘真正生效 |
+| 考察点 | OSD 销毁后原盘重建（物理 LV，DB/WAL 在数据盘上） |
+| 验证方式 | 销毁 OSD A → 原盘 wipefs+lvremove+lvcreate 清 LVM 标签 → ceph orch daemon add 重建 → 恢复后 down 2 OSD 验证重建 OSD 有数据 |
+| 关键断言 | 重建后 6/6 OSD up、PG active+clean、重建 OSD 有数据、down 2 OSD 后 4 OSD ≥ k=4 数据可读 |
 | 预估时长 | ~20min |
+
+> **实测结果**（`results/20260813-214527/`，29/29 PASS）：OSD A=osd.2 on .11，LV=`/dev/ceph-vg-ceph-node1/osd_2`。purge → lvremove+lvcreate（清 ceph LVM 标签）→ `ceph orch daemon add` 重建。重建后 338MB 数据，加入全部 PG acting set。Phase 2 SIGKILL osd.9(.13)+osd.4(.14) → 4 OSD 刚好 k=4 → 基线数据 md5 匹配（备用盘生效）。
+>
+> 关键修复：`_get_osd_data_lv` 通过 `/dev/mapper/` 解析 dm 路径到 LV 路径（`lvs` 不认 dm 路径）；`_zap_lv` 用 `lvremove+lvcreate` 替代 `wipefs`（wipefs 不清 LVM 标签 → "already created?" 报错）。
 
 ---
 
@@ -338,10 +315,24 @@ I/O 提交的 fast path 不碰 `monc_lock` → 吞吐不会降到 0。
 
 | 项 | 值 |
 |----|-----|
-| 操作 | 逐节点 reboot（tmpfs 丢失 = 每节点 2 OSD 走重建路径） |
-| 关键断言 | 重建流程逐节点可重复、重建后数据完整、单节点重建期间数据可用 |
-| 预估时长 | ~3×单节点重建时长 |
-| 状态 | ⚠️ 暂不执行（需 reboot 节点，影响大） |
+| 操作 | reboot 1 个存储节点（.14），验证所有服务自启 + 全程数据可用 |
+| 关键断言 | SSH 恢复 < 300s、6/6 OSD 自启、3/3 TiKV 自启、3/3 MON 自启、PG 恢复 active+clean、数据 md5 匹配、juicefs fsck 通过 |
+| 预估时长 | ~10min |
+
+**实测结果**（`results/20260813-213214/`，22/22 PASS）：
+
+| 指标 | 值 | 说明 |
+|------|-----|------|
+| SSH 恢复 | 210s | .14 重启后 SSH 恢复时间 |
+| OSD 自启 | 6/6 up | DB/WAL 在数据盘 LV 上（无 tmpfs），reboot 后自启 |
+| TiKV 自启 | 3/3 Up | systemd Restart=always |
+| MON 自启 | 3/3 quorum | cephadm 管理 |
+| PG 恢复 | active+clean | EC 重建完成 |
+| 数据完整 | md5 匹配 | 基线 100MB 文件读写校验 |
+| fsck | 通过 | `sudo CEPH_CONF=/etc/ceph/ceph.conf juicefs fsck` |
+
+> OSD DB/WAL 必须在持久存储上（数据盘 LV），不能用 tmpfs——tmpfs 重启后丢失导致 OSD 无法自启。之前 .13 的 osd.8/osd.9 因 DB 在 tmpfs loop 设备上，reboot 后 OSD error。已重建为 osd.5/osd.6（DB/WAL 在数据盘），reboot 后正常自启。
+> fsck 需要 `sudo CEPH_CONF=/etc/ceph/ceph.conf` 前缀——直连 RADOS 模式下 keyring 是 600 root:root，turboai 用户读不到。
 
 ### DG-001：OSD down 吞吐退化
 
@@ -353,7 +344,7 @@ I/O 提交的 fast path 不碰 `monc_lock` → 吞吐不会降到 0。
 
 **I/O 行为总结**：比较 6/6 OSD up vs 5/6 OSD down（稳态 active+degraded）的吞吐差异。两轮相同时长 fio（randread，预创建文件避免元数据干扰），唯一变量是有无 OSD down。
 
-**实测结果**：基线 IOPS=164，降级 IOPS=192，比率=110%。**单 OSD down 对稳态吞吐无可测量影响。** 瓶颈在 FUSE/JuiceFS（~233 IOPS），不在 Ceph OSD——5 个 OSD 足够支撑 FUSE 瓶颈吞吐，少 1 个不影响。
+**实测结果**（`results/20260813-214527/`，11/11 PASS）：基线 IOPS=164，降级 IOPS=192，比率=110%。**单 OSD down 对稳态吞吐无可测量影响。** 瓶颈在 FUSE/JuiceFS（~233 IOPS），不在 Ceph OSD——5 个 OSD 足够支撑 FUSE 瓶颈吞吐，少 1 个不影响。
 
 ### DG-002：TiKV down 吞吐退化
 
@@ -365,7 +356,7 @@ I/O 提交的 fast path 不碰 `monc_lock` → 吞吐不会降到 0。
 
 **I/O 行为总结**：比较 3/3 TiKV up vs 2/3 TiKV down（Raft leader 切换后稳态）的吞吐差异。两轮相同时长 fio（randread，预创建文件避免元数据干扰），唯一变量是有无 TiKV down。
 
-**实测结果**：基线 IOPS=164，降级 IOPS=181，比率=110%。**单 TiKV down 对稳态吞吐无可测量影响。** TiKV down 只影响 1/3 region，Raft 切换后其余正常。数据 I/O 走 Ceph 直连 RADOS，不经过 TiKV。
+**实测结果**（`results/20260813-214527/`，11/11 PASS）：基线 IOPS=164，降级 IOPS=181，比率=110%。**单 TiKV down 对稳态吞吐无可测量影响。** TiKV down 只影响 1/3 region，Raft 切换后其余正常。数据 I/O 走 Ceph 直连 RADOS，不经过 TiKV。
 
 > **注意**：使用 `randrw`（含文件创建）时会出现 IOPS 下降（256→149，-42%），但这是 `--create_on_open=1` 在 TiKV down 时文件创建变慢导致，不是数据吞吐问题。改用 `randread`（预创建文件）后影响消失。
 

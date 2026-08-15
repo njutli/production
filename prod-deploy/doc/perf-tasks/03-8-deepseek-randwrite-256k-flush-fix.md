@@ -1,7 +1,7 @@
 # 03-8-deepseek：randwrite@256K 崩塌根因修复验证（write 路径 FlushTo 竞态补丁）
 
 > 任务书类型：**一个根因修复验证**（DeepSeek 源码定位 + 补丁，GLM 执行验证）
-> 作者：DeepSeek（opencode 复核）　｜　日期：2026-08-13　｜　执行方：GLM
+> 作者：DeepSeek　｜　日期：2026-08-13　｜　执行方：GLM
 > 母文档：03-7-lite 分析（`/tmp/opencode/t37l-analysis-20260813.md`）、评审（`/tmp/deepseek-coaching/review-20260813-03-7L.md`）
 > 🔴 **所有统计量由 opencode 计算，GLM 只出原始数字与原文粘贴**（同 03-7-lite 口径）
 
