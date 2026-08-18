@@ -1,0 +1,24 @@
+diff --git a/pkg/vfs/writer.go b/pkg/vfs/writer.go
+index 91297fa4..937a6a20 100644
+--- a/pkg/vfs/writer.go
++++ b/pkg/vfs/writer.go
+@@ -280,7 +280,18 @@ func (f *fileWriter) writeChunk(ctx meta.Context, indx uint32, off uint32, data
+ 			notify:  utils.NewCond(&f.Mutex),
+ 			started: time.Now(),
+ 		}
+-		go s.prepareID(meta.Background(), false)
++		// Allocate the slice ID synchronously: NewSlice is a local counter
++		// (a metadata roundtrip only once per 4096 slices). The old async
++		// registration leaves a window where the first (and for random
++		// writes, the only) write fills the slice to blockSize while
++		// s.id is still 0, so FlushTo() skips the upload permanently.
++		var id uint64
++		if st := f.w.m.NewSlice(meta.Background(), &id); st == 0 {
++			s.id = id
++			s.writer.SetID(id)
++		} else {
++			go s.prepareID(meta.Background(), false)
++		}
+ 		c.slices = append(c.slices, s)
+ 		if len(c.slices) == 1 {
+ 			f.w.Lock()

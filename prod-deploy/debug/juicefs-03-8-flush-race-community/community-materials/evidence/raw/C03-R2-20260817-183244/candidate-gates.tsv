@@ -1,0 +1,25 @@
+gate	status	evidence
+input_integrity	YES	meta/input-check-{start,end}.log
+upstream_freeze	YES	meta/upstream-commit.txt
+upstream_policy_ci	YES	meta/upstream-ci-matrix.tsv
+upstream_stock_oracle	YES	meta/stock-results.tsv
+B_standard_apply	YES	rc/B-apply-check.rc,rc/B-apply.rc
+B_community_single	YES	meta/community-results.tsv
+B_community_count100	YES	meta/community-results.tsv
+B_community_race20	YES	meta/community-results.tsv
+Q_semantic_single	YES	meta/semantic-results.tsv
+Q_semantic_count100	YES	meta/semantic-results.tsv
+Q_semantic_race20	YES	meta/semantic-results.tsv
+B_full_vfs	YES	rc/*-B-candidate-full-vfs.rc
+redis_lifecycle	YES	meta/redis-lifecycle.tsv
+B_gofmt_diff_license	YES	rc/gofmt-check.rc
+B_tidy	YES	rc/*-mod-tidy.rc
+B_vet	YES	rc/*-vet.rc
+B_lint	YES	rc/lint-run.rc,meta/lint-binary.sha256
+B_linux_build	YES	rc/*-make-juicefs.rc
+B_lite_build	YES	rc/*-make-juicefs-lite.rc
+patch_replay	YES	rc/R-replay-diff-cmp.rc
+community_search	YES	community-search/
+community_drafts_secret_scan	YES	logs/community-artifact-secret-scan.log (empty)
+source_asset_guards	YES	rc/*-diffcheck,logs/protected-cmp.log
+execution_audit	YES	rc/anchor-cmp.log,logs/forbidden-real.log

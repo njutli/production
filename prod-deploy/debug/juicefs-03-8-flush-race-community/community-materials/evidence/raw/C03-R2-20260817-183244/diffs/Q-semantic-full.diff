@@ -1,0 +1,553 @@
+diff --git a/pkg/vfs/writer.go b/pkg/vfs/writer.go
+index 91297fa4b8bbcea99bcff69c7b466884e33b1011..ed432cc67c0a6c238aaa9836a882795469dc9c7e 100644
+--- a/pkg/vfs/writer.go
++++ b/pkg/vfs/writer.go
+@@ -94,6 +94,13 @@ func (s *sliceWriter) prepareID(ctx meta.Context, retry bool) {
+ 	}
+ 	if s.writer != nil && s.writer.ID() == 0 {
+ 		s.writer.SetID(s.id)
++		if s.id > 0 && !s.freezed && int(s.slen) >= f.w.blockSize {
++			if err := s.writer.FlushTo(int(s.slen)); err != nil {
++				logger.Warnf("flush inode: %v chunk: %d after preparing slice ID: %s",
++					s.chunk.file.inode, s.id, err)
++				s.err = syscall.EIO
++			}
++		}
+ 	}
+ 	f.Unlock()
+ }
+diff --git a/pkg/vfs/writer_flush_c02_test.go b/pkg/vfs/writer_flush_c02_test.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..94234440f0d814e52d44c4712a136401d794ec6a
+--- /dev/null
++++ b/pkg/vfs/writer_flush_c02_test.go
+@@ -0,0 +1,529 @@
++package vfs
++
++import (
++	"errors"
++	"sync"
++	"syscall"
++	"testing"
++	"time"
++
++	"github.com/juicedata/juicefs/pkg/chunk"
++	"github.com/juicedata/juicefs/pkg/meta"
++	"github.com/juicedata/juicefs/pkg/object"
++	"github.com/juicedata/juicefs/pkg/utils"
++)
++
++const c02BlockSize = 256 << 10
++
++type c02NewSliceStep struct {
++	id      uint64
++	errno   syscall.Errno
++	release <-chan struct{}
++}
++
++type c02PlannedMeta struct {
++	meta.Meta
++	mu    sync.Mutex
++	steps []c02NewSliceStep
++	calls int
++}
++
++func newC02PlannedMeta(steps ...c02NewSliceStep) *c02PlannedMeta {
++	return &c02PlannedMeta{steps: steps}
++}
++
++func (m *c02PlannedMeta) NewSlice(_ meta.Context, id *uint64) syscall.Errno {
++	m.mu.Lock()
++	call := m.calls
++	m.calls++
++	step := m.steps[len(m.steps)-1]
++	if call < len(m.steps) {
++		step = m.steps[call]
++	}
++	m.mu.Unlock()
++
++	if step.release != nil {
++		<-step.release
++	}
++	if step.errno == 0 {
++		*id = step.id
++	}
++	return step.errno
++}
++
++func (m *c02PlannedMeta) Calls() int {
++	m.mu.Lock()
++	defer m.mu.Unlock()
++	return m.calls
++}
++
++type c02RecordingWriter struct {
++	mu          sync.Mutex
++	id          uint64
++	flushes     []int
++	finishes    []int
++	aborts      int
++	flushErr    error
++	finishErr   error
++	writeAtOnce sync.Once
++	writeAtCh   chan struct{}
++}
++
++func newC02RecordingWriter() *c02RecordingWriter {
++	return &c02RecordingWriter{writeAtCh: make(chan struct{})}
++}
++
++func (w *c02RecordingWriter) WriteAt(p []byte, _ int64) (int, error) {
++	w.writeAtOnce.Do(func() { close(w.writeAtCh) })
++	return len(p), nil
++}
++
++func (w *c02RecordingWriter) ID() uint64 {
++	w.mu.Lock()
++	defer w.mu.Unlock()
++	return w.id
++}
++
++func (w *c02RecordingWriter) SetID(id uint64) {
++	w.mu.Lock()
++	w.id = id
++	w.mu.Unlock()
++}
++
++func (w *c02RecordingWriter) SetWriteback(bool) {}
++
++func (w *c02RecordingWriter) FlushTo(offset int) error {
++	w.mu.Lock()
++	defer w.mu.Unlock()
++	w.flushes = append(w.flushes, offset)
++	return w.flushErr
++}
++
++func (w *c02RecordingWriter) Finish(length int) error {
++	w.mu.Lock()
++	defer w.mu.Unlock()
++	w.finishes = append(w.finishes, length)
++	return w.finishErr
++}
++
++func (w *c02RecordingWriter) Abort() {
++	w.mu.Lock()
++	w.aborts++
++	w.mu.Unlock()
++}
++
++func (w *c02RecordingWriter) State() (uint64, []int, []int, int) {
++	w.mu.Lock()
++	defer w.mu.Unlock()
++	return w.id, append([]int(nil), w.flushes...), append([]int(nil), w.finishes...), w.aborts
++}
++
++type c02ChunkStore struct {
++	writer chunk.Writer
++}
++
++func (s *c02ChunkStore) NewReader(uint64, int) chunk.Reader { return nil }
++
++func (s *c02ChunkStore) NewWriter(uint64, uint8) chunk.Writer { return s.writer }
++
++func (s *c02ChunkStore) Remove(uint64, int) error { return nil }
++
++func (s *c02ChunkStore) FillCache(uint64, uint32) error { return nil }
++
++func (s *c02ChunkStore) EvictCache(uint64, uint32) error { return nil }
++
++func (s *c02ChunkStore) CheckCache(uint64, uint32, func(bool, string, int)) error {
++	return nil
++}
++
++func (s *c02ChunkStore) UsedMemory() int64 { return 0 }
++
++func (s *c02ChunkStore) UpdateLimit(int64, int64) {}
++
++func (s *c02ChunkStore) BlobStorage() object.ObjectStorage { return nil }
++
++type c02Harness struct {
++	f      *fileWriter
++	c      *chunkWriter
++	meta   *c02PlannedMeta
++	writer *c02RecordingWriter
++}
++
++func newC02Harness(m *c02PlannedMeta, writer *c02RecordingWriter) *c02Harness {
++	w := &dataWriter{
++		m:         m,
++		store:     &c02ChunkStore{writer: writer},
++		blockSize: c02BlockSize,
++	}
++	f := &fileWriter{
++		w:      w,
++		inode:  2,
++		chunks: make(map[uint32]*chunkWriter),
++	}
++	c := &chunkWriter{indx: 0, file: f}
++	// The dummy non-overlapping slice prevents writeChunk from starting
++	// commitThread; C02 tests the dispatch state machine in isolation.
++	c.slices = []*sliceWriter{{
++		chunk:   c,
++		off:     8 * c02BlockSize,
++		slen:    c02BlockSize,
++		freezed: true,
++	}}
++	f.chunks[0] = c
++	return &c02Harness{f: f, c: c, meta: m, writer: writer}
++}
++
++func (h *c02Harness) writeAsync(off uint32, data []byte) <-chan syscall.Errno {
++	done := make(chan syscall.Errno, 1)
++	go func() {
++		h.f.Lock()
++		st := h.f.writeChunk(meta.Background(), 0, off, data)
++		h.f.Unlock()
++		done <- st
++	}()
++	return done
++}
++
++func (h *c02Harness) newestSlice() *sliceWriter {
++	h.f.Lock()
++	defer h.f.Unlock()
++	return h.c.slices[len(h.c.slices)-1]
++}
++
++func (h *c02Harness) setFreezed(s *sliceWriter) {
++	h.f.Lock()
++	s.freezed = true
++	h.f.Unlock()
++}
++
++func (h *c02Harness) sliceErr(s *sliceWriter) syscall.Errno {
++	h.f.Lock()
++	defer h.f.Unlock()
++	return s.err
++}
++
++func c02WaitFor(timeout time.Duration, condition func() bool) bool {
++	deadline := time.Now().Add(timeout)
++	for time.Now().Before(deadline) {
++		if condition() {
++			return true
++		}
++		time.Sleep(time.Millisecond)
++	}
++	return condition()
++}
++
++func c02WaitWrite(t *testing.T, done <-chan syscall.Errno) syscall.Errno {
++	t.Helper()
++	select {
++	case st := <-done:
++		return st
++	case <-time.After(2 * time.Second):
++		t.Fatal("writeChunk did not return")
++		return syscall.EIO
++	}
++}
++
++func c02WaitFlushData(t *testing.T, done <-chan struct{}) {
++	t.Helper()
++	select {
++	case <-done:
++	case <-time.After(2 * time.Second):
++		t.Fatal("flushData did not return")
++	}
++}
++
++func c02AssertOneFlush(t *testing.T, writer *c02RecordingWriter, want int, marker string) {
++	t.Helper()
++	if !c02WaitFor(750*time.Millisecond, func() bool {
++		_, flushes, _, _ := writer.State()
++		return len(flushes) > 0
++	}) {
++		t.Fatalf("%s: FlushTo(%d) was not observed", marker, want)
++	}
++	time.Sleep(50 * time.Millisecond)
++	_, flushes, _, _ := writer.State()
++	if len(flushes) != 1 || flushes[0] != want {
++		t.Fatalf("FlushTo calls = %v, want [%d]", flushes, want)
++	}
++}
++
++func TestC02FullBlockDispatchAfterDelayedID(t *testing.T) {
++	release := make(chan struct{})
++	m := newC02PlannedMeta(c02NewSliceStep{id: 11, release: release})
++	w := newC02RecordingWriter()
++	h := newC02Harness(m, w)
++
++	done := h.writeAsync(0, make([]byte, c02BlockSize))
++	if !c02WaitFor(time.Second, func() bool { return m.Calls() == 1 }) {
++		t.Fatal("NewSlice was not called")
++	}
++	close(release)
++	if st := c02WaitWrite(t, done); st != 0 {
++		t.Fatalf("writeChunk returned %s", st)
++	}
++	c02AssertOneFlush(t, w, c02BlockSize, "C02_MISSED_DISPATCH")
++}
++
++func TestC02MultiBlockDispatchUsesLatestLength(t *testing.T) {
++	release := make(chan struct{})
++	m := newC02PlannedMeta(c02NewSliceStep{id: 12, release: release})
++	w := newC02RecordingWriter()
++	h := newC02Harness(m, w)
++
++	done := h.writeAsync(0, make([]byte, 2*c02BlockSize))
++	if !c02WaitFor(time.Second, func() bool { return m.Calls() == 1 }) {
++		t.Fatal("NewSlice was not called")
++	}
++	close(release)
++	if st := c02WaitWrite(t, done); st != 0 {
++		t.Fatalf("writeChunk returned %s", st)
++	}
++	c02AssertOneFlush(t, w, 2*c02BlockSize, "C02_MISSED_MULTI_DISPATCH")
++}
++
++func TestC02FlushToFailureIsObservable(t *testing.T) {
++	release := make(chan struct{})
++	m := newC02PlannedMeta(c02NewSliceStep{id: 13, release: release})
++	w := newC02RecordingWriter()
++	w.flushErr = errors.New("C02 injected FlushTo failure")
++	h := newC02Harness(m, w)
++
++	done := h.writeAsync(0, make([]byte, c02BlockSize))
++	if !c02WaitFor(time.Second, func() bool { return m.Calls() == 1 }) {
++		t.Fatal("NewSlice was not called")
++	}
++	close(release)
++	writeErr := c02WaitWrite(t, done)
++	s := h.newestSlice()
++	_ = c02WaitFor(750*time.Millisecond, func() bool {
++		_, flushes, _, _ := w.State()
++		return len(flushes) > 0 || h.sliceErr(s) != 0
++	})
++
++	sliceErr := h.sliceErr(s)
++	_, flushes, _, _ := w.State()
++	if writeErr != syscall.EIO && sliceErr != syscall.EIO {
++		t.Fatalf("C02_SWALLOWED_FLUSH_ERROR: write=%s slice=%s flushes=%v", writeErr, sliceErr, flushes)
++	}
++	if len(flushes) != 1 || flushes[0] != c02BlockSize {
++		t.Fatalf("FlushTo calls = %v, want [%d]", flushes, c02BlockSize)
++	}
++}
++
++func TestC02PartialThenFullAfterIDDispatchesOnce(t *testing.T) {
++	release := make(chan struct{})
++	m := newC02PlannedMeta(c02NewSliceStep{id: 14, release: release})
++	w := newC02RecordingWriter()
++	h := newC02Harness(m, w)
++
++	first := h.writeAsync(0, make([]byte, c02BlockSize/2))
++	if !c02WaitFor(time.Second, func() bool { return m.Calls() == 1 }) {
++		t.Fatal("NewSlice was not called")
++	}
++	close(release)
++	if st := c02WaitWrite(t, first); st != 0 {
++		t.Fatalf("first writeChunk returned %s", st)
++	}
++	if !c02WaitFor(time.Second, func() bool { return w.ID() == 14 }) {
++		t.Fatal("slice ID was not assigned")
++	}
++
++	second := h.writeAsync(c02BlockSize/2, make([]byte, c02BlockSize/2))
++	if st := c02WaitWrite(t, second); st != 0 {
++		t.Fatalf("second writeChunk returned %s", st)
++	}
++	c02AssertOneFlush(t, w, c02BlockSize, "C02_PARTIAL_FULL_MISSED")
++}
++
++func TestC02DelayedNewSliceDoesNotBlockWriteAt(t *testing.T) {
++	release := make(chan struct{})
++	m := newC02PlannedMeta(c02NewSliceStep{id: 15, release: release})
++	w := newC02RecordingWriter()
++	h := newC02Harness(m, w)
++
++	done := h.writeAsync(0, make([]byte, c02BlockSize/2))
++	if !c02WaitFor(time.Second, func() bool { return m.Calls() == 1 }) {
++		t.Fatal("NewSlice was not called")
++	}
++	select {
++	case <-w.writeAtCh:
++		close(release)
++	case <-time.After(500 * time.Millisecond):
++		close(release)
++		_ = c02WaitWrite(t, done)
++		t.Fatal("C02_BLOCKING_REGRESSION: WriteAt did not run before delayed NewSlice was released")
++	}
++	if st := c02WaitWrite(t, done); st != 0 {
++		t.Fatalf("writeChunk returned %s", st)
++	}
++	if !c02WaitFor(time.Second, func() bool { return w.ID() == 15 }) {
++		t.Fatal("slice ID was not assigned")
++	}
++}
++
++func TestC02NonEIONewSliceDoesNotRetryBeforeFlush(t *testing.T) {
++	secondRelease := make(chan struct{})
++	m := newC02PlannedMeta(
++		c02NewSliceStep{errno: syscall.ENOSPC},
++		c02NewSliceStep{errno: syscall.ENOSPC, release: secondRelease},
++	)
++	w := newC02RecordingWriter()
++	h := newC02Harness(m, w)
++
++	done := h.writeAsync(0, make([]byte, c02BlockSize/2))
++	if st := c02WaitWrite(t, done); st != 0 {
++		t.Fatalf("writeChunk returned %s", st)
++	}
++	if !c02WaitFor(time.Second, func() bool { return m.Calls() >= 1 }) {
++		t.Fatal("NewSlice was not called")
++	}
++	if c02WaitFor(500*time.Millisecond, func() bool { return m.Calls() >= 2 }) {
++		close(secondRelease)
++		t.Fatal("C02_EXTRA_NEWSLICE_ATTEMPT: non-EIO NewSlice failure was retried before flush")
++	}
++}
++
++func TestC02TransientEIORecoversOnFreeze(t *testing.T) {
++	secondRelease := make(chan struct{})
++	m := newC02PlannedMeta(
++		c02NewSliceStep{errno: syscall.EIO},
++		c02NewSliceStep{id: 21, release: secondRelease},
++	)
++	w := newC02RecordingWriter()
++	h := newC02Harness(m, w)
++
++	done := h.writeAsync(0, make([]byte, c02BlockSize))
++	if st := c02WaitWrite(t, done); st != 0 {
++		t.Fatalf("writeChunk returned %s", st)
++	}
++	if !c02WaitFor(time.Second, func() bool { return m.Calls() >= 1 }) {
++		t.Fatal("first NewSlice was not called")
++	}
++	s := h.newestSlice()
++	h.setFreezed(s)
++	flushDone := make(chan struct{})
++	go func() {
++		s.flushData()
++		close(flushDone)
++	}()
++	if !c02WaitFor(time.Second, func() bool { return m.Calls() >= 2 }) {
++		t.Fatal("retry NewSlice was not called")
++	}
++	close(secondRelease)
++	c02WaitFlushData(t, flushDone)
++
++	id, flushes, finishes, aborts := w.State()
++	if id != 21 || len(flushes) != 0 || len(finishes) != 1 || finishes[0] != c02BlockSize || aborts != 0 {
++		t.Fatalf("state id=%d flushes=%v finishes=%v aborts=%d", id, flushes, finishes, aborts)
++	}
++	if err := h.sliceErr(s); err != 0 {
++		t.Fatalf("slice err = %s, want success", err)
++	}
++}
++
++func TestC02PermanentENOSPCAbortsFrozenSlice(t *testing.T) {
++	m := newC02PlannedMeta(c02NewSliceStep{errno: syscall.ENOSPC})
++	w := newC02RecordingWriter()
++	h := newC02Harness(m, w)
++
++	done := h.writeAsync(0, make([]byte, c02BlockSize))
++	if st := c02WaitWrite(t, done); st != 0 {
++		t.Fatalf("writeChunk returned %s", st)
++	}
++	s := h.newestSlice()
++	if !c02WaitFor(time.Second, func() bool { return h.sliceErr(s) == syscall.ENOSPC }) {
++		t.Fatalf("slice err = %s, want ENOSPC", h.sliceErr(s))
++	}
++	h.setFreezed(s)
++	s.flushData()
++
++	_, flushes, finishes, aborts := w.State()
++	if len(flushes) != 0 || len(finishes) != 0 || aborts != 1 {
++		t.Fatalf("flushes=%v finishes=%v aborts=%d, want 0/0/1", flushes, finishes, aborts)
++	}
++	if err := h.sliceErr(s); err != syscall.ENOSPC {
++		t.Fatalf("slice err = %s, want ENOSPC", err)
++	}
++}
++
++func TestC02FrozenSliceSkipsCatchupFlush(t *testing.T) {
++	release := make(chan struct{})
++	m := newC02PlannedMeta(c02NewSliceStep{id: 22, release: release})
++	w := newC02RecordingWriter()
++	h := newC02Harness(m, w)
++	s := &sliceWriter{
++		chunk:   h.c,
++		slen:    c02BlockSize,
++		freezed: true,
++		writer:  w,
++		notify:  utils.NewCond(&h.f.Mutex),
++		started: time.Now(),
++	}
++	h.f.Lock()
++	h.c.slices = append(h.c.slices, s)
++	h.f.Unlock()
++
++	prepareDone := make(chan struct{})
++	go func() {
++		s.prepareID(meta.Background(), false)
++		close(prepareDone)
++	}()
++	if !c02WaitFor(time.Second, func() bool { return m.Calls() == 1 }) {
++		t.Fatal("NewSlice was not called")
++	}
++	close(release)
++	c02WaitFlushData(t, prepareDone)
++	if _, flushes, _, _ := w.State(); len(flushes) != 0 {
++		t.Fatalf("freezed slice catch-up called FlushTo: %v", flushes)
++	}
++	s.flushData()
++	id, flushes, finishes, aborts := w.State()
++	if id != 22 || len(flushes) != 0 || len(finishes) != 1 || finishes[0] != c02BlockSize || aborts != 0 {
++		t.Fatalf("state id=%d flushes=%v finishes=%v aborts=%d", id, flushes, finishes, aborts)
++	}
++}
++
++func TestC02ConcurrentIndependentFullBlocks(t *testing.T) {
++	const workers = 32
++	type worker struct {
++		h    *c02Harness
++		done <-chan syscall.Errno
++	}
++	items := make([]worker, workers)
++	start := make(chan struct{})
++	var wg sync.WaitGroup
++
++	for i := 0; i < workers; i++ {
++		m := newC02PlannedMeta(c02NewSliceStep{id: uint64(1000 + i)})
++		w := newC02RecordingWriter()
++		h := newC02Harness(m, w)
++		result := make(chan syscall.Errno, 1)
++		items[i] = worker{h: h, done: result}
++		wg.Add(1)
++		go func(h *c02Harness, result chan<- syscall.Errno) {
++			defer wg.Done()
++			<-start
++			result <- <-h.writeAsync(0, make([]byte, c02BlockSize))
++		}(h, result)
++	}
++
++	close(start)
++	wg.Wait()
++	for i, item := range items {
++		if st := c02WaitWrite(t, item.done); st != 0 {
++			t.Fatalf("worker %d writeChunk returned %s", i, st)
++		}
++		if !c02WaitFor(time.Second, func() bool {
++			id, flushes, _, _ := item.h.writer.State()
++			return id != 0 && len(flushes) == 1
++		}) {
++			id, flushes, _, _ := item.h.writer.State()
++			t.Fatalf("worker %d id=%d flushes=%v", i, id, flushes)
++		}
++		id, flushes, _, _ := item.h.writer.State()
++		if id != uint64(1000+i) || len(flushes) != 1 || flushes[0] != c02BlockSize {
++			t.Fatalf("worker %d id=%d flushes=%v", i, id, flushes)
++		}
++	}
++}

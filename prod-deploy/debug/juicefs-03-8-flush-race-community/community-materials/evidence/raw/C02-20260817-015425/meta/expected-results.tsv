@@ -1,0 +1,30 @@
+test_id	test_name	arm	expected_rc_class	expected_marker
+R1	TestC02FullBlockDispatchAfterDelayedID	S-stock	FAIL	C02_MISSED_DISPATCH
+R1	TestC02FullBlockDispatchAfterDelayedID	A-sync	PASS	
+R1	TestC02FullBlockDispatchAfterDelayedID	B-async-catchup	PASS	
+R2	TestC02MultiBlockDispatchUsesLatestLength	S-stock	FAIL	C02_MISSED_MULTI_DISPATCH
+R2	TestC02MultiBlockDispatchUsesLatestLength	A-sync	PASS	
+R2	TestC02MultiBlockDispatchUsesLatestLength	B-async-catchup	PASS	
+R3	TestC02FlushToFailureIsObservable	S-stock	FAIL	C02_SWALLOWED_FLUSH_ERROR
+R3	TestC02FlushToFailureIsObservable	A-sync	PASS	
+R3	TestC02FlushToFailureIsObservable	B-async-catchup	PASS	
+C1	TestC02PartialThenFullAfterIDDispatchesOnce	S-stock	PASS	
+C1	TestC02PartialThenFullAfterIDDispatchesOnce	A-sync	PASS	
+C1	TestC02PartialThenFullAfterIDDispatchesOnce	B-async-catchup	PASS	
+C2	TestC02DelayedNewSliceDoesNotBlockWriteAt	S-stock	PASS	
+C2	TestC02DelayedNewSliceDoesNotBlockWriteAt	A-sync	FAIL	C02_BLOCKING_REGRESSION
+C2	TestC02DelayedNewSliceDoesNotBlockWriteAt	B-async-catchup	PASS	
+C3	TestC02NonEIONewSliceDoesNotRetryBeforeFlush	S-stock	PASS	
+C3	TestC02NonEIONewSliceDoesNotRetryBeforeFlush	A-sync	FAIL	C02_EXTRA_NEWSLICE_ATTEMPT
+C3	TestC02NonEIONewSliceDoesNotRetryBeforeFlush	B-async-catchup	PASS	
+F1	TestC02TransientEIORecoversOnFreeze	S-stock	PASS	
+F1	TestC02TransientEIORecoversOnFreeze	A-sync	PASS	
+F1	TestC02TransientEIORecoversOnFreeze	B-async-catchup	PASS	
+F2	TestC02PermanentENOSPCAbortsFrozenSlice	S-stock	PASS	
+F2	TestC02PermanentENOSPCAbortsFrozenSlice	A-sync	PASS	
+F2	TestC02PermanentENOSPCAbortsFrozenSlice	B-async-catchup	PASS	
+F3	TestC02FrozenSliceSkipsCatchupFlush	S-stock	PASS	
+F3	TestC02FrozenSliceSkipsCatchupFlush	A-sync	PASS	
+F3	TestC02FrozenSliceSkipsCatchupFlush	B-async-catchup	PASS	
+K1	TestC02ConcurrentIndependentFullBlocks	A-sync	PASS	
+K1	TestC02ConcurrentIndependentFullBlocks	B-async-catchup	PASS	

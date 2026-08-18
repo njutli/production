@@ -1,0 +1,225 @@
+diff --git a/pkg/vfs/writer.go b/pkg/vfs/writer.go
+index 91297fa4b8bbcea99bcff69c7b466884e33b1011..ed432cc67c0a6c238aaa9836a882795469dc9c7e 100644
+--- a/pkg/vfs/writer.go
++++ b/pkg/vfs/writer.go
+@@ -94,6 +94,13 @@ func (s *sliceWriter) prepareID(ctx meta.Context, retry bool) {
+ 	}
+ 	if s.writer != nil && s.writer.ID() == 0 {
+ 		s.writer.SetID(s.id)
++		if s.id > 0 && !s.freezed && int(s.slen) >= f.w.blockSize {
++			if err := s.writer.FlushTo(int(s.slen)); err != nil {
++				logger.Warnf("flush inode: %v chunk: %d after preparing slice ID: %s",
++					s.chunk.file.inode, s.id, err)
++				s.err = syscall.EIO
++			}
++		}
+ 	}
+ 	f.Unlock()
+ }
+diff --git a/pkg/vfs/writer_flush_test.go b/pkg/vfs/writer_flush_test.go
+new file mode 100644
+index 0000000000000000000000000000000000000000..6ff1796b8760a6a6b3c598232ad44dbf5e2162d2
+--- /dev/null
++++ b/pkg/vfs/writer_flush_test.go
+@@ -0,0 +1,201 @@
++package vfs
++
++import (
++	"sync"
++	"syscall"
++	"testing"
++	"time"
++
++	"github.com/juicedata/juicefs/pkg/chunk"
++	"github.com/juicedata/juicefs/pkg/meta"
++	"github.com/juicedata/juicefs/pkg/object"
++)
++
++type c01DelayedNewSliceMeta struct {
++	meta.Meta
++	called  chan struct{}
++	release chan struct{}
++	once    sync.Once
++}
++
++func newC01DelayedNewSliceMeta() *c01DelayedNewSliceMeta {
++	return &c01DelayedNewSliceMeta{
++		called:  make(chan struct{}),
++		release: make(chan struct{}),
++	}
++}
++
++func (m *c01DelayedNewSliceMeta) NewSlice(_ meta.Context, id *uint64) syscall.Errno {
++	m.once.Do(func() {
++		close(m.called)
++	})
++	<-m.release
++	*id = 1
++	return 0
++}
++
++type c01RecordingWriter struct {
++	mu      sync.Mutex
++	id      uint64
++	idSet   chan struct{}
++	idOnce  sync.Once
++	flushCh chan int
++}
++
++func newC01RecordingWriter() *c01RecordingWriter {
++	return &c01RecordingWriter{
++		idSet:   make(chan struct{}),
++		flushCh: make(chan int, 4),
++	}
++}
++
++func (w *c01RecordingWriter) WriteAt(p []byte, _ int64) (int, error) {
++	return len(p), nil
++}
++
++func (w *c01RecordingWriter) ID() uint64 {
++	w.mu.Lock()
++	defer w.mu.Unlock()
++	return w.id
++}
++
++func (w *c01RecordingWriter) SetID(id uint64) {
++	w.mu.Lock()
++	w.id = id
++	w.mu.Unlock()
++	w.idOnce.Do(func() {
++		close(w.idSet)
++	})
++}
++
++func (w *c01RecordingWriter) SetWriteback(bool) {}
++
++func (w *c01RecordingWriter) FlushTo(offset int) error {
++	w.flushCh <- offset
++	return nil
++}
++
++func (w *c01RecordingWriter) Finish(int) error {
++	return nil
++}
++
++func (w *c01RecordingWriter) Abort() {}
++
++type c01ChunkStore struct {
++	writer chunk.Writer
++}
++
++func (s *c01ChunkStore) NewReader(uint64, int) chunk.Reader {
++	return nil
++}
++
++func (s *c01ChunkStore) NewWriter(uint64, uint8) chunk.Writer {
++	return s.writer
++}
++
++func (s *c01ChunkStore) Remove(uint64, int) error {
++	return nil
++}
++
++func (s *c01ChunkStore) FillCache(uint64, uint32) error {
++	return nil
++}
++
++func (s *c01ChunkStore) EvictCache(uint64, uint32) error {
++	return nil
++}
++
++func (s *c01ChunkStore) CheckCache(uint64, uint32, func(bool, string, int)) error {
++	return nil
++}
++
++func (s *c01ChunkStore) UsedMemory() int64 {
++	return 0
++}
++
++func (s *c01ChunkStore) UpdateLimit(int64, int64) {}
++
++func (s *c01ChunkStore) BlobStorage() object.ObjectStorage {
++	return nil
++}
++
++func c01WriteNewSlice(t *testing.T, size int) *c01RecordingWriter {
++	t.Helper()
++
++	const blockSize = 256 << 10
++	m := newC01DelayedNewSliceMeta()
++	writer := newC01RecordingWriter()
++	w := &dataWriter{
++		m:         m,
++		store:     &c01ChunkStore{writer: writer},
++		blockSize: blockSize,
++	}
++	f := &fileWriter{
++		w:      w,
++		inode:  2,
++		chunks: make(map[uint32]*chunkWriter),
++	}
++	c := &chunkWriter{
++		indx: 0,
++		file: f,
++	}
++	c.slices = []*sliceWriter{
++		{
++			chunk:   c,
++			off:     2 * blockSize,
++			slen:    blockSize,
++			freezed: true,
++		},
++	}
++	f.chunks[0] = c
++
++	go func() {
++		<-m.called
++		close(m.release)
++	}()
++
++	f.Lock()
++	st := f.writeChunk(meta.Background(), 0, 0, make([]byte, size))
++	f.Unlock()
++	if st != 0 {
++		t.Fatalf("writeChunk returned %s", st)
++	}
++
++	select {
++	case <-writer.idSet:
++	case <-time.After(2 * time.Second):
++		t.Fatal("slice ID was not assigned")
++	}
++	return writer
++}
++
++func TestFullBlockWriteIsDispatchedWhenSliceIDBecomesReady(t *testing.T) {
++	const blockSize = 256 << 10
++	writer := c01WriteNewSlice(t, blockSize)
++
++	select {
++	case got := <-writer.flushCh:
++		if got != blockSize {
++			t.Fatalf("FlushTo offset = %d, want %d", got, blockSize)
++		}
++	case <-time.After(time.Second):
++		t.Fatal("C01_MISSED_DISPATCH: full block was not dispatched after the slice ID became ready")
++	}
++
++	select {
++	case got := <-writer.flushCh:
++		t.Fatalf("duplicate FlushTo(%d)", got)
++	case <-time.After(100 * time.Millisecond):
++	}
++}
++
++func TestPartialBlockIsNotDispatchedWhenSliceIDBecomesReady(t *testing.T) {
++	const blockSize = 256 << 10
++	writer := c01WriteNewSlice(t, blockSize/2)
++
++	select {
++	case got := <-writer.flushCh:
++		t.Fatalf("partial block unexpectedly dispatched with FlushTo(%d)", got)
++	case <-time.After(250 * time.Millisecond):
++	}
++}

@@ -1,0 +1,29 @@
+# github.com/mattn/go-sqlite3
+sqlite3-binding.c: In function ‘sqlite3ShadowTableName’:
+sqlite3-binding.c:123934:9: warning: assignment discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+123934 |   zTail = strrchr(zName, '_');
+       |         ^
+=== RUN   TestSmode
+--- PASS: TestSmode (0.00s)
+=== RUN   TestEntryString
+--- PASS: TestEntryString (0.00s)
+=== RUN   TestError
+--- PASS: TestError (0.00s)
+=== RUN   TestVFSIO
+2026/08/17 18:46:05.897479 juicefs[2855924] <INFO>: Meta address: memkv:// [NewClient@interface.go:652]
+2026/08/17 18:46:05.897890 juicefs[2855924] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "f689273e-0321-4c99-97c6-b81e70300d88",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 18:46:07.924903 juicefs[2855924] <WARNING>: compact 680 0 with 36 slices: message 1001 is not supported [compactChunk@base.go:2885]
+--- PASS: TestVFSIO (2.03s)
+PASS
+ok  	github.com/juicedata/juicefs/pkg/vfs	2.068s

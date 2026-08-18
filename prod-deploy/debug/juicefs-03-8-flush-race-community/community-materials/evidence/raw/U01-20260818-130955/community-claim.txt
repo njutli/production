@@ -1,0 +1,32 @@
+# Community Claim
+
+## What can be stated
+
+On official JuiceFS main commit 53835e2481f45cba159cdbcc1ce0f1fc576e3f1a
+(2026-08-17), the target behavior is deterministically reproducible:
+
+- A full block written before the asynchronous slice ID becomes ready is not
+  dispatched (FlushTo) after the ID is set. This is an ordering issue caused
+  by the mutex-protected prepareID goroutine, not a data race.
+- The B candidate patch adds a catch-up FlushTo after SetID in prepareID,
+  conditioned on positive ID, non-frozen state, and slen >= blockSize.
+  FlushTo errors are mapped to syscall.EIO.
+- The patch modifies only pkg/vfs/writer.go (7 lines) and adds
+  pkg/vfs/writer_flush_test.go (3 regression tests).
+- B passes all three tests, count=100, race=20, full pkg/vfs, gofmt, vet,
+  and standard Linux build.
+- The two-file patch applies cleanly via standard `git apply` on a fresh
+  clone and produces identical results.
+
+## What cannot be stated
+
+- GitHub Actions NOT RUN；未授权社区写入
+- The patch has not been reviewed by JuiceFS maintainers
+- v1.3 real Ceph randwrite performance has not been validated
+- This does not constitute a submitted or accepted PR
+
+## Patch
+
+- writer-only B input SHA256: b259513ac5b15370e129f45e0f6b8804bb0a91b2d2f2985e6111e25ca4b95355
+- latest two-file candidate SHA256: c5b188451c47ca8c88b7814bf2c7ea066df77fc193442a75dfb84472bfd5b5ec
+- community test SHA256: bce85ad4abf92a47074849a544aaa756963fb44a1839619bbc71c5d7ce1fe9bc

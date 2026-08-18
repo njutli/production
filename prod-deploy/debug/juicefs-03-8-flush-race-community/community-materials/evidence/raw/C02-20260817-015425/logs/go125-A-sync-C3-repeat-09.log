@@ -1,0 +1,11 @@
+# github.com/mattn/go-sqlite3
+sqlite3-binding.c: In function ‘sqlite3ShadowTableName’:
+sqlite3-binding.c:123934:9: warning: assignment discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+123934 |   zTail = strrchr(zName, '_');
+       |         ^
+=== RUN   TestC02NonEIONewSliceDoesNotRetryBeforeFlush
+    writer_flush_c02_test.go:383: C02_EXTRA_NEWSLICE_ATTEMPT: non-EIO NewSlice failure was retried before flush
+--- FAIL: TestC02NonEIONewSliceDoesNotRetryBeforeFlush (0.00s)
+FAIL
+FAIL	github.com/juicedata/juicefs/pkg/vfs	0.044s
+FAIL

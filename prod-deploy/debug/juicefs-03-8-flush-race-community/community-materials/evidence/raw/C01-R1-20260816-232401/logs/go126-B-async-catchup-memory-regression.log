@@ -1,0 +1,24 @@
+=== RUN   TestSmode
+--- PASS: TestSmode (0.00s)
+=== RUN   TestEntryString
+--- PASS: TestEntryString (0.00s)
+=== RUN   TestError
+--- PASS: TestError (0.00s)
+=== RUN   TestVFSIO
+2026/08/17 00:30:41.546763 juicefs[1206423] <INFO>: Meta address: memkv:// [NewClient@interface.go:652]
+2026/08/17 00:30:41.547100 juicefs[1206423] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "69d2691c-f2c2-460d-83e8-2729eadc0f80",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 00:30:43.470534 juicefs[1206423] <WARNING>: compact 42 0 with 36 slices: message 1001 is not supported [compactChunk@base.go:2885]
+--- PASS: TestVFSIO (1.92s)
+PASS
+ok  	github.com/juicedata/juicefs/pkg/vfs	1.962s

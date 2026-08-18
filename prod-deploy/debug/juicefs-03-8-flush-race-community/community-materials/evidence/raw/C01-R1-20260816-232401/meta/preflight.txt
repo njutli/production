@@ -1,0 +1,23 @@
+C01-R1 Preflight 确认
+=====================
+
+执行者：GLM
+日期：2026-08-16
+OUT：/home/lilingfeng/tmp/juicefs-c01-r1-20260816-232401
+
+已通读：
+1. 任务书 C01-R1-main-deterministic-flush-dispatch.md 全文
+2. C01 首次阻塞报告 C01-baseline-block-20260816.md
+3. TASK-BOOK-AUTHORING-GUIDE §二.8/§二.9/§二.11/§二.12
+4. SYSTEM-SAFETY-SKILL.md 全文
+5. docs/SUMMARY.md
+
+逐条确认：
+
+1. [YES] 理解首次执行没有产生缺陷或补丁结论（基线阻塞，未注入测试/补丁）
+2. [YES] 理解 R1 不跑全量 pkg/vfs 和任何 pkg/chunk 测试
+3. [YES] 理解禁止 Redis、fio、mount、Ceph、TiKV
+4. [YES] 理解不能改固定提交、附录 A/B 或重复次数
+5. [YES] 理解工作区不得放在 /tmp（使用 /home/lilingfeng/tmp）
+6. [YES] 理解 Go 1.25.7 和 Go 1.26.0 都是通过条件
+7. [YES] 理解 GLM 只交付原始事实，不选择 A/B

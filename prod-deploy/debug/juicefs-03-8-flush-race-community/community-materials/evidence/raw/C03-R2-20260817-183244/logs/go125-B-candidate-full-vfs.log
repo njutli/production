@@ -1,0 +1,1393 @@
+# github.com/mattn/go-sqlite3
+sqlite3-binding.c: In function ‘sqlite3ShadowTableName’:
+sqlite3-binding.c:123934:9: warning: assignment discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+123934 |   zTail = strrchr(zName, '_');
+       |         ^
+=== RUN   TestAccessLog
+--- PASS: TestAccessLog (2.00s)
+=== RUN   TestRotate
+--- PASS: TestRotate (0.00s)
+=== RUN   TestBackup
+2026/08/17 19:03:28.662848 juicefs[2950271] <INFO>: Meta address: memkv:// [NewClient@interface.go:652]
+2026/08/17 19:03:28.665643 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "9889c21c-89de-47d2-9991-6c198bdbcef7",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:28.681598 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 4.958115ms [Backup@backup.go:90]
+2026/08/17 19:03:28.692819 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 1.371621ms [Backup@backup.go:90]
+2026/08/17 19:03:28.704889 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 1.772202ms [Backup@backup.go:90]
+2026/08/17 19:03:28.716761 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 1.465171ms [Backup@backup.go:90]
+2026/08/17 19:03:28.728367 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 1.098116ms [Backup@backup.go:90]
+2026/08/17 19:03:28.740055 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 1.328839ms [Backup@backup.go:90]
+2026/08/17 19:03:28.752663 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 1.256256ms [Backup@backup.go:90]
+2026/08/17 19:03:28.765247 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 1.28222ms [Backup@backup.go:90]
+--- PASS: TestBackup (0.10s)
+=== RUN   TestCompact
+--- PASS: TestCompact (0.01s)
+=== RUN   TestFileReaderCloseCancelsOngoingRead
+2026/08/17 19:03:28.773757 juicefs[2950271] <INFO>: Meta address: memkv:// [NewClient@interface.go:652]
+2026/08/17 19:03:28.773895 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "6ffa3d46-a767-4e11-8bd5-cb18c47c10c9",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:28.776338 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 900.577µs [Backup@backup.go:90]
+2026/08/17 19:03:28.788449 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 1.815373ms [Backup@backup.go:90]
+2026/08/17 19:03:28.800241 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 1.078979ms [Backup@backup.go:90]
+2026/08/17 19:03:28.811602 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 1.075475ms [Backup@backup.go:90]
+2026/08/17 19:03:28.824259 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 1.299386ms [Backup@backup.go:90]
+2026/08/17 19:03:28.835718 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 1.197305ms [Backup@backup.go:90]
+2026/08/17 19:03:28.847050 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 924.22µs [Backup@backup.go:90]
+2026/08/17 19:03:28.859262 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 926.231µs [Backup@backup.go:90]
+2026/08/17 19:03:28.870742 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 1.012986ms [Backup@backup.go:90]
+2026/08/17 19:03:28.882174 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 1.15267ms [Backup@backup.go:90]
+2026/08/17 19:03:28.894729 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 1.260577ms [Backup@backup.go:90]
+2026/08/17 19:03:28.907125 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 1.946157ms [Backup@backup.go:90]
+2026/08/17 19:03:28.918631 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 1.288913ms [Backup@backup.go:90]
+2026/08/17 19:03:28.929654 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 824.555µs [Backup@backup.go:90]
+2026/08/17 19:03:28.941143 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 1.193251ms [Backup@backup.go:90]
+2026/08/17 19:03:28.952686 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 1.263363ms [Backup@backup.go:90]
+2026/08/17 19:03:28.965606 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 1.628292ms [Backup@backup.go:90]
+--- PASS: TestFileReaderCloseCancelsOngoingRead (0.20s)
+=== RUN   TestDataReaderInvalidateShouldCancelOngoingRead
+2026/08/17 19:03:28.974572 juicefs[2950271] <INFO>: Meta address: memkv:// [NewClient@interface.go:652]
+2026/08/17 19:03:28.974725 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test-98107b81-538e-4a90-9676-d5cfbf2a9b63",
+  "UUID": "d6b10cd5-a116-4664-9da0-9bb49996c36c",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "none",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:28.976953 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 1.227079ms [Backup@backup.go:90]
+2026/08/17 19:03:28.989737 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110328.json.gz", used 1.520375ms [Backup@backup.go:90]
+2026/08/17 19:03:29.002646 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.552749ms [Backup@backup.go:90]
+2026/08/17 19:03:29.109829 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.791684ms [Backup@backup.go:90]
+2026/08/17 19:03:29.123206 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 3.017548ms [Backup@backup.go:90]
+2026/08/17 19:03:29.134150 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 904.616µs [Backup@backup.go:90]
+2026/08/17 19:03:29.145583 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 969.33µs [Backup@backup.go:90]
+2026/08/17 19:03:29.157875 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 965.404µs [Backup@backup.go:90]
+2026/08/17 19:03:29.170263 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 920.659µs [Backup@backup.go:90]
+--- PASS: TestDataReaderInvalidateShouldCancelOngoingRead (0.20s)
+=== RUN   TestControlInfoV2Cancellation
+2026/08/17 19:03:29.175596 juicefs[2950271] <INFO>: Meta address: memkv:// [NewClient@interface.go:652]
+2026/08/17 19:03:29.175733 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test-5b932365-631f-4b8d-968e-61aa08978c07",
+  "UUID": "f4e1684c-0d45-49cd-9052-7aacb357b91b",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "none",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:29.176017 juicefs[2950271] <INFO>: Start to get info v2 of 1, recursive=1 [handleInternalMsg@internal.go:441]
+--- PASS: TestControlInfoV2Cancellation (0.00s)
+=== RUN   TestControlSummaryCancellation
+2026/08/17 19:03:29.176130 juicefs[2950271] <INFO>: Meta address: memkv:// [NewClient@interface.go:652]
+2026/08/17 19:03:29.176175 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "0ac4cd5f-9bae-4293-9e0c-a995f18ccd7d",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:29.176412 juicefs[2950271] <INFO>: Start to get summary of 1, depth=5, topN=10 [handleInternalMsg@internal.go:550]
+--- PASS: TestControlSummaryCancellation (0.00s)
+=== RUN   TestFill
+2026/08/17 19:03:29.176549 juicefs[2950271] <INFO>: Meta address: memkv:// [NewClient@interface.go:652]
+2026/08/17 19:03:29.176673 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "95a59af5-1cf5-4c74-abe7-408aa133af9e",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:29.177221 juicefs[2950271] <INFO>: warmup cache 4 paths in 85.032µs [Cache@fill.go:174]
+2026/08/17 19:03:29.177258 juicefs[2950271] <WARNING>: Failed to resolve path /sym2: operation not supported [Cache@fill.go:155]
+2026/08/17 19:03:29.177272 juicefs[2950271] <WARNING>: Failed to resolve path /sym3: no such file or directory [Cache@fill.go:155]
+2026/08/17 19:03:29.177282 juicefs[2950271] <WARNING>: Failed to resolve path /not_exists: no such file or directory [Cache@fill.go:155]
+2026/08/17 19:03:29.177307 juicefs[2950271] <WARNING>: Failed to load key: chunks/0/0/347_0_5 get chunks/0/0/347_0_5: not exists [FillCache@cached_store.go:1192]
+2026/08/17 19:03:29.177354 juicefs[2950271] <ERROR>: warmup cache error : inode 695 slice 347 : get chunks/0/0/347_0_5: not exists [cacheFile@fill.go:124]
+2026/08/17 19:03:29.177379 juicefs[2950271] <INFO>: warmup cache 5 paths in 128.05µs [Cache@fill.go:174]
+--- PASS: TestFill (0.00s)
+=== RUN   TestSmode
+--- PASS: TestSmode (0.00s)
+=== RUN   TestEntryString
+--- PASS: TestEntryString (0.00s)
+=== RUN   TestError
+--- PASS: TestError (0.00s)
+=== RUN   TestVFSBasic
+2026/08/17 19:03:29.177467 juicefs[2950271] <INFO>: Meta address: memkv:// [NewClient@interface.go:652]
+2026/08/17 19:03:29.177567 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "c828680c-967c-4437-981f-8a28abe0dddb",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+--- PASS: TestVFSBasic (0.00s)
+=== RUN   TestVFSIO
+2026/08/17 19:03:29.178003 juicefs[2950271] <INFO>: Meta address: memkv:// [NewClient@interface.go:652]
+2026/08/17 19:03:29.178106 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "cc220dc8-70e9-401d-aab4-22d2133c717b",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:29.184055 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 3.322543ms [Backup@backup.go:90]
+2026/08/17 19:03:29.196577 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.213182ms [Backup@backup.go:90]
+2026/08/17 19:03:29.208808 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 2.085059ms [Backup@backup.go:90]
+2026/08/17 19:03:29.220437 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.134685ms [Backup@backup.go:90]
+2026/08/17 19:03:29.232346 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.091559ms [Backup@backup.go:90]
+2026/08/17 19:03:29.244394 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.765528ms [Backup@backup.go:90]
+2026/08/17 19:03:29.257440 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.737763ms [Backup@backup.go:90]
+2026/08/17 19:03:29.268900 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 997.908µs [Backup@backup.go:90]
+2026/08/17 19:03:29.280219 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 716.027µs [Backup@backup.go:90]
+2026/08/17 19:03:29.292236 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.670075ms [Backup@backup.go:90]
+2026/08/17 19:03:29.303130 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 881µs [Backup@backup.go:90]
+2026/08/17 19:03:29.313944 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 685.686µs [Backup@backup.go:90]
+2026/08/17 19:03:29.325275 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.059371ms [Backup@backup.go:90]
+2026/08/17 19:03:29.336673 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.427382ms [Backup@backup.go:90]
+2026/08/17 19:03:29.348270 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.332655ms [Backup@backup.go:90]
+2026/08/17 19:03:29.360519 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.196274ms [Backup@backup.go:90]
+2026/08/17 19:03:29.371426 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.144841ms [Backup@backup.go:90]
+2026/08/17 19:03:29.382810 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.032273ms [Backup@backup.go:90]
+2026/08/17 19:03:29.394168 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.187635ms [Backup@backup.go:90]
+2026/08/17 19:03:29.405411 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.107178ms [Backup@backup.go:90]
+2026/08/17 19:03:29.416665 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.055789ms [Backup@backup.go:90]
+2026/08/17 19:03:29.427837 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.029181ms [Backup@backup.go:90]
+2026/08/17 19:03:29.438570 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 825.479µs [Backup@backup.go:90]
+2026/08/17 19:03:29.450249 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.152421ms [Backup@backup.go:90]
+2026/08/17 19:03:29.461728 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 936.106µs [Backup@backup.go:90]
+2026/08/17 19:03:29.472591 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 989.191µs [Backup@backup.go:90]
+2026/08/17 19:03:29.484449 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.549596ms [Backup@backup.go:90]
+2026/08/17 19:03:29.495853 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.079209ms [Backup@backup.go:90]
+2026/08/17 19:03:29.506315 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 839.396µs [Backup@backup.go:90]
+2026/08/17 19:03:29.517912 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.101656ms [Backup@backup.go:90]
+2026/08/17 19:03:29.529924 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.3006ms [Backup@backup.go:90]
+2026/08/17 19:03:29.540983 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.260855ms [Backup@backup.go:90]
+2026/08/17 19:03:29.552389 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.211569ms [Backup@backup.go:90]
+2026/08/17 19:03:29.565153 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.423503ms [Backup@backup.go:90]
+2026/08/17 19:03:29.575979 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 705.308µs [Backup@backup.go:90]
+2026/08/17 19:03:29.587071 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 948.388µs [Backup@backup.go:90]
+2026/08/17 19:03:29.598210 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 759.89µs [Backup@backup.go:90]
+2026/08/17 19:03:29.610797 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.245039ms [Backup@backup.go:90]
+2026/08/17 19:03:29.622054 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 912.687µs [Backup@backup.go:90]
+2026/08/17 19:03:29.633422 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.071749ms [Backup@backup.go:90]
+2026/08/17 19:03:29.644540 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 804.34µs [Backup@backup.go:90]
+2026/08/17 19:03:29.655722 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 870.274µs [Backup@backup.go:90]
+2026/08/17 19:03:29.667299 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 948.385µs [Backup@backup.go:90]
+2026/08/17 19:03:29.679203 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.219288ms [Backup@backup.go:90]
+2026/08/17 19:03:29.691456 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.184993ms [Backup@backup.go:90]
+2026/08/17 19:03:29.702597 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 844.93µs [Backup@backup.go:90]
+2026/08/17 19:03:29.714839 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 943.204µs [Backup@backup.go:90]
+2026/08/17 19:03:29.727495 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.296009ms [Backup@backup.go:90]
+2026/08/17 19:03:29.739288 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.526914ms [Backup@backup.go:90]
+2026/08/17 19:03:29.752164 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.577579ms [Backup@backup.go:90]
+2026/08/17 19:03:29.765091 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.984542ms [Backup@backup.go:90]
+2026/08/17 19:03:29.777724 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.712512ms [Backup@backup.go:90]
+2026/08/17 19:03:29.790228 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.408305ms [Backup@backup.go:90]
+2026/08/17 19:03:29.801571 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.016224ms [Backup@backup.go:90]
+2026/08/17 19:03:29.814423 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.533522ms [Backup@backup.go:90]
+2026/08/17 19:03:29.827033 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.360365ms [Backup@backup.go:90]
+2026/08/17 19:03:29.838884 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.463578ms [Backup@backup.go:90]
+2026/08/17 19:03:29.851281 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 2.100969ms [Backup@backup.go:90]
+2026/08/17 19:03:29.862229 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 774.249µs [Backup@backup.go:90]
+2026/08/17 19:03:29.874297 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.002752ms [Backup@backup.go:90]
+2026/08/17 19:03:29.886340 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.011578ms [Backup@backup.go:90]
+2026/08/17 19:03:29.897594 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.021541ms [Backup@backup.go:90]
+2026/08/17 19:03:29.908707 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 818.914µs [Backup@backup.go:90]
+2026/08/17 19:03:29.919835 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 864.486µs [Backup@backup.go:90]
+2026/08/17 19:03:29.931076 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 915.204µs [Backup@backup.go:90]
+2026/08/17 19:03:29.942085 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 802.482µs [Backup@backup.go:90]
+2026/08/17 19:03:29.953089 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 732.874µs [Backup@backup.go:90]
+2026/08/17 19:03:29.964599 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 851.41µs [Backup@backup.go:90]
+2026/08/17 19:03:29.976388 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 1.044506ms [Backup@backup.go:90]
+2026/08/17 19:03:29.988084 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 920.664µs [Backup@backup.go:90]
+2026/08/17 19:03:30.000294 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110329.json.gz", used 912.465µs [Backup@backup.go:90]
+2026/08/17 19:03:30.012679 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 826.305µs [Backup@backup.go:90]
+2026/08/17 19:03:30.101704 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 1.300464ms [Backup@backup.go:90]
+2026/08/17 19:03:30.112912 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 841.487µs [Backup@backup.go:90]
+2026/08/17 19:03:30.124282 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 1.001683ms [Backup@backup.go:90]
+2026/08/17 19:03:30.135600 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 1.002399ms [Backup@backup.go:90]
+2026/08/17 19:03:30.146910 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 846.824µs [Backup@backup.go:90]
+2026/08/17 19:03:30.157990 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 819.459µs [Backup@backup.go:90]
+2026/08/17 19:03:30.169501 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 843.45µs [Backup@backup.go:90]
+2026/08/17 19:03:30.181637 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 1.006631ms [Backup@backup.go:90]
+2026/08/17 19:03:30.192725 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 692.434µs [Backup@backup.go:90]
+2026/08/17 19:03:30.204865 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 831.106µs [Backup@backup.go:90]
+2026/08/17 19:03:30.216072 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 882.709µs [Backup@backup.go:90]
+2026/08/17 19:03:30.228408 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 932.942µs [Backup@backup.go:90]
+2026/08/17 19:03:30.240787 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 1.008676ms [Backup@backup.go:90]
+2026/08/17 19:03:30.252065 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 1.003571ms [Backup@backup.go:90]
+2026/08/17 19:03:30.263489 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 978.169µs [Backup@backup.go:90]
+2026/08/17 19:03:30.274933 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 883.78µs [Backup@backup.go:90]
+2026/08/17 19:03:30.286876 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 1.081974ms [Backup@backup.go:90]
+2026/08/17 19:03:30.299151 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 941.14µs [Backup@backup.go:90]
+2026/08/17 19:03:30.311303 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 866.667µs [Backup@backup.go:90]
+2026/08/17 19:03:30.322575 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 902.403µs [Backup@backup.go:90]
+2026/08/17 19:03:30.333858 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 970.83µs [Backup@backup.go:90]
+2026/08/17 19:03:30.346652 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 1.338034ms [Backup@backup.go:90]
+2026/08/17 19:03:30.358870 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 905.845µs [Backup@backup.go:90]
+2026/08/17 19:03:30.371730 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 1.223748ms [Backup@backup.go:90]
+2026/08/17 19:03:30.382909 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 931.014µs [Backup@backup.go:90]
+2026/08/17 19:03:30.394270 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 893.203µs [Backup@backup.go:90]
+2026/08/17 19:03:30.405130 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 938.287µs [Backup@backup.go:90]
+2026/08/17 19:03:30.416472 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 970.008µs [Backup@backup.go:90]
+2026/08/17 19:03:30.427520 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 725.35µs [Backup@backup.go:90]
+2026/08/17 19:03:30.438655 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 825.044µs [Backup@backup.go:90]
+2026/08/17 19:03:30.451166 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 1.095135ms [Backup@backup.go:90]
+2026/08/17 19:03:30.462440 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 1.01539ms [Backup@backup.go:90]
+2026/08/17 19:03:30.474990 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 1.949366ms [Backup@backup.go:90]
+2026/08/17 19:03:30.487131 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 1.480527ms [Backup@backup.go:90]
+2026/08/17 19:03:30.499117 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 1.516465ms [Backup@backup.go:90]
+2026/08/17 19:03:30.510409 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 1.01345ms [Backup@backup.go:90]
+2026/08/17 19:03:30.521882 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 1.075616ms [Backup@backup.go:90]
+2026/08/17 19:03:30.534224 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 983.789µs [Backup@backup.go:90]
+2026/08/17 19:03:30.548253 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 2.766547ms [Backup@backup.go:90]
+2026/08/17 19:03:30.559649 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 976.689µs [Backup@backup.go:90]
+2026/08/17 19:03:30.571633 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 917.067µs [Backup@backup.go:90]
+2026/08/17 19:03:30.584370 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 1.046063ms [Backup@backup.go:90]
+2026/08/17 19:03:30.596006 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 806.486µs [Backup@backup.go:90]
+2026/08/17 19:03:30.607616 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 1.248366ms [Backup@backup.go:90]
+2026/08/17 19:03:30.619106 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 1.030715ms [Backup@backup.go:90]
+2026/08/17 19:03:30.630350 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 898.805µs [Backup@backup.go:90]
+2026/08/17 19:03:30.642841 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 1.17206ms [Backup@backup.go:90]
+2026/08/17 19:03:30.655456 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 1.207093ms [Backup@backup.go:90]
+2026/08/17 19:03:30.666824 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 1.023229ms [Backup@backup.go:90]
+2026/08/17 19:03:30.677959 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 786.498µs [Backup@backup.go:90]
+2026/08/17 19:03:30.690092 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 892.482µs [Backup@backup.go:90]
+2026/08/17 19:03:30.702207 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 795.86µs [Backup@backup.go:90]
+2026/08/17 19:03:30.713428 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 960.946µs [Backup@backup.go:90]
+2026/08/17 19:03:30.725704 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 972.825µs [Backup@backup.go:90]
+2026/08/17 19:03:30.738056 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 989.195µs [Backup@backup.go:90]
+2026/08/17 19:03:30.749179 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 829.658µs [Backup@backup.go:90]
+2026/08/17 19:03:30.760280 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 887.322µs [Backup@backup.go:90]
+2026/08/17 19:03:30.773165 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 2.860796ms [Backup@backup.go:90]
+2026/08/17 19:03:30.784062 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 995.618µs [Backup@backup.go:90]
+2026/08/17 19:03:30.796383 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 988.88µs [Backup@backup.go:90]
+2026/08/17 19:03:30.807635 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 937.345µs [Backup@backup.go:90]
+2026/08/17 19:03:30.818879 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 932.654µs [Backup@backup.go:90]
+2026/08/17 19:03:30.831124 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 932.195µs [Backup@backup.go:90]
+2026/08/17 19:03:30.842121 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 717.919µs [Backup@backup.go:90]
+2026/08/17 19:03:30.853281 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 982.313µs [Backup@backup.go:90]
+2026/08/17 19:03:30.865533 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 897.722µs [Backup@backup.go:90]
+2026/08/17 19:03:30.876797 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 846.756µs [Backup@backup.go:90]
+2026/08/17 19:03:30.888486 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 900.268µs [Backup@backup.go:90]
+2026/08/17 19:03:30.899674 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 917.82µs [Backup@backup.go:90]
+2026/08/17 19:03:30.910847 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 956.102µs [Backup@backup.go:90]
+2026/08/17 19:03:30.922092 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 879.966µs [Backup@backup.go:90]
+2026/08/17 19:03:30.933515 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 1.099052ms [Backup@backup.go:90]
+2026/08/17 19:03:30.945695 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 927.168µs [Backup@backup.go:90]
+2026/08/17 19:03:30.956809 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 845.718µs [Backup@backup.go:90]
+2026/08/17 19:03:30.968293 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 1.101053ms [Backup@backup.go:90]
+2026/08/17 19:03:30.979625 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 956.953µs [Backup@backup.go:90]
+2026/08/17 19:03:30.991440 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110330.json.gz", used 993.914µs [Backup@backup.go:90]
+2026/08/17 19:03:31.004528 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 2.688748ms [Backup@backup.go:90]
+--- PASS: TestVFSIO (1.88s)
+2026/08/17 19:03:31.058135 juicefs[2950271] <WARNING>: compact 698 0 with 36 slices: message 1001 is not supported [compactChunk@base.go:2885]
+=== RUN   TestVFSXattrs
+2026/08/17 19:03:31.058191 juicefs[2950271] <INFO>: Meta address: memkv:// [NewClient@interface.go:652]
+2026/08/17 19:03:31.058346 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "9e64b533-7fe6-4229-b236-c70a620fe095",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+--- PASS: TestVFSXattrs (0.00s)
+=== RUN   TestAccessMode
+--- PASS: TestAccessMode (0.00s)
+=== RUN   TestSetattrStr
+--- PASS: TestSetattrStr (0.00s)
+=== RUN   TestVFSLocks
+2026/08/17 19:03:31.058714 juicefs[2950271] <INFO>: Meta address: memkv:// [NewClient@interface.go:652]
+2026/08/17 19:03:31.058789 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "fa127644-d7ea-40b8-9035-9cb16a13d20b",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+--- PASS: TestVFSLocks (0.00s)
+=== RUN   TestInternalFile
+2026/08/17 19:03:31.058995 juicefs[2950271] <INFO>: Meta address: memkv:// [NewClient@interface.go:652]
+2026/08/17 19:03:31.059038 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "2629ea82-6124-494e-b315-b9ed00b782d8",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:31.101712 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.196345ms [Backup@backup.go:90]
+2026/08/17 19:03:31.112919 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.019179ms [Backup@backup.go:90]
+2026/08/17 19:03:31.124325 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.043771ms [Backup@backup.go:90]
+2026/08/17 19:03:31.136513 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 862.886µs [Backup@backup.go:90]
+2026/08/17 19:03:31.148812 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 998.453µs [Backup@backup.go:90]
+2026/08/17 19:03:31.161210 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 992.557µs [Backup@backup.go:90]
+2026/08/17 19:03:31.173596 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.031584ms [Backup@backup.go:90]
+2026/08/17 19:03:31.185063 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 876.547µs [Backup@backup.go:90]
+2026/08/17 19:03:31.197018 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.073441ms [Backup@backup.go:90]
+2026/08/17 19:03:31.208189 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 917.025µs [Backup@backup.go:90]
+2026/08/17 19:03:31.219439 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 996.073µs [Backup@backup.go:90]
+2026/08/17 19:03:31.231724 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 982.549µs [Backup@backup.go:90]
+2026/08/17 19:03:31.242754 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 815.172µs [Backup@backup.go:90]
+2026/08/17 19:03:31.253838 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 775.174µs [Backup@backup.go:90]
+2026/08/17 19:03:31.264590 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 975.204µs [Backup@backup.go:90]
+2026/08/17 19:03:31.275738 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 843.671µs [Backup@backup.go:90]
+2026/08/17 19:03:31.287137 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 797.455µs [Backup@backup.go:90]
+2026/08/17 19:03:31.298919 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.05278ms [Backup@backup.go:90]
+2026/08/17 19:03:31.313927 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 3.622225ms [Backup@backup.go:90]
+2026/08/17 19:03:31.325088 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.042878ms [Backup@backup.go:90]
+2026/08/17 19:03:31.336399 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 987.919µs [Backup@backup.go:90]
+2026/08/17 19:03:31.348785 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.038599ms [Backup@backup.go:90]
+2026/08/17 19:03:31.359889 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 811.242µs [Backup@backup.go:90]
+2026/08/17 19:03:31.371879 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.309012ms [Backup@backup.go:90]
+2026/08/17 19:03:31.383999 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 956.323µs [Backup@backup.go:90]
+2026/08/17 19:03:31.395555 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 915.026µs [Backup@backup.go:90]
+2026/08/17 19:03:31.406985 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.113967ms [Backup@backup.go:90]
+2026/08/17 19:03:31.418386 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.009415ms [Backup@backup.go:90]
+2026/08/17 19:03:31.431160 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.349095ms [Backup@backup.go:90]
+2026/08/17 19:03:31.443425 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 873.931µs [Backup@backup.go:90]
+2026/08/17 19:03:31.454646 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 929.625µs [Backup@backup.go:90]
+2026/08/17 19:03:31.466206 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 883.389µs [Backup@backup.go:90]
+2026/08/17 19:03:31.478563 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.001458ms [Backup@backup.go:90]
+2026/08/17 19:03:31.490060 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.092753ms [Backup@backup.go:90]
+2026/08/17 19:03:31.501621 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.248729ms [Backup@backup.go:90]
+2026/08/17 19:03:31.512965 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 918.254µs [Backup@backup.go:90]
+2026/08/17 19:03:31.524297 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 983.474µs [Backup@backup.go:90]
+2026/08/17 19:03:31.536776 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.059608ms [Backup@backup.go:90]
+2026/08/17 19:03:31.549325 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.25929ms [Backup@backup.go:90]
+2026/08/17 19:03:31.563573 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 2.927104ms [Backup@backup.go:90]
+2026/08/17 19:03:31.574926 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.217045ms [Backup@backup.go:90]
+2026/08/17 19:03:31.586368 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 995.397µs [Backup@backup.go:90]
+2026/08/17 19:03:31.597090 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 889.697µs [Backup@backup.go:90]
+2026/08/17 19:03:31.608248 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 861.983µs [Backup@backup.go:90]
+2026/08/17 19:03:31.619589 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 989.916µs [Backup@backup.go:90]
+2026/08/17 19:03:31.631809 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 913.708µs [Backup@backup.go:90]
+2026/08/17 19:03:31.644117 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 972.526µs [Backup@backup.go:90]
+2026/08/17 19:03:31.655404 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.00748ms [Backup@backup.go:90]
+2026/08/17 19:03:31.667298 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.178515ms [Backup@backup.go:90]
+2026/08/17 19:03:31.678464 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 880.135µs [Backup@backup.go:90]
+2026/08/17 19:03:31.690163 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.034073ms [Backup@backup.go:90]
+2026/08/17 19:03:31.701750 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 999.634µs [Backup@backup.go:90]
+2026/08/17 19:03:31.712917 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 913.8µs [Backup@backup.go:90]
+2026/08/17 19:03:31.725164 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 953.178µs [Backup@backup.go:90]
+2026/08/17 19:03:31.736208 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 729.944µs [Backup@backup.go:90]
+2026/08/17 19:03:31.747407 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 946.309µs [Backup@backup.go:90]
+2026/08/17 19:03:31.758792 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.013879ms [Backup@backup.go:90]
+2026/08/17 19:03:31.770362 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 959.7µs [Backup@backup.go:90]
+2026/08/17 19:03:31.781921 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.034751ms [Backup@backup.go:90]
+2026/08/17 19:03:31.793334 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 892.675µs [Backup@backup.go:90]
+2026/08/17 19:03:31.806443 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 2.630675ms [Backup@backup.go:90]
+2026/08/17 19:03:31.818102 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.061603ms [Backup@backup.go:90]
+2026/08/17 19:03:31.830439 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.017454ms [Backup@backup.go:90]
+2026/08/17 19:03:31.841784 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 989.786µs [Backup@backup.go:90]
+2026/08/17 19:03:31.853245 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.07501ms [Backup@backup.go:90]
+2026/08/17 19:03:31.864649 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.03394ms [Backup@backup.go:90]
+2026/08/17 19:03:31.876706 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 749.314µs [Backup@backup.go:90]
+2026/08/17 19:03:31.888559 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.067468ms [Backup@backup.go:90]
+2026/08/17 19:03:31.900234 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 963.972µs [Backup@backup.go:90]
+2026/08/17 19:03:31.911588 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 960.891µs [Backup@backup.go:90]
+2026/08/17 19:03:31.922898 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.015493ms [Backup@backup.go:90]
+2026/08/17 19:03:31.933976 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 787.595µs [Backup@backup.go:90]
+2026/08/17 19:03:31.946058 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 829.543µs [Backup@backup.go:90]
+2026/08/17 19:03:31.958373 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.054132ms [Backup@backup.go:90]
+2026/08/17 19:03:31.969958 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 1.091713ms [Backup@backup.go:90]
+2026/08/17 19:03:31.982155 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 814.159µs [Backup@backup.go:90]
+2026/08/17 19:03:31.993693 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110331.json.gz", used 957.163µs [Backup@backup.go:90]
+2026/08/17 19:03:32.005199 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 1.043855ms [Backup@backup.go:90]
+2026/08/17 19:03:32.059815 juicefs[2950271] <INFO>: Start to rmr 1/file, workers=50, skipTrash=false [handleInternalMsg@internal.go:319]
+2026/08/17 19:03:32.059858 juicefs[2950271] <ERROR>: remove 1/file: no such file or directory [handleInternalMsg@internal.go:322]
+2026/08/17 19:03:32.101164 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 1.119877ms [Backup@backup.go:90]
+2026/08/17 19:03:32.112309 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 924.942µs [Backup@backup.go:90]
+2026/08/17 19:03:32.123471 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 918.329µs [Backup@backup.go:90]
+2026/08/17 19:03:32.137033 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 3.253444ms [Backup@backup.go:90]
+2026/08/17 19:03:32.148758 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 1.002136ms [Backup@backup.go:90]
+2026/08/17 19:03:32.161004 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 810.816µs [Backup@backup.go:90]
+2026/08/17 19:03:32.171984 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 1.052899ms [Backup@backup.go:90]
+2026/08/17 19:03:32.183590 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 804.031µs [Backup@backup.go:90]
+2026/08/17 19:03:32.195012 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 860.51µs [Backup@backup.go:90]
+2026/08/17 19:03:32.206763 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 991.944µs [Backup@backup.go:90]
+2026/08/17 19:03:32.218049 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 903.258µs [Backup@backup.go:90]
+2026/08/17 19:03:32.229112 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 769.008µs [Backup@backup.go:90]
+2026/08/17 19:03:32.240442 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 957.829µs [Backup@backup.go:90]
+2026/08/17 19:03:32.252489 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 815.808µs [Backup@backup.go:90]
+2026/08/17 19:03:32.259915 juicefs[2950271] <INFO>: Start to get legacy info of 1, recursive=1 [handleInternalMsg@internal.go:369]
+2026/08/17 19:03:32.264137 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 802.067µs [Backup@backup.go:90]
+2026/08/17 19:03:32.275718 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 875.232µs [Backup@backup.go:90]
+2026/08/17 19:03:32.287275 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 917.55µs [Backup@backup.go:90]
+2026/08/17 19:03:32.299077 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 1.037396ms [Backup@backup.go:90]
+2026/08/17 19:03:32.311312 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 928.627µs [Backup@backup.go:90]
+2026/08/17 19:03:32.323511 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 891.481µs [Backup@backup.go:90]
+2026/08/17 19:03:32.335630 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 811.801µs [Backup@backup.go:90]
+2026/08/17 19:03:32.346967 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 1.041822ms [Backup@backup.go:90]
+2026/08/17 19:03:32.359156 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 893.397µs [Backup@backup.go:90]
+2026/08/17 19:03:32.370696 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 900.463µs [Backup@backup.go:90]
+2026/08/17 19:03:32.384253 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 2.263969ms [Backup@backup.go:90]
+2026/08/17 19:03:32.394866 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 979.116µs [Backup@backup.go:90]
+2026/08/17 19:03:32.406939 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 1.015357ms [Backup@backup.go:90]
+2026/08/17 19:03:32.419096 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 829.094µs [Backup@backup.go:90]
+2026/08/17 19:03:32.431250 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 886.988µs [Backup@backup.go:90]
+2026/08/17 19:03:32.442169 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 699.119µs [Backup@backup.go:90]
+2026/08/17 19:03:32.453436 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 988.085µs [Backup@backup.go:90]
+2026/08/17 19:03:32.460690 juicefs[2950271] <INFO>: Start to get info v2 of 1, recursive=1 [handleInternalMsg@internal.go:441]
+2026/08/17 19:03:32.460764 juicefs[2950271] <WARNING>: unknown tier id 0 of inode 1 [handleInternalMsg@internal.go:463]
+2026/08/17 19:03:32.464726 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 864.53µs [Backup@backup.go:90]
+2026/08/17 19:03:32.476172 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 839.249µs [Backup@backup.go:90]
+2026/08/17 19:03:32.487890 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 1.057247ms [Backup@backup.go:90]
+2026/08/17 19:03:32.499259 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 972.596µs [Backup@backup.go:90]
+2026/08/17 19:03:32.510218 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 703.844µs [Backup@backup.go:90]
+2026/08/17 19:03:32.522469 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 921.702µs [Backup@backup.go:90]
+2026/08/17 19:03:32.534829 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 1.077884ms [Backup@backup.go:90]
+2026/08/17 19:03:32.546930 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 854.848µs [Backup@backup.go:90]
+2026/08/17 19:03:32.558214 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 926.054µs [Backup@backup.go:90]
+2026/08/17 19:03:32.569811 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 905.247µs [Backup@backup.go:90]
+2026/08/17 19:03:32.582041 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 911.154µs [Backup@backup.go:90]
+2026/08/17 19:03:32.593334 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 828.229µs [Backup@backup.go:90]
+2026/08/17 19:03:32.605354 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 1.050334ms [Backup@backup.go:90]
+2026/08/17 19:03:32.616632 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 1.00733ms [Backup@backup.go:90]
+2026/08/17 19:03:32.631208 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 3.242359ms [Backup@backup.go:90]
+2026/08/17 19:03:32.642698 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 930.705µs [Backup@backup.go:90]
+2026/08/17 19:03:32.654731 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 786.564µs [Backup@backup.go:90]
+2026/08/17 19:03:32.661339 juicefs[2950271] <INFO>: Start to evict cache 1 paths with 0 workers, background=0 [handleInternalMsg@internal.go:600]
+2026/08/17 19:03:32.661407 juicefs[2950271] <INFO>: evict cache 1 paths in 42.783µs [Cache@fill.go:174]
+2026/08/17 19:03:32.666367 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 922.824µs [Backup@backup.go:90]
+2026/08/17 19:03:32.677938 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 839.271µs [Backup@backup.go:90]
+2026/08/17 19:03:32.689581 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 1.003617ms [Backup@backup.go:90]
+2026/08/17 19:03:32.701135 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 895.313µs [Backup@backup.go:90]
+2026/08/17 19:03:32.712475 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 1.071409ms [Backup@backup.go:90]
+2026/08/17 19:03:32.724110 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 1.327947ms [Backup@backup.go:90]
+2026/08/17 19:03:32.735260 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 872.373µs [Backup@backup.go:90]
+2026/08/17 19:03:32.747488 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 849.419µs [Backup@backup.go:90]
+2026/08/17 19:03:32.758618 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 900.452µs [Backup@backup.go:90]
+2026/08/17 19:03:32.770074 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 892.391µs [Backup@backup.go:90]
+2026/08/17 19:03:32.781569 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 880.972µs [Backup@backup.go:90]
+2026/08/17 19:03:32.793282 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 993.079µs [Backup@backup.go:90]
+2026/08/17 19:03:32.804792 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 856.834µs [Backup@backup.go:90]
+2026/08/17 19:03:32.815944 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 944.178µs [Backup@backup.go:90]
+2026/08/17 19:03:32.827216 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 926.481µs [Backup@backup.go:90]
+2026/08/17 19:03:32.839481 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 978.344µs [Backup@backup.go:90]
+2026/08/17 19:03:32.850716 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 939.43µs [Backup@backup.go:90]
+2026/08/17 19:03:32.861379 juicefs[2950271] <WARNING>: broken message: 1002 0 < 2 [Write@vfs.go:834]
+--- PASS: TestInternalFile (1.80s)
+=== RUN   TestHideInternal
+2026/08/17 19:03:32.861437 juicefs[2950271] <INFO>: Meta address: memkv:// [NewClient@interface.go:652]
+2026/08/17 19:03:32.861571 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "92825c79-47b9-4395-a2bf-049762927b00",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:32.861770 juicefs[2950271] <INFO>: Meta address: memkv:// [NewClient@interface.go:652]
+2026/08/17 19:03:32.861813 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "36b72efd-462a-4ae1-bda8-1777dbe0a856",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:32.861809 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 896.34µs [Backup@backup.go:90]
+--- PASS: TestHideInternal (0.00s)
+=== RUN   TestReaddirCache
+2026/08/17 19:03:32.861938 juicefs[2950271] <INFO>: Meta address: memkv:// [NewClient@interface.go:652]
+2026/08/17 19:03:32.861977 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "fa88f2e6-3e6c-4cdb-b9ce-ba3537e22785",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:32.863881 juicefs[2950271] <INFO>: Meta address: memkv:// [NewClient@interface.go:652]
+2026/08/17 19:03:32.863984 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "9af38590-739a-4f9e-a2a7-faf30894a3db",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:32.866103 juicefs[2950271] <INFO>: Meta address: sqlite3://:memory: [NewClient@interface.go:652]
+2026/08/17 19:03:32.872754 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 808.777µs [Backup@backup.go:90]
+2026/08/17 19:03:32.883780 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 1.079707ms [Backup@backup.go:90]
+2026/08/17 19:03:32.894675 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 756.695µs [Backup@backup.go:90]
+2026/08/17 19:03:32.901190 juicefs[2950271] <INFO>: Meta address: sqlite3://:memory: [NewClient@interface.go:652]
+2026/08/17 19:03:32.905508 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 812.065µs [Backup@backup.go:90]
+2026/08/17 19:03:32.916446 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 1.004861ms [Backup@backup.go:90]
+2026/08/17 19:03:32.927642 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 1.117745ms [Backup@backup.go:90]
+2026/08/17 19:03:32.933388 juicefs[2950271] <INFO>: Meta address: redis://127.0.0.1:6379/2 [NewClient@interface.go:652]
+2026/08/17 19:03:32.937348 juicefs[2950271] <WARNING>: AOF is not enabled, you may lose data if Redis is not shutdown properly. [checkRedisInfo@info.go:84]
+2026/08/17 19:03:32.937672 juicefs[2950271] <INFO>: Ping redis latency: 283.856µs [checkServerConfig@redis.go:4620]
+2026/08/17 19:03:32.940472 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 1.926638ms [Backup@backup.go:90]
+2026/08/17 19:03:32.952443 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 1.290566ms [Backup@backup.go:90]
+2026/08/17 19:03:32.964314 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 1.260305ms [Backup@backup.go:90]
+2026/08/17 19:03:32.975864 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 1.154773ms [Backup@backup.go:90]
+2026/08/17 19:03:32.987134 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 1.188728ms [Backup@backup.go:90]
+2026/08/17 19:03:32.998549 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110332.json.gz", used 1.263112ms [Backup@backup.go:90]
+2026/08/17 19:03:33.010340 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.164205ms [Backup@backup.go:90]
+2026/08/17 19:03:33.102032 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.418415ms [Backup@backup.go:90]
+2026/08/17 19:03:33.113696 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.135552ms [Backup@backup.go:90]
+2026/08/17 19:03:33.125882 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.46785ms [Backup@backup.go:90]
+2026/08/17 19:03:33.137310 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.153218ms [Backup@backup.go:90]
+2026/08/17 19:03:33.149008 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.362713ms [Backup@backup.go:90]
+2026/08/17 19:03:33.160726 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.277844ms [Backup@backup.go:90]
+2026/08/17 19:03:33.172837 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.702276ms [Backup@backup.go:90]
+2026/08/17 19:03:33.184367 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.405292ms [Backup@backup.go:90]
+2026/08/17 19:03:33.196027 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.768675ms [Backup@backup.go:90]
+2026/08/17 19:03:33.207890 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.560745ms [Backup@backup.go:90]
+2026/08/17 19:03:33.219943 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.706446ms [Backup@backup.go:90]
+2026/08/17 19:03:33.232315 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.640419ms [Backup@backup.go:90]
+2026/08/17 19:03:33.244295 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 2.073201ms [Backup@backup.go:90]
+2026/08/17 19:03:33.256048 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.737417ms [Backup@backup.go:90]
+2026/08/17 19:03:33.267483 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.588964ms [Backup@backup.go:90]
+2026/08/17 19:03:33.282336 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 4.632353ms [Backup@backup.go:90]
+2026/08/17 19:03:33.293697 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 900.369µs [Backup@backup.go:90]
+2026/08/17 19:03:33.304437 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 890.674µs [Backup@backup.go:90]
+2026/08/17 19:03:33.315900 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 886.134µs [Backup@backup.go:90]
+2026/08/17 19:03:33.327860 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.286793ms [Backup@backup.go:90]
+2026/08/17 19:03:33.338859 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 970.668µs [Backup@backup.go:90]
+2026/08/17 19:03:33.349687 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.110754ms [Backup@backup.go:90]
+2026/08/17 19:03:33.361546 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.234415ms [Backup@backup.go:90]
+2026/08/17 19:03:33.373228 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 966.848µs [Backup@backup.go:90]
+2026/08/17 19:03:33.385037 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.109383ms [Backup@backup.go:90]
+2026/08/17 19:03:33.395592 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 912.16µs [Backup@backup.go:90]
+2026/08/17 19:03:33.407185 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.046296ms [Backup@backup.go:90]
+2026/08/17 19:03:33.418253 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 946.433µs [Backup@backup.go:90]
+2026/08/17 19:03:33.429349 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.035336ms [Backup@backup.go:90]
+2026/08/17 19:03:33.432105 juicefs[2950271] <INFO>: Meta address: redis://127.0.0.1:6379/2 [NewClient@interface.go:652]
+2026/08/17 19:03:33.435291 juicefs[2950271] <WARNING>: AOF is not enabled, you may lose data if Redis is not shutdown properly. [checkRedisInfo@info.go:84]
+2026/08/17 19:03:33.435713 juicefs[2950271] <INFO>: Ping redis latency: 365.056µs [checkServerConfig@redis.go:4620]
+2026/08/17 19:03:33.436159 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "217e3978-b971-4df0-9381-f4f4cc3417cc",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:33.440185 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.169686ms [Backup@backup.go:90]
+2026/08/17 19:03:33.451452 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.249694ms [Backup@backup.go:90]
+2026/08/17 19:03:33.463306 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.225869ms [Backup@backup.go:90]
+2026/08/17 19:03:33.474607 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.205266ms [Backup@backup.go:90]
+2026/08/17 19:03:33.486242 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.004779ms [Backup@backup.go:90]
+2026/08/17 19:03:33.497611 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.101318ms [Backup@backup.go:90]
+2026/08/17 19:03:33.509728 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.251025ms [Backup@backup.go:90]
+2026/08/17 19:03:33.522734 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 2.585069ms [Backup@backup.go:90]
+2026/08/17 19:03:33.534140 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.11407ms [Backup@backup.go:90]
+2026/08/17 19:03:33.545197 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 996.423µs [Backup@backup.go:90]
+2026/08/17 19:03:33.556520 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.014329ms [Backup@backup.go:90]
+2026/08/17 19:03:33.567392 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 875.371µs [Backup@backup.go:90]
+2026/08/17 19:03:33.579022 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.023009ms [Backup@backup.go:90]
+2026/08/17 19:03:33.590043 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 838.49µs [Backup@backup.go:90]
+2026/08/17 19:03:33.601469 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.070061ms [Backup@backup.go:90]
+2026/08/17 19:03:33.612493 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.128491ms [Backup@backup.go:90]
+2026/08/17 19:03:33.623906 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 901.428µs [Backup@backup.go:90]
+2026/08/17 19:03:33.635387 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.275031ms [Backup@backup.go:90]
+2026/08/17 19:03:33.646685 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 923.465µs [Backup@backup.go:90]
+2026/08/17 19:03:33.657844 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.181304ms [Backup@backup.go:90]
+2026/08/17 19:03:33.669449 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.047569ms [Backup@backup.go:90]
+2026/08/17 19:03:33.680105 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 913.524µs [Backup@backup.go:90]
+2026/08/17 19:03:33.692000 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.241714ms [Backup@backup.go:90]
+2026/08/17 19:03:33.702997 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.285922ms [Backup@backup.go:90]
+2026/08/17 19:03:33.714217 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.168053ms [Backup@backup.go:90]
+2026/08/17 19:03:33.725321 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.018303ms [Backup@backup.go:90]
+2026/08/17 19:03:33.736686 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.099499ms [Backup@backup.go:90]
+2026/08/17 19:03:33.747540 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 931.247µs [Backup@backup.go:90]
+2026/08/17 19:03:33.759419 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.387608ms [Backup@backup.go:90]
+2026/08/17 19:03:33.770575 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.138163ms [Backup@backup.go:90]
+2026/08/17 19:03:33.781458 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 969.55µs [Backup@backup.go:90]
+2026/08/17 19:03:33.793016 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 923.683µs [Backup@backup.go:90]
+2026/08/17 19:03:33.804620 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 940.942µs [Backup@backup.go:90]
+2026/08/17 19:03:33.815732 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.080598ms [Backup@backup.go:90]
+2026/08/17 19:03:33.826975 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.159935ms [Backup@backup.go:90]
+2026/08/17 19:03:33.838820 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.093138ms [Backup@backup.go:90]
+2026/08/17 19:03:33.850727 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.13487ms [Backup@backup.go:90]
+2026/08/17 19:03:33.862081 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 940.536µs [Backup@backup.go:90]
+2026/08/17 19:03:33.873168 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.034177ms [Backup@backup.go:90]
+2026/08/17 19:03:33.884628 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 959.735µs [Backup@backup.go:90]
+2026/08/17 19:03:33.896077 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 978.278µs [Backup@backup.go:90]
+2026/08/17 19:03:33.906785 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 994.214µs [Backup@backup.go:90]
+2026/08/17 19:03:33.917982 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.049739ms [Backup@backup.go:90]
+--- PASS: TestReaddirCache (1.06s)
+=== RUN   TestVFSReadDirSort
+2026/08/17 19:03:33.922189 juicefs[2950271] <INFO>: Meta address: memkv:// [NewClient@interface.go:652]
+2026/08/17 19:03:33.922342 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "4bd6e356-ccf1-41d4-b84f-fa3846a32fc4",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:33.923657 juicefs[2950271] <INFO>: Meta address: sqlite3:// [NewClient@interface.go:652]
+2026/08/17 19:03:33.929516 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 1.109769ms [Backup@backup.go:90]
+2026/08/17 19:03:33.940678 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 825.963µs [Backup@backup.go:90]
+2026/08/17 19:03:33.952188 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 953.831µs [Backup@backup.go:90]
+2026/08/17 19:03:33.963309 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 866.231µs [Backup@backup.go:90]
+2026/08/17 19:03:33.975206 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 878.818µs [Backup@backup.go:90]
+2026/08/17 19:03:33.986713 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 976.291µs [Backup@backup.go:90]
+2026/08/17 19:03:34.002085 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110333.json.gz", used 3.925829ms [Backup@backup.go:90]
+2026/08/17 19:03:34.013686 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.066071ms [Backup@backup.go:90]
+2026/08/17 19:03:34.108281 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.037458ms [Backup@backup.go:90]
+2026/08/17 19:03:34.119374 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 843.08µs [Backup@backup.go:90]
+2026/08/17 19:03:34.131045 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.100998ms [Backup@backup.go:90]
+2026/08/17 19:03:34.142794 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.00638ms [Backup@backup.go:90]
+2026/08/17 19:03:34.154268 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 945.029µs [Backup@backup.go:90]
+2026/08/17 19:03:34.166137 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.188431ms [Backup@backup.go:90]
+2026/08/17 19:03:34.177086 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.107363ms [Backup@backup.go:90]
+2026/08/17 19:03:34.187962 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.005403ms [Backup@backup.go:90]
+2026/08/17 19:03:34.199503 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.113819ms [Backup@backup.go:90]
+2026/08/17 19:03:34.210863 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 890.286µs [Backup@backup.go:90]
+2026/08/17 19:03:34.222531 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 974.214µs [Backup@backup.go:90]
+2026/08/17 19:03:34.234685 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.275359ms [Backup@backup.go:90]
+2026/08/17 19:03:34.246898 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 948.807µs [Backup@backup.go:90]
+2026/08/17 19:03:34.258247 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.037476ms [Backup@backup.go:90]
+2026/08/17 19:03:34.269595 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.029017ms [Backup@backup.go:90]
+2026/08/17 19:03:34.280963 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.028774ms [Backup@backup.go:90]
+2026/08/17 19:03:34.291927 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.035907ms [Backup@backup.go:90]
+2026/08/17 19:03:34.303377 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 954.538µs [Backup@backup.go:90]
+2026/08/17 19:03:34.316244 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.428006ms [Backup@backup.go:90]
+2026/08/17 19:03:34.327384 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.126183ms [Backup@backup.go:90]
+2026/08/17 19:03:34.338798 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 965.362µs [Backup@backup.go:90]
+2026/08/17 19:03:34.350405 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.199359ms [Backup@backup.go:90]
+2026/08/17 19:03:34.361725 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.040141ms [Backup@backup.go:90]
+2026/08/17 19:03:34.373393 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.07977ms [Backup@backup.go:90]
+2026/08/17 19:03:34.384764 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 996.276µs [Backup@backup.go:90]
+2026/08/17 19:03:34.395880 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 845.849µs [Backup@backup.go:90]
+2026/08/17 19:03:34.407594 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 845.205µs [Backup@backup.go:90]
+2026/08/17 19:03:34.418492 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 984.232µs [Backup@backup.go:90]
+2026/08/17 19:03:34.430229 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.007799ms [Backup@backup.go:90]
+2026/08/17 19:03:34.441664 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 894.906µs [Backup@backup.go:90]
+2026/08/17 19:03:34.452964 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 829.693µs [Backup@backup.go:90]
+2026/08/17 19:03:34.465283 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.057994ms [Backup@backup.go:90]
+2026/08/17 19:03:34.477058 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 960.458µs [Backup@backup.go:90]
+2026/08/17 19:03:34.488442 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.091795ms [Backup@backup.go:90]
+2026/08/17 19:03:34.500563 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.011943ms [Backup@backup.go:90]
+2026/08/17 19:03:34.512151 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 899.793µs [Backup@backup.go:90]
+2026/08/17 19:03:34.524622 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.172925ms [Backup@backup.go:90]
+2026/08/17 19:03:34.536102 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.184644ms [Backup@backup.go:90]
+2026/08/17 19:03:34.549568 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 3.035202ms [Backup@backup.go:90]
+2026/08/17 19:03:34.561083 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.052077ms [Backup@backup.go:90]
+2026/08/17 19:03:34.572306 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 975.659µs [Backup@backup.go:90]
+2026/08/17 19:03:34.583382 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.002858ms [Backup@backup.go:90]
+2026/08/17 19:03:34.594795 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 917.373µs [Backup@backup.go:90]
+2026/08/17 19:03:34.606428 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 988.512µs [Backup@backup.go:90]
+2026/08/17 19:03:34.618669 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 936.742µs [Backup@backup.go:90]
+2026/08/17 19:03:34.630340 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.072049ms [Backup@backup.go:90]
+2026/08/17 19:03:34.641775 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.07826ms [Backup@backup.go:90]
+2026/08/17 19:03:34.653202 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 980.301µs [Backup@backup.go:90]
+2026/08/17 19:03:34.664484 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.015324ms [Backup@backup.go:90]
+2026/08/17 19:03:34.676286 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.059489ms [Backup@backup.go:90]
+2026/08/17 19:03:34.687420 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 944.325µs [Backup@backup.go:90]
+2026/08/17 19:03:34.698914 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.080691ms [Backup@backup.go:90]
+2026/08/17 19:03:34.710368 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 946.674µs [Backup@backup.go:90]
+2026/08/17 19:03:34.722576 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 930.55µs [Backup@backup.go:90]
+2026/08/17 19:03:34.734106 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.059762ms [Backup@backup.go:90]
+2026/08/17 19:03:34.745628 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 997.845µs [Backup@backup.go:90]
+2026/08/17 19:03:34.757985 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.528451ms [Backup@backup.go:90]
+2026/08/17 19:03:34.769373 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.052249ms [Backup@backup.go:90]
+2026/08/17 19:03:34.780420 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.108435ms [Backup@backup.go:90]
+2026/08/17 19:03:34.787119 juicefs[2950271] <INFO>: Meta address: redis://127.0.0.1:6379/2 [NewClient@interface.go:652]
+2026/08/17 19:03:34.791812 juicefs[2950271] <WARNING>: AOF is not enabled, you may lose data if Redis is not shutdown properly. [checkRedisInfo@info.go:84]
+2026/08/17 19:03:34.793165 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 3.000925ms [Backup@backup.go:90]
+2026/08/17 19:03:34.794064 juicefs[2950271] <INFO>: Ping redis latency: 2.180738ms [checkServerConfig@redis.go:4620]
+2026/08/17 19:03:34.794586 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "01941c28-e2ae-4b94-8570-da6d1c3a835e",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:34.804842 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 996.639µs [Backup@backup.go:90]
+2026/08/17 19:03:34.816335 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.148712ms [Backup@backup.go:90]
+2026/08/17 19:03:34.827480 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 781.056µs [Backup@backup.go:90]
+2026/08/17 19:03:34.838080 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.006226ms [Backup@backup.go:90]
+2026/08/17 19:03:34.849590 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.133475ms [Backup@backup.go:90]
+2026/08/17 19:03:34.861047 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.107618ms [Backup@backup.go:90]
+2026/08/17 19:03:34.872627 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.262068ms [Backup@backup.go:90]
+2026/08/17 19:03:34.884259 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.325834ms [Backup@backup.go:90]
+2026/08/17 19:03:34.895051 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.069718ms [Backup@backup.go:90]
+2026/08/17 19:03:34.906386 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.278855ms [Backup@backup.go:90]
+2026/08/17 19:03:34.917212 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.152089ms [Backup@backup.go:90]
+2026/08/17 19:03:34.928844 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.092831ms [Backup@backup.go:90]
+2026/08/17 19:03:34.940418 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 905.768µs [Backup@backup.go:90]
+2026/08/17 19:03:34.951949 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.065126ms [Backup@backup.go:90]
+2026/08/17 19:03:34.964104 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.50845ms [Backup@backup.go:90]
+2026/08/17 19:03:34.975837 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.349118ms [Backup@backup.go:90]
+2026/08/17 19:03:34.986785 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.275894ms [Backup@backup.go:90]
+2026/08/17 19:03:34.998298 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110334.json.gz", used 1.130755ms [Backup@backup.go:90]
+2026/08/17 19:03:35.009622 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.063093ms [Backup@backup.go:90]
+2026/08/17 19:03:35.103846 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 989.399µs [Backup@backup.go:90]
+2026/08/17 19:03:35.115551 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.163605ms [Backup@backup.go:90]
+2026/08/17 19:03:35.127439 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.330357ms [Backup@backup.go:90]
+2026/08/17 19:03:35.142939 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 4.975195ms [Backup@backup.go:90]
+2026/08/17 19:03:35.154682 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.121801ms [Backup@backup.go:90]
+2026/08/17 19:03:35.166453 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.121494ms [Backup@backup.go:90]
+2026/08/17 19:03:35.177952 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.083665ms [Backup@backup.go:90]
+2026/08/17 19:03:35.188778 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.06038ms [Backup@backup.go:90]
+2026/08/17 19:03:35.200560 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.036681ms [Backup@backup.go:90]
+2026/08/17 19:03:35.211453 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 958.719µs [Backup@backup.go:90]
+2026/08/17 19:03:35.222779 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.050505ms [Backup@backup.go:90]
+2026/08/17 19:03:35.234281 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.144388ms [Backup@backup.go:90]
+2026/08/17 19:03:35.245843 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 993.767µs [Backup@backup.go:90]
+2026/08/17 19:03:35.256601 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 846.504µs [Backup@backup.go:90]
+--- PASS: TestVFSReadDirSort (1.34s)
+=== RUN   TestReadDirBatch
+2026/08/17 19:03:35.257975 juicefs[2950271] <INFO>: Meta address: memkv:// [NewClient@interface.go:652]
+2026/08/17 19:03:35.258122 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "8653b25b-4d6c-4715-b320-dd17549b9144",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:35.263735 juicefs[2950271] <INFO>: Meta address: sqlite3://:memory: [NewClient@interface.go:652]
+2026/08/17 19:03:35.267595 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 940.874µs [Backup@backup.go:90]
+2026/08/17 19:03:35.278693 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 810.224µs [Backup@backup.go:90]
+2026/08/17 19:03:35.289784 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 812.625µs [Backup@backup.go:90]
+2026/08/17 19:03:35.300951 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.132401ms [Backup@backup.go:90]
+2026/08/17 19:03:35.311579 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 824.942µs [Backup@backup.go:90]
+2026/08/17 19:03:35.323789 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 892.331µs [Backup@backup.go:90]
+2026/08/17 19:03:35.335079 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 994.243µs [Backup@backup.go:90]
+2026/08/17 19:03:35.345856 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.055627ms [Backup@backup.go:90]
+2026/08/17 19:03:35.357212 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 834.371µs [Backup@backup.go:90]
+2026/08/17 19:03:35.367938 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.038758ms [Backup@backup.go:90]
+2026/08/17 19:03:35.379206 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.00508ms [Backup@backup.go:90]
+2026/08/17 19:03:35.390924 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.14643ms [Backup@backup.go:90]
+2026/08/17 19:03:35.402016 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.120436ms [Backup@backup.go:90]
+2026/08/17 19:03:35.406897 juicefs[2950271] <INFO>: Meta address: redis://127.0.0.1:6379/2 [NewClient@interface.go:652]
+2026/08/17 19:03:35.410804 juicefs[2950271] <WARNING>: AOF is not enabled, you may lose data if Redis is not shutdown properly. [checkRedisInfo@info.go:84]
+2026/08/17 19:03:35.411165 juicefs[2950271] <INFO>: Ping redis latency: 317.859µs [checkServerConfig@redis.go:4620]
+2026/08/17 19:03:35.411725 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "867693fc-b123-49d6-a623-0162bbd80067",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:35.413415 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.132002ms [Backup@backup.go:90]
+2026/08/17 19:03:35.425095 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.059654ms [Backup@backup.go:90]
+2026/08/17 19:03:35.436621 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.122769ms [Backup@backup.go:90]
+2026/08/17 19:03:35.448106 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.144197ms [Backup@backup.go:90]
+2026/08/17 19:03:35.459641 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 950.346µs [Backup@backup.go:90]
+2026/08/17 19:03:35.471291 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.226459ms [Backup@backup.go:90]
+2026/08/17 19:03:35.482727 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.317891ms [Backup@backup.go:90]
+2026/08/17 19:03:35.493884 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.442625ms [Backup@backup.go:90]
+2026/08/17 19:03:35.505317 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.410534ms [Backup@backup.go:90]
+2026/08/17 19:03:35.517837 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.757698ms [Backup@backup.go:90]
+2026/08/17 19:03:35.530694 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.802665ms [Backup@backup.go:90]
+2026/08/17 19:03:35.543200 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.81538ms [Backup@backup.go:90]
+2026/08/17 19:03:35.555408 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.640336ms [Backup@backup.go:90]
+2026/08/17 19:03:35.567468 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 2.24027ms [Backup@backup.go:90]
+2026/08/17 19:03:35.579048 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 957.471µs [Backup@backup.go:90]
+2026/08/17 19:03:35.590817 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.142916ms [Backup@backup.go:90]
+2026/08/17 19:03:35.602180 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.092667ms [Backup@backup.go:90]
+2026/08/17 19:03:35.613433 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 939.819µs [Backup@backup.go:90]
+2026/08/17 19:03:35.624451 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.20132ms [Backup@backup.go:90]
+2026/08/17 19:03:35.635420 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 969.781µs [Backup@backup.go:90]
+2026/08/17 19:03:35.646627 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 833.851µs [Backup@backup.go:90]
+2026/08/17 19:03:35.657713 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.046931ms [Backup@backup.go:90]
+2026/08/17 19:03:35.668945 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 970.745µs [Backup@backup.go:90]
+2026/08/17 19:03:35.679681 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 833.326µs [Backup@backup.go:90]
+2026/08/17 19:03:35.690610 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.039136ms [Backup@backup.go:90]
+2026/08/17 19:03:35.701754 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.041078ms [Backup@backup.go:90]
+2026/08/17 19:03:35.713451 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.037035ms [Backup@backup.go:90]
+2026/08/17 19:03:35.724639 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 869.239µs [Backup@backup.go:90]
+2026/08/17 19:03:35.736433 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.02799ms [Backup@backup.go:90]
+2026/08/17 19:03:35.747426 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 936.828µs [Backup@backup.go:90]
+2026/08/17 19:03:35.758442 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 957.992µs [Backup@backup.go:90]
+2026/08/17 19:03:35.769159 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 893.002µs [Backup@backup.go:90]
+2026/08/17 19:03:35.780897 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.166485ms [Backup@backup.go:90]
+2026/08/17 19:03:35.792484 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.010588ms [Backup@backup.go:90]
+2026/08/17 19:03:35.803655 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.497153ms [Backup@backup.go:90]
+2026/08/17 19:03:35.815317 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.478981ms [Backup@backup.go:90]
+2026/08/17 19:03:35.827532 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.600855ms [Backup@backup.go:90]
+2026/08/17 19:03:35.842224 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 4.36552ms [Backup@backup.go:90]
+2026/08/17 19:03:35.853146 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 978.868µs [Backup@backup.go:90]
+2026/08/17 19:03:35.865057 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.123062ms [Backup@backup.go:90]
+2026/08/17 19:03:35.876666 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.084609ms [Backup@backup.go:90]
+2026/08/17 19:03:35.888249 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.021748ms [Backup@backup.go:90]
+2026/08/17 19:03:35.899616 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 973.248µs [Backup@backup.go:90]
+2026/08/17 19:03:35.911169 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 952.004µs [Backup@backup.go:90]
+2026/08/17 19:03:35.921906 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.023004ms [Backup@backup.go:90]
+2026/08/17 19:03:35.933767 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.14212ms [Backup@backup.go:90]
+2026/08/17 19:03:35.945360 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.205221ms [Backup@backup.go:90]
+2026/08/17 19:03:35.956768 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.07744ms [Backup@backup.go:90]
+2026/08/17 19:03:35.967588 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.049238ms [Backup@backup.go:90]
+2026/08/17 19:03:35.979142 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.319713ms [Backup@backup.go:90]
+2026/08/17 19:03:35.990883 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110335.json.gz", used 1.345026ms [Backup@backup.go:90]
+2026/08/17 19:03:36.001892 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.051022ms [Backup@backup.go:90]
+2026/08/17 19:03:36.106601 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.234408ms [Backup@backup.go:90]
+2026/08/17 19:03:36.117839 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.031272ms [Backup@backup.go:90]
+2026/08/17 19:03:36.128920 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.089196ms [Backup@backup.go:90]
+2026/08/17 19:03:36.140682 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.134852ms [Backup@backup.go:90]
+2026/08/17 19:03:36.151490 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.000198ms [Backup@backup.go:90]
+2026/08/17 19:03:36.162382 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 783.734µs [Backup@backup.go:90]
+2026/08/17 19:03:36.173211 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 967.697µs [Backup@backup.go:90]
+2026/08/17 19:03:36.184414 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 981.02µs [Backup@backup.go:90]
+2026/08/17 19:03:36.196754 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.712127ms [Backup@backup.go:90]
+2026/08/17 19:03:36.208124 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 993.603µs [Backup@backup.go:90]
+2026/08/17 19:03:36.219501 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.211928ms [Backup@backup.go:90]
+2026/08/17 19:03:36.230639 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.039876ms [Backup@backup.go:90]
+2026/08/17 19:03:36.241846 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.083924ms [Backup@backup.go:90]
+2026/08/17 19:03:36.252885 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 931.799µs [Backup@backup.go:90]
+2026/08/17 19:03:36.264313 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.158622ms [Backup@backup.go:90]
+2026/08/17 19:03:36.275494 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.150901ms [Backup@backup.go:90]
+2026/08/17 19:03:36.286907 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 963.59µs [Backup@backup.go:90]
+2026/08/17 19:03:36.298484 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.131435ms [Backup@backup.go:90]
+2026/08/17 19:03:36.309428 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 987.253µs [Backup@backup.go:90]
+2026/08/17 19:03:36.320557 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.008675ms [Backup@backup.go:90]
+2026/08/17 19:03:36.332001 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.196497ms [Backup@backup.go:90]
+2026/08/17 19:03:36.343161 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 979.547µs [Backup@backup.go:90]
+2026/08/17 19:03:36.354145 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 894.112µs [Backup@backup.go:90]
+2026/08/17 19:03:36.365757 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.445953ms [Backup@backup.go:90]
+2026/08/17 19:03:36.377616 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.169822ms [Backup@backup.go:90]
+2026/08/17 19:03:36.388719 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.006279ms [Backup@backup.go:90]
+2026/08/17 19:03:36.399892 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.001755ms [Backup@backup.go:90]
+2026/08/17 19:03:36.411294 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.050039ms [Backup@backup.go:90]
+2026/08/17 19:03:36.422806 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.006789ms [Backup@backup.go:90]
+2026/08/17 19:03:36.434526 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.118168ms [Backup@backup.go:90]
+2026/08/17 19:03:36.446349 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.157608ms [Backup@backup.go:90]
+2026/08/17 19:03:36.457312 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.164905ms [Backup@backup.go:90]
+2026/08/17 19:03:36.472149 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 4.73067ms [Backup@backup.go:90]
+2026/08/17 19:03:36.483704 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.223726ms [Backup@backup.go:90]
+2026/08/17 19:03:36.494667 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.025031ms [Backup@backup.go:90]
+2026/08/17 19:03:36.506082 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.252444ms [Backup@backup.go:90]
+2026/08/17 19:03:36.517695 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 974.712µs [Backup@backup.go:90]
+2026/08/17 19:03:36.529214 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 863.902µs [Backup@backup.go:90]
+2026/08/17 19:03:36.540171 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 972.661µs [Backup@backup.go:90]
+2026/08/17 19:03:36.550910 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.083545ms [Backup@backup.go:90]
+2026/08/17 19:03:36.561958 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.066111ms [Backup@backup.go:90]
+2026/08/17 19:03:36.573159 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 870.371µs [Backup@backup.go:90]
+2026/08/17 19:03:36.584493 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 992.466µs [Backup@backup.go:90]
+2026/08/17 19:03:36.595194 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 894.348µs [Backup@backup.go:90]
+2026/08/17 19:03:36.606037 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.03223ms [Backup@backup.go:90]
+2026/08/17 19:03:36.617577 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.076341ms [Backup@backup.go:90]
+2026/08/17 19:03:36.628175 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 859.281µs [Backup@backup.go:90]
+2026/08/17 19:03:36.638763 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 884.333µs [Backup@backup.go:90]
+2026/08/17 19:03:36.650504 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.158775ms [Backup@backup.go:90]
+2026/08/17 19:03:36.662168 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.157203ms [Backup@backup.go:90]
+2026/08/17 19:03:36.673892 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 982.601µs [Backup@backup.go:90]
+2026/08/17 19:03:36.685125 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.17753ms [Backup@backup.go:90]
+2026/08/17 19:03:36.696593 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 844.62µs [Backup@backup.go:90]
+2026/08/17 19:03:36.707964 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.068072ms [Backup@backup.go:90]
+2026/08/17 19:03:36.719436 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.083499ms [Backup@backup.go:90]
+2026/08/17 19:03:36.731026 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.074813ms [Backup@backup.go:90]
+2026/08/17 19:03:36.741803 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 922.841µs [Backup@backup.go:90]
+2026/08/17 19:03:36.753209 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.036637ms [Backup@backup.go:90]
+2026/08/17 19:03:36.764520 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 807.52µs [Backup@backup.go:90]
+2026/08/17 19:03:36.776444 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.109552ms [Backup@backup.go:90]
+2026/08/17 19:03:36.787665 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.161042ms [Backup@backup.go:90]
+2026/08/17 19:03:36.799319 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.217243ms [Backup@backup.go:90]
+2026/08/17 19:03:36.810536 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 973.689µs [Backup@backup.go:90]
+2026/08/17 19:03:36.821301 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.066812ms [Backup@backup.go:90]
+2026/08/17 19:03:36.832356 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.158384ms [Backup@backup.go:90]
+2026/08/17 19:03:36.843294 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 992.629µs [Backup@backup.go:90]
+2026/08/17 19:03:36.854838 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.068981ms [Backup@backup.go:90]
+2026/08/17 19:03:36.866732 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.136008ms [Backup@backup.go:90]
+2026/08/17 19:03:36.878734 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.227409ms [Backup@backup.go:90]
+2026/08/17 19:03:36.889941 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.257475ms [Backup@backup.go:90]
+2026/08/17 19:03:36.901531 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.29056ms [Backup@backup.go:90]
+2026/08/17 19:03:36.913050 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.049365ms [Backup@backup.go:90]
+2026/08/17 19:03:36.924099 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 984.395µs [Backup@backup.go:90]
+2026/08/17 19:03:36.934841 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 886.369µs [Backup@backup.go:90]
+2026/08/17 19:03:36.946417 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.174382ms [Backup@backup.go:90]
+2026/08/17 19:03:36.957753 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 1.350011ms [Backup@backup.go:90]
+2026/08/17 19:03:36.969233 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 968.326µs [Backup@backup.go:90]
+2026/08/17 19:03:36.980205 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 743.21µs [Backup@backup.go:90]
+2026/08/17 19:03:36.995279 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110336.json.gz", used 4.586212ms [Backup@backup.go:90]
+2026/08/17 19:03:37.006313 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 974.424µs [Backup@backup.go:90]
+2026/08/17 19:03:37.109248 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 965.82µs [Backup@backup.go:90]
+2026/08/17 19:03:37.120783 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.042327ms [Backup@backup.go:90]
+2026/08/17 19:03:37.132339 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.371219ms [Backup@backup.go:90]
+2026/08/17 19:03:37.143452 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.225813ms [Backup@backup.go:90]
+2026/08/17 19:03:37.154776 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.078382ms [Backup@backup.go:90]
+2026/08/17 19:03:37.166628 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.341986ms [Backup@backup.go:90]
+2026/08/17 19:03:37.178180 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 983.699µs [Backup@backup.go:90]
+2026/08/17 19:03:37.190086 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.164556ms [Backup@backup.go:90]
+2026/08/17 19:03:37.201000 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 987.483µs [Backup@backup.go:90]
+2026/08/17 19:03:37.212608 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.20616ms [Backup@backup.go:90]
+2026/08/17 19:03:37.224374 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.37347ms [Backup@backup.go:90]
+2026/08/17 19:03:37.236256 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.302461ms [Backup@backup.go:90]
+2026/08/17 19:03:37.247971 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.147969ms [Backup@backup.go:90]
+2026/08/17 19:03:37.259023 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.044893ms [Backup@backup.go:90]
+2026/08/17 19:03:37.270822 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.21875ms [Backup@backup.go:90]
+2026/08/17 19:03:37.281857 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 778.882µs [Backup@backup.go:90]
+2026/08/17 19:03:37.293413 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 874.376µs [Backup@backup.go:90]
+2026/08/17 19:03:37.305349 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.238128ms [Backup@backup.go:90]
+2026/08/17 19:03:37.316951 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 941.152µs [Backup@backup.go:90]
+2026/08/17 19:03:37.328204 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 975.723µs [Backup@backup.go:90]
+2026/08/17 19:03:37.340146 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.214499ms [Backup@backup.go:90]
+2026/08/17 19:03:37.352041 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.391699ms [Backup@backup.go:90]
+2026/08/17 19:03:37.367550 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 5.075315ms [Backup@backup.go:90]
+2026/08/17 19:03:37.378670 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.148442ms [Backup@backup.go:90]
+2026/08/17 19:03:37.390145 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 950.435µs [Backup@backup.go:90]
+2026/08/17 19:03:37.401084 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.182328ms [Backup@backup.go:90]
+2026/08/17 19:03:37.413055 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.240445ms [Backup@backup.go:90]
+2026/08/17 19:03:37.424159 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.040606ms [Backup@backup.go:90]
+2026/08/17 19:03:37.435390 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.277597ms [Backup@backup.go:90]
+2026/08/17 19:03:37.446063 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.004921ms [Backup@backup.go:90]
+2026/08/17 19:03:37.457158 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.380649ms [Backup@backup.go:90]
+2026/08/17 19:03:37.468825 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.212945ms [Backup@backup.go:90]
+2026/08/17 19:03:37.480444 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.141217ms [Backup@backup.go:90]
+2026/08/17 19:03:37.491959 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.133923ms [Backup@backup.go:90]
+2026/08/17 19:03:37.503577 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.175982ms [Backup@backup.go:90]
+2026/08/17 19:03:37.514670 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.007145ms [Backup@backup.go:90]
+2026/08/17 19:03:37.525796 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 953.653µs [Backup@backup.go:90]
+2026/08/17 19:03:37.537027 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 912.773µs [Backup@backup.go:90]
+2026/08/17 19:03:37.548382 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.005639ms [Backup@backup.go:90]
+2026/08/17 19:03:37.559896 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.143314ms [Backup@backup.go:90]
+2026/08/17 19:03:37.570968 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 940.764µs [Backup@backup.go:90]
+2026/08/17 19:03:37.582347 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.543221ms [Backup@backup.go:90]
+2026/08/17 19:03:37.593084 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 878.483µs [Backup@backup.go:90]
+2026/08/17 19:03:37.603856 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 987.908µs [Backup@backup.go:90]
+2026/08/17 19:03:37.615598 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.061002ms [Backup@backup.go:90]
+2026/08/17 19:03:37.627057 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.181885ms [Backup@backup.go:90]
+2026/08/17 19:03:37.639100 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 2.125275ms [Backup@backup.go:90]
+2026/08/17 19:03:37.650397 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.268096ms [Backup@backup.go:90]
+2026/08/17 19:03:37.662008 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.029647ms [Backup@backup.go:90]
+2026/08/17 19:03:37.672873 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.09178ms [Backup@backup.go:90]
+2026/08/17 19:03:37.683920 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 998.659µs [Backup@backup.go:90]
+2026/08/17 19:03:37.695639 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.031848ms [Backup@backup.go:90]
+2026/08/17 19:03:37.706650 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.21342ms [Backup@backup.go:90]
+2026/08/17 19:03:37.717752 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.098941ms [Backup@backup.go:90]
+2026/08/17 19:03:37.729718 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.253494ms [Backup@backup.go:90]
+2026/08/17 19:03:37.740695 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.117262ms [Backup@backup.go:90]
+2026/08/17 19:03:37.752119 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 911.245µs [Backup@backup.go:90]
+2026/08/17 19:03:37.763587 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 961.941µs [Backup@backup.go:90]
+2026/08/17 19:03:37.774696 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.259226ms [Backup@backup.go:90]
+2026/08/17 19:03:37.785564 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 799.958µs [Backup@backup.go:90]
+2026/08/17 19:03:37.797492 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.233512ms [Backup@backup.go:90]
+2026/08/17 19:03:37.808978 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 903.514µs [Backup@backup.go:90]
+2026/08/17 19:03:37.820695 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.194268ms [Backup@backup.go:90]
+--- PASS: TestReadDirBatch (2.56s)
+=== RUN   TestReaddir
+2026/08/17 19:03:37.821816 juicefs[2950271] <INFO>: Meta address: memkv:// [NewClient@interface.go:652]
+2026/08/17 19:03:37.822042 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "dae450a6-3e2c-448c-9b6d-0f873a1e0b3d",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:37.822707 juicefs[2950271] <INFO>: Meta address: memkv:// [NewClient@interface.go:652]
+2026/08/17 19:03:37.822795 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "0ce08fed-d3ca-4e1c-a289-9753e8a0207e",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:37.823220 juicefs[2950271] <INFO>: Meta address: memkv:// [NewClient@interface.go:652]
+2026/08/17 19:03:37.823285 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "7aeff0b3-36a2-4e06-a47a-ec82882f939f",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:37.825722 juicefs[2950271] <INFO>: Meta address: memkv:// [NewClient@interface.go:652]
+2026/08/17 19:03:37.825798 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "651c0bdf-67e6-4a4a-adc4-22f0b1c0141d",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:37.828035 juicefs[2950271] <INFO>: Meta address: sqlite3://:memory: [NewClient@interface.go:652]
+2026/08/17 19:03:37.831804 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.020951ms [Backup@backup.go:90]
+2026/08/17 19:03:37.838251 juicefs[2950271] <INFO>: Meta address: sqlite3://:memory: [NewClient@interface.go:652]
+2026/08/17 19:03:37.842730 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 996.716µs [Backup@backup.go:90]
+2026/08/17 19:03:37.847115 juicefs[2950271] <INFO>: Meta address: sqlite3://:memory: [NewClient@interface.go:652]
+2026/08/17 19:03:37.858169 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 5.125675ms [Backup@backup.go:90]
+2026/08/17 19:03:37.869491 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.224985ms [Backup@backup.go:90]
+2026/08/17 19:03:37.880262 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 913.553µs [Backup@backup.go:90]
+2026/08/17 19:03:37.891403 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.207747ms [Backup@backup.go:90]
+2026/08/17 19:03:37.902524 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.083746ms [Backup@backup.go:90]
+2026/08/17 19:03:37.913848 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.037638ms [Backup@backup.go:90]
+2026/08/17 19:03:37.914976 juicefs[2950271] <INFO>: Meta address: sqlite3://:memory: [NewClient@interface.go:652]
+2026/08/17 19:03:37.925463 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.188272ms [Backup@backup.go:90]
+2026/08/17 19:03:37.936837 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.033695ms [Backup@backup.go:90]
+2026/08/17 19:03:37.947730 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.138132ms [Backup@backup.go:90]
+2026/08/17 19:03:37.959112 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.066452ms [Backup@backup.go:90]
+2026/08/17 19:03:37.970042 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.220948ms [Backup@backup.go:90]
+2026/08/17 19:03:37.977261 juicefs[2950271] <INFO>: Meta address: redis://127.0.0.1:6379/2 [NewClient@interface.go:652]
+2026/08/17 19:03:37.981893 juicefs[2950271] <WARNING>: AOF is not enabled, you may lose data if Redis is not shutdown properly. [checkRedisInfo@info.go:84]
+2026/08/17 19:03:37.982062 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 1.512335ms [Backup@backup.go:90]
+2026/08/17 19:03:37.982429 juicefs[2950271] <INFO>: Ping redis latency: 473.173µs [checkServerConfig@redis.go:4620]
+2026/08/17 19:03:37.983016 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "3b4a7892-2d83-4e61-81f8-289bb6f7b231",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:37.992959 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110337.json.gz", used 997.151µs [Backup@backup.go:90]
+2026/08/17 19:03:38.003758 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.113367ms [Backup@backup.go:90]
+2026/08/17 19:03:38.103195 juicefs[2950271] <INFO>: Meta address: redis://127.0.0.1:6379/2 [NewClient@interface.go:652]
+2026/08/17 19:03:38.107204 juicefs[2950271] <WARNING>: AOF is not enabled, you may lose data if Redis is not shutdown properly. [checkRedisInfo@info.go:84]
+2026/08/17 19:03:38.107608 juicefs[2950271] <INFO>: Ping redis latency: 353.554µs [checkServerConfig@redis.go:4620]
+2026/08/17 19:03:38.108229 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "4b04162c-5f2d-4bac-89e8-3ceeba92d26f",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:38.108281 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 995.389µs [Backup@backup.go:90]
+2026/08/17 19:03:38.119434 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 968.547µs [Backup@backup.go:90]
+2026/08/17 19:03:38.130960 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.167409ms [Backup@backup.go:90]
+2026/08/17 19:03:38.141643 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 944.949µs [Backup@backup.go:90]
+2026/08/17 19:03:38.153991 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.398707ms [Backup@backup.go:90]
+2026/08/17 19:03:38.165748 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.58842ms [Backup@backup.go:90]
+2026/08/17 19:03:38.177660 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.185384ms [Backup@backup.go:90]
+2026/08/17 19:03:38.189399 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.63738ms [Backup@backup.go:90]
+2026/08/17 19:03:38.201192 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.608059ms [Backup@backup.go:90]
+2026/08/17 19:03:38.212427 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.647765ms [Backup@backup.go:90]
+2026/08/17 19:03:38.220857 juicefs[2950271] <INFO>: Meta address: redis://127.0.0.1:6379/2 [NewClient@interface.go:652]
+2026/08/17 19:03:38.224221 juicefs[2950271] <WARNING>: AOF is not enabled, you may lose data if Redis is not shutdown properly. [checkRedisInfo@info.go:84]
+2026/08/17 19:03:38.224244 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.67667ms [Backup@backup.go:90]
+2026/08/17 19:03:38.224679 juicefs[2950271] <INFO>: Ping redis latency: 425.927µs [checkServerConfig@redis.go:4620]
+2026/08/17 19:03:38.225189 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "10477099-a22a-48bf-a37b-6855477e682b",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:38.236161 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.674146ms [Backup@backup.go:90]
+2026/08/17 19:03:38.248150 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.745211ms [Backup@backup.go:90]
+2026/08/17 19:03:38.260640 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.809875ms [Backup@backup.go:90]
+2026/08/17 19:03:38.272460 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.617376ms [Backup@backup.go:90]
+2026/08/17 19:03:38.286603 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 4.236821ms [Backup@backup.go:90]
+2026/08/17 19:03:38.298719 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.496716ms [Backup@backup.go:90]
+2026/08/17 19:03:38.309523 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.071847ms [Backup@backup.go:90]
+2026/08/17 19:03:38.321053 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.000252ms [Backup@backup.go:90]
+2026/08/17 19:03:38.332355 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.188592ms [Backup@backup.go:90]
+2026/08/17 19:03:38.343647 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.379188ms [Backup@backup.go:90]
+2026/08/17 19:03:38.354934 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.079168ms [Backup@backup.go:90]
+2026/08/17 19:03:38.366210 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.22868ms [Backup@backup.go:90]
+2026/08/17 19:03:38.377442 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.146927ms [Backup@backup.go:90]
+2026/08/17 19:03:38.389286 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.212489ms [Backup@backup.go:90]
+2026/08/17 19:03:38.400977 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 997.915µs [Backup@backup.go:90]
+2026/08/17 19:03:38.412543 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.081526ms [Backup@backup.go:90]
+2026/08/17 19:03:38.423973 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.142465ms [Backup@backup.go:90]
+2026/08/17 19:03:38.435358 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.255531ms [Backup@backup.go:90]
+2026/08/17 19:03:38.446531 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 899.65µs [Backup@backup.go:90]
+2026/08/17 19:03:38.458529 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.49183ms [Backup@backup.go:90]
+2026/08/17 19:03:38.470456 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.260152ms [Backup@backup.go:90]
+2026/08/17 19:03:38.482191 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.139674ms [Backup@backup.go:90]
+2026/08/17 19:03:38.493870 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.154131ms [Backup@backup.go:90]
+2026/08/17 19:03:38.505752 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.06497ms [Backup@backup.go:90]
+2026/08/17 19:03:38.517277 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.231749ms [Backup@backup.go:90]
+2026/08/17 19:03:38.528537 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.077938ms [Backup@backup.go:90]
+2026/08/17 19:03:38.539474 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 887.856µs [Backup@backup.go:90]
+2026/08/17 19:03:38.550910 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.137066ms [Backup@backup.go:90]
+2026/08/17 19:03:38.562018 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 915.003µs [Backup@backup.go:90]
+2026/08/17 19:03:38.573541 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.2102ms [Backup@backup.go:90]
+2026/08/17 19:03:38.584930 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 951.484µs [Backup@backup.go:90]
+2026/08/17 19:03:38.595896 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.172474ms [Backup@backup.go:90]
+2026/08/17 19:03:38.607573 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.30357ms [Backup@backup.go:90]
+2026/08/17 19:03:38.619090 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.3581ms [Backup@backup.go:90]
+2026/08/17 19:03:38.630335 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 953.335µs [Backup@backup.go:90]
+2026/08/17 19:03:38.642154 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.169763ms [Backup@backup.go:90]
+2026/08/17 19:03:38.653893 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 975.611µs [Backup@backup.go:90]
+2026/08/17 19:03:38.666506 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.214188ms [Backup@backup.go:90]
+2026/08/17 19:03:38.677602 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 915.048µs [Backup@backup.go:90]
+2026/08/17 19:03:38.688513 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.030454ms [Backup@backup.go:90]
+2026/08/17 19:03:38.699878 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.281254ms [Backup@backup.go:90]
+2026/08/17 19:03:38.711235 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.089817ms [Backup@backup.go:90]
+2026/08/17 19:03:38.722731 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 944.087µs [Backup@backup.go:90]
+2026/08/17 19:03:38.734340 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 964.323µs [Backup@backup.go:90]
+2026/08/17 19:03:38.745354 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.320334ms [Backup@backup.go:90]
+2026/08/17 19:03:38.756513 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 879.616µs [Backup@backup.go:90]
+2026/08/17 19:03:38.767872 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.127304ms [Backup@backup.go:90]
+2026/08/17 19:03:38.779639 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.278194ms [Backup@backup.go:90]
+2026/08/17 19:03:38.790307 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 982.86µs [Backup@backup.go:90]
+2026/08/17 19:03:38.802021 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.107137ms [Backup@backup.go:90]
+2026/08/17 19:03:38.813046 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.120889ms [Backup@backup.go:90]
+2026/08/17 19:03:38.824741 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.253091ms [Backup@backup.go:90]
+2026/08/17 19:03:38.836431 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 917.124µs [Backup@backup.go:90]
+2026/08/17 19:03:38.849079 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 2.499075ms [Backup@backup.go:90]
+2026/08/17 19:03:38.860578 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.254843ms [Backup@backup.go:90]
+2026/08/17 19:03:38.871381 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 880.492µs [Backup@backup.go:90]
+2026/08/17 19:03:38.882474 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.245111ms [Backup@backup.go:90]
+2026/08/17 19:03:38.893492 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.056432ms [Backup@backup.go:90]
+2026/08/17 19:03:38.904862 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 914.794µs [Backup@backup.go:90]
+2026/08/17 19:03:38.916886 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.415854ms [Backup@backup.go:90]
+2026/08/17 19:03:38.928149 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.296506ms [Backup@backup.go:90]
+2026/08/17 19:03:38.939126 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.030249ms [Backup@backup.go:90]
+2026/08/17 19:03:38.951250 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.280962ms [Backup@backup.go:90]
+2026/08/17 19:03:38.962431 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.0202ms [Backup@backup.go:90]
+2026/08/17 19:03:38.973351 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.045141ms [Backup@backup.go:90]
+2026/08/17 19:03:38.983812 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 834.55µs [Backup@backup.go:90]
+2026/08/17 19:03:38.995124 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110338.json.gz", used 1.191625ms [Backup@backup.go:90]
+2026/08/17 19:03:39.006032 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.08312ms [Backup@backup.go:90]
+2026/08/17 19:03:39.107631 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.307174ms [Backup@backup.go:90]
+2026/08/17 19:03:39.118589 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.12086ms [Backup@backup.go:90]
+2026/08/17 19:03:39.129837 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 903.643µs [Backup@backup.go:90]
+2026/08/17 19:03:39.141740 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.194092ms [Backup@backup.go:90]
+2026/08/17 19:03:39.152562 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.054519ms [Backup@backup.go:90]
+2026/08/17 19:03:39.161175 juicefs[2950271] <INFO>: Meta address: redis://127.0.0.1:6379/2 [NewClient@interface.go:652]
+2026/08/17 19:03:39.163930 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 952.761µs [Backup@backup.go:90]
+2026/08/17 19:03:39.164274 juicefs[2950271] <WARNING>: AOF is not enabled, you may lose data if Redis is not shutdown properly. [checkRedisInfo@info.go:84]
+2026/08/17 19:03:39.164834 juicefs[2950271] <INFO>: Ping redis latency: 512.889µs [checkServerConfig@redis.go:4620]
+2026/08/17 19:03:39.165629 juicefs[2950271] <WARNING>: Existing volume will be overwrited: {
+  "Name": "test",
+  "UUID": "e63b913e-df88-480c-a450-b12c8645103b",
+  "Storage": "mem",
+  "Tiers": null,
+  "Bucket": "",
+  "BlockSize": 4096,
+  "Compression": "lz4",
+  "TrashDays": 0,
+  "DirStats": true,
+  "EnableACL": false
+} [update@config.go:117]
+2026/08/17 19:03:39.175034 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.029ms [Backup@backup.go:90]
+2026/08/17 19:03:39.186779 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.188368ms [Backup@backup.go:90]
+2026/08/17 19:03:39.198250 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.234283ms [Backup@backup.go:90]
+2026/08/17 19:03:39.209811 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.204883ms [Backup@backup.go:90]
+2026/08/17 19:03:39.223807 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 3.658872ms [Backup@backup.go:90]
+2026/08/17 19:03:39.235297 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.085552ms [Backup@backup.go:90]
+2026/08/17 19:03:39.246836 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.066212ms [Backup@backup.go:90]
+2026/08/17 19:03:39.258594 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.504219ms [Backup@backup.go:90]
+2026/08/17 19:03:39.270119 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.122867ms [Backup@backup.go:90]
+2026/08/17 19:03:39.282211 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.234597ms [Backup@backup.go:90]
+2026/08/17 19:03:39.293400 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.194413ms [Backup@backup.go:90]
+2026/08/17 19:03:39.304442 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.121114ms [Backup@backup.go:90]
+2026/08/17 19:03:39.316226 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.32378ms [Backup@backup.go:90]
+2026/08/17 19:03:39.327084 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.033872ms [Backup@backup.go:90]
+2026/08/17 19:03:39.338465 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 902.311µs [Backup@backup.go:90]
+2026/08/17 19:03:39.350605 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.319796ms [Backup@backup.go:90]
+2026/08/17 19:03:39.361908 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.158645ms [Backup@backup.go:90]
+2026/08/17 19:03:39.373325 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.207244ms [Backup@backup.go:90]
+2026/08/17 19:03:39.384172 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.063121ms [Backup@backup.go:90]
+2026/08/17 19:03:39.395708 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.049296ms [Backup@backup.go:90]
+2026/08/17 19:03:39.407310 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.261115ms [Backup@backup.go:90]
+2026/08/17 19:03:39.418607 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.227128ms [Backup@backup.go:90]
+2026/08/17 19:03:39.429919 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 940.676µs [Backup@backup.go:90]
+2026/08/17 19:03:39.440603 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.030875ms [Backup@backup.go:90]
+2026/08/17 19:03:39.452085 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.313498ms [Backup@backup.go:90]
+2026/08/17 19:03:39.463556 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 932.764µs [Backup@backup.go:90]
+2026/08/17 19:03:39.474732 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.253232ms [Backup@backup.go:90]
+2026/08/17 19:03:39.486128 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 983.317µs [Backup@backup.go:90]
+2026/08/17 19:03:39.497685 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.112128ms [Backup@backup.go:90]
+2026/08/17 19:03:39.508993 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.01146ms [Backup@backup.go:90]
+2026/08/17 19:03:39.521561 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.938542ms [Backup@backup.go:90]
+2026/08/17 19:03:39.537231 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 5.760393ms [Backup@backup.go:90]
+2026/08/17 19:03:39.549318 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.654785ms [Backup@backup.go:90]
+2026/08/17 19:03:39.560463 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.34019ms [Backup@backup.go:90]
+2026/08/17 19:03:39.572043 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.241371ms [Backup@backup.go:90]
+2026/08/17 19:03:39.583474 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.287165ms [Backup@backup.go:90]
+2026/08/17 19:03:39.595545 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.163455ms [Backup@backup.go:90]
+2026/08/17 19:03:39.607216 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.285494ms [Backup@backup.go:90]
+2026/08/17 19:03:39.618234 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.044062ms [Backup@backup.go:90]
+2026/08/17 19:03:39.629544 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.289936ms [Backup@backup.go:90]
+2026/08/17 19:03:39.641599 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.413413ms [Backup@backup.go:90]
+2026/08/17 19:03:39.652451 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 853.943µs [Backup@backup.go:90]
+2026/08/17 19:03:39.663685 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 979.293µs [Backup@backup.go:90]
+2026/08/17 19:03:39.675069 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.098963ms [Backup@backup.go:90]
+2026/08/17 19:03:39.686381 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.278433ms [Backup@backup.go:90]
+2026/08/17 19:03:39.698148 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.120717ms [Backup@backup.go:90]
+2026/08/17 19:03:39.709832 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.177658ms [Backup@backup.go:90]
+2026/08/17 19:03:39.720779 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.048518ms [Backup@backup.go:90]
+2026/08/17 19:03:39.732786 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.450049ms [Backup@backup.go:90]
+2026/08/17 19:03:39.744109 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.010585ms [Backup@backup.go:90]
+2026/08/17 19:03:39.755758 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.145723ms [Backup@backup.go:90]
+2026/08/17 19:03:39.766907 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.122861ms [Backup@backup.go:90]
+2026/08/17 19:03:39.778618 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.184721ms [Backup@backup.go:90]
+2026/08/17 19:03:39.791792 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 3.01182ms [Backup@backup.go:90]
+2026/08/17 19:03:39.802840 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 959.429µs [Backup@backup.go:90]
+2026/08/17 19:03:39.814779 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.387891ms [Backup@backup.go:90]
+2026/08/17 19:03:39.825777 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.039703ms [Backup@backup.go:90]
+2026/08/17 19:03:39.837416 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.175541ms [Backup@backup.go:90]
+2026/08/17 19:03:39.852314 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 4.244687ms [Backup@backup.go:90]
+2026/08/17 19:03:39.863883 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.346691ms [Backup@backup.go:90]
+2026/08/17 19:03:39.875395 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.019744ms [Backup@backup.go:90]
+2026/08/17 19:03:39.886220 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.065133ms [Backup@backup.go:90]
+2026/08/17 19:03:39.897805 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.290724ms [Backup@backup.go:90]
+2026/08/17 19:03:39.909061 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.126131ms [Backup@backup.go:90]
+2026/08/17 19:03:39.920641 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.182345ms [Backup@backup.go:90]
+2026/08/17 19:03:39.932261 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.322621ms [Backup@backup.go:90]
+2026/08/17 19:03:39.943515 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.158687ms [Backup@backup.go:90]
+2026/08/17 19:03:39.955187 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.49918ms [Backup@backup.go:90]
+2026/08/17 19:03:39.966522 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.135474ms [Backup@backup.go:90]
+2026/08/17 19:03:39.977544 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 985.053µs [Backup@backup.go:90]
+2026/08/17 19:03:39.988846 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.158515ms [Backup@backup.go:90]
+2026/08/17 19:03:39.999933 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110339.json.gz", used 1.056393ms [Backup@backup.go:90]
+2026/08/17 19:03:40.011513 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 1.113446ms [Backup@backup.go:90]
+--- PASS: TestReaddir (2.26s)
+=== RUN   TestFullBlockDispatchedWhenSliceIDBecomesReady
+2026/08/17 19:03:40.105721 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 1.15261ms [Backup@backup.go:90]
+2026/08/17 19:03:40.116731 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 1.285562ms [Backup@backup.go:90]
+2026/08/17 19:03:40.128032 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 1.096877ms [Backup@backup.go:90]
+2026/08/17 19:03:40.140003 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 1.070804ms [Backup@backup.go:90]
+2026/08/17 19:03:40.151748 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 1.079526ms [Backup@backup.go:90]
+2026/08/17 19:03:40.163399 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 939.02µs [Backup@backup.go:90]
+2026/08/17 19:03:40.175620 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 1.160001ms [Backup@backup.go:90]
+--- PASS: TestFullBlockDispatchedWhenSliceIDBecomesReady (0.10s)
+=== RUN   TestPartialBlockNotDispatchedWhenSliceIDBecomesReady
+2026/08/17 19:03:40.188268 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 1.196729ms [Backup@backup.go:90]
+2026/08/17 19:03:40.199374 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 982.03µs [Backup@backup.go:90]
+2026/08/17 19:03:40.210868 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 831.605µs [Backup@backup.go:90]
+2026/08/17 19:03:40.222857 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 1.040307ms [Backup@backup.go:90]
+2026/08/17 19:03:40.234704 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 938.258µs [Backup@backup.go:90]
+2026/08/17 19:03:40.249348 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 4.128241ms [Backup@backup.go:90]
+2026/08/17 19:03:40.261335 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 1.096703ms [Backup@backup.go:90]
+2026/08/17 19:03:40.273268 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 1.037953ms [Backup@backup.go:90]
+2026/08/17 19:03:40.285101 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 1.090302ms [Backup@backup.go:90]
+2026/08/17 19:03:40.296588 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 917.502µs [Backup@backup.go:90]
+2026/08/17 19:03:40.307948 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 889.717µs [Backup@backup.go:90]
+2026/08/17 19:03:40.318583 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 736.61µs [Backup@backup.go:90]
+2026/08/17 19:03:40.329537 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 1.043427ms [Backup@backup.go:90]
+2026/08/17 19:03:40.341117 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 736.342µs [Backup@backup.go:90]
+2026/08/17 19:03:40.353263 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 1.103259ms [Backup@backup.go:90]
+2026/08/17 19:03:40.364924 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 836.142µs [Backup@backup.go:90]
+2026/08/17 19:03:40.376664 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 1.006401ms [Backup@backup.go:90]
+2026/08/17 19:03:40.388065 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 809.312µs [Backup@backup.go:90]
+2026/08/17 19:03:40.399866 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 1.07491ms [Backup@backup.go:90]
+2026/08/17 19:03:40.412093 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 855.798µs [Backup@backup.go:90]
+2026/08/17 19:03:40.423143 juicefs[2950271] <INFO>: backup metadata succeed, fast mode: true, path: "mem:///meta/dump-2026-08-17-110340.json.gz", used 1.045743ms [Backup@backup.go:90]
+--- PASS: TestPartialBlockNotDispatchedWhenSliceIDBecomesReady (0.25s)
+=== RUN   TestFlushErrorRecordedWhenSliceIDBecomesReady
+2026/08/17 19:03:40.428511 juicefs[2950271] <WARNING>: flush inode: 2 chunk: 1 after preparing slice ID: injected flush error [prepareID@writer.go:99]
+--- PASS: TestFlushErrorRecordedWhenSliceIDBecomesReady (0.00s)
+PASS
+ok  	github.com/juicedata/juicefs/pkg/vfs	13.802s

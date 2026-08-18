@@ -1,0 +1,10 @@
+# github.com/mattn/go-sqlite3
+sqlite3-binding.c: In function ‘sqlite3ShadowTableName’:
+sqlite3-binding.c:123934:9: warning: assignment discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+123934 |   zTail = strrchr(zName, '_');
+       |         ^
+=== RUN   TestC02FlushToFailureIsObservable
+2026/08/17 02:22:25.694272 juicefs[1359884] <WARNING>: write inode: 2 chunk: 13 off: 0 C02 injected FlushTo failure [write@writer.go:149]
+--- PASS: TestC02FlushToFailureIsObservable (0.00s)
+PASS
+ok  	github.com/juicedata/juicefs/pkg/vfs	0.037s

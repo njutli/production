@@ -1,0 +1,18 @@
+diff --git a/pkg/vfs/writer.go b/pkg/vfs/writer.go
+index 91297fa4b8bbcea99bcff69c7b466884e33b1011..ed432cc67c0a6c238aaa9836a882795469dc9c7e 100644
+--- a/pkg/vfs/writer.go
++++ b/pkg/vfs/writer.go
+@@ -94,6 +94,13 @@ func (s *sliceWriter) prepareID(ctx meta.Context, retry bool) {
+ 	}
+ 	if s.writer != nil && s.writer.ID() == 0 {
+ 		s.writer.SetID(s.id)
++		if s.id > 0 && !s.freezed && int(s.slen) >= f.w.blockSize {
++			if err := s.writer.FlushTo(int(s.slen)); err != nil {
++				logger.Warnf("flush inode: %v chunk: %d after preparing slice ID: %s",
++					s.chunk.file.inode, s.id, err)
++				s.err = syscall.EIO
++			}
++		}
+ 	}
+ 	f.Unlock()
+ }

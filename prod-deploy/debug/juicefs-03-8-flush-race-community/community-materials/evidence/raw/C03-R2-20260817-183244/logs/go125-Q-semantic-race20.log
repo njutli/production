@@ -1,0 +1,447 @@
+# github.com/mattn/go-sqlite3
+sqlite3-binding.c: In function ‘sqlite3ShadowTableName’:
+sqlite3-binding.c:123934:9: warning: assignment discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+123934 |   zTail = strrchr(zName, '_');
+       |         ^
+=== RUN   TestC02FullBlockDispatchAfterDelayedID
+--- PASS: TestC02FullBlockDispatchAfterDelayedID (0.05s)
+=== RUN   TestC02MultiBlockDispatchUsesLatestLength
+--- PASS: TestC02MultiBlockDispatchUsesLatestLength (0.05s)
+=== RUN   TestC02FlushToFailureIsObservable
+2026/08/17 19:00:34.069534 juicefs[2947237] <WARNING>: flush inode: 2 chunk: 13 after preparing slice ID: C02 injected FlushTo failure [prepareID@writer.go:99]
+--- PASS: TestC02FlushToFailureIsObservable (0.00s)
+=== RUN   TestC02PartialThenFullAfterIDDispatchesOnce
+--- PASS: TestC02PartialThenFullAfterIDDispatchesOnce (0.05s)
+=== RUN   TestC02DelayedNewSliceDoesNotBlockWriteAt
+--- PASS: TestC02DelayedNewSliceDoesNotBlockWriteAt (0.00s)
+=== RUN   TestC02NonEIONewSliceDoesNotRetryBeforeFlush
+--- PASS: TestC02NonEIONewSliceDoesNotRetryBeforeFlush (0.50s)
+=== RUN   TestC02TransientEIORecoversOnFreeze
+--- PASS: TestC02TransientEIORecoversOnFreeze (0.00s)
+=== RUN   TestC02PermanentENOSPCAbortsFrozenSlice
+2026/08/17 19:00:34.631049 juicefs[2947237] <INFO>: flush inode: 2 chunk: 0 err: no space left on device [flushData@writer.go:124]
+--- PASS: TestC02PermanentENOSPCAbortsFrozenSlice (0.00s)
+=== RUN   TestC02FrozenSliceSkipsCatchupFlush
+--- PASS: TestC02FrozenSliceSkipsCatchupFlush (0.00s)
+=== RUN   TestC02ConcurrentIndependentFullBlocks
+--- PASS: TestC02ConcurrentIndependentFullBlocks (0.00s)
+=== RUN   TestC02FullBlockDispatchAfterDelayedID
+--- PASS: TestC02FullBlockDispatchAfterDelayedID (0.05s)
+=== RUN   TestC02MultiBlockDispatchUsesLatestLength
+--- PASS: TestC02MultiBlockDispatchUsesLatestLength (0.05s)
+=== RUN   TestC02FlushToFailureIsObservable
+2026/08/17 19:00:34.743939 juicefs[2947237] <WARNING>: flush inode: 2 chunk: 13 after preparing slice ID: C02 injected FlushTo failure [prepareID@writer.go:99]
+--- PASS: TestC02FlushToFailureIsObservable (0.00s)
+=== RUN   TestC02PartialThenFullAfterIDDispatchesOnce
+--- PASS: TestC02PartialThenFullAfterIDDispatchesOnce (0.05s)
+=== RUN   TestC02DelayedNewSliceDoesNotBlockWriteAt
+--- PASS: TestC02DelayedNewSliceDoesNotBlockWriteAt (0.00s)
+=== RUN   TestC02NonEIONewSliceDoesNotRetryBeforeFlush
+--- PASS: TestC02NonEIONewSliceDoesNotRetryBeforeFlush (0.50s)
+=== RUN   TestC02TransientEIORecoversOnFreeze
+--- PASS: TestC02TransientEIORecoversOnFreeze (0.00s)
+=== RUN   TestC02PermanentENOSPCAbortsFrozenSlice
+2026/08/17 19:00:35.305391 juicefs[2947237] <INFO>: flush inode: 2 chunk: 0 err: no space left on device [flushData@writer.go:124]
+--- PASS: TestC02PermanentENOSPCAbortsFrozenSlice (0.00s)
+=== RUN   TestC02FrozenSliceSkipsCatchupFlush
+--- PASS: TestC02FrozenSliceSkipsCatchupFlush (0.00s)
+=== RUN   TestC02ConcurrentIndependentFullBlocks
+--- PASS: TestC02ConcurrentIndependentFullBlocks (0.00s)
+=== RUN   TestC02FullBlockDispatchAfterDelayedID
+--- PASS: TestC02FullBlockDispatchAfterDelayedID (0.05s)
+=== RUN   TestC02MultiBlockDispatchUsesLatestLength
+--- PASS: TestC02MultiBlockDispatchUsesLatestLength (0.05s)
+=== RUN   TestC02FlushToFailureIsObservable
+2026/08/17 19:00:35.417866 juicefs[2947237] <WARNING>: flush inode: 2 chunk: 13 after preparing slice ID: C02 injected FlushTo failure [prepareID@writer.go:99]
+--- PASS: TestC02FlushToFailureIsObservable (0.00s)
+=== RUN   TestC02PartialThenFullAfterIDDispatchesOnce
+--- PASS: TestC02PartialThenFullAfterIDDispatchesOnce (0.05s)
+=== RUN   TestC02DelayedNewSliceDoesNotBlockWriteAt
+--- PASS: TestC02DelayedNewSliceDoesNotBlockWriteAt (0.00s)
+=== RUN   TestC02NonEIONewSliceDoesNotRetryBeforeFlush
+--- PASS: TestC02NonEIONewSliceDoesNotRetryBeforeFlush (0.50s)
+=== RUN   TestC02TransientEIORecoversOnFreeze
+--- PASS: TestC02TransientEIORecoversOnFreeze (0.00s)
+=== RUN   TestC02PermanentENOSPCAbortsFrozenSlice
+2026/08/17 19:00:35.979341 juicefs[2947237] <INFO>: flush inode: 2 chunk: 0 err: no space left on device [flushData@writer.go:124]
+--- PASS: TestC02PermanentENOSPCAbortsFrozenSlice (0.00s)
+=== RUN   TestC02FrozenSliceSkipsCatchupFlush
+--- PASS: TestC02FrozenSliceSkipsCatchupFlush (0.00s)
+=== RUN   TestC02ConcurrentIndependentFullBlocks
+--- PASS: TestC02ConcurrentIndependentFullBlocks (0.00s)
+=== RUN   TestC02FullBlockDispatchAfterDelayedID
+--- PASS: TestC02FullBlockDispatchAfterDelayedID (0.05s)
+=== RUN   TestC02MultiBlockDispatchUsesLatestLength
+--- PASS: TestC02MultiBlockDispatchUsesLatestLength (0.05s)
+=== RUN   TestC02FlushToFailureIsObservable
+2026/08/17 19:00:36.093169 juicefs[2947237] <WARNING>: flush inode: 2 chunk: 13 after preparing slice ID: C02 injected FlushTo failure [prepareID@writer.go:99]
+--- PASS: TestC02FlushToFailureIsObservable (0.00s)
+=== RUN   TestC02PartialThenFullAfterIDDispatchesOnce
+--- PASS: TestC02PartialThenFullAfterIDDispatchesOnce (0.05s)
+=== RUN   TestC02DelayedNewSliceDoesNotBlockWriteAt
+--- PASS: TestC02DelayedNewSliceDoesNotBlockWriteAt (0.00s)
+=== RUN   TestC02NonEIONewSliceDoesNotRetryBeforeFlush
+--- PASS: TestC02NonEIONewSliceDoesNotRetryBeforeFlush (0.50s)
+=== RUN   TestC02TransientEIORecoversOnFreeze
+--- PASS: TestC02TransientEIORecoversOnFreeze (0.00s)
+=== RUN   TestC02PermanentENOSPCAbortsFrozenSlice
+2026/08/17 19:00:36.653861 juicefs[2947237] <INFO>: flush inode: 2 chunk: 0 err: no space left on device [flushData@writer.go:124]
+--- PASS: TestC02PermanentENOSPCAbortsFrozenSlice (0.00s)
+=== RUN   TestC02FrozenSliceSkipsCatchupFlush
+--- PASS: TestC02FrozenSliceSkipsCatchupFlush (0.00s)
+=== RUN   TestC02ConcurrentIndependentFullBlocks
+--- PASS: TestC02ConcurrentIndependentFullBlocks (0.00s)
+=== RUN   TestC02FullBlockDispatchAfterDelayedID
+--- PASS: TestC02FullBlockDispatchAfterDelayedID (0.05s)
+=== RUN   TestC02MultiBlockDispatchUsesLatestLength
+--- PASS: TestC02MultiBlockDispatchUsesLatestLength (0.05s)
+=== RUN   TestC02FlushToFailureIsObservable
+2026/08/17 19:00:36.765146 juicefs[2947237] <WARNING>: flush inode: 2 chunk: 13 after preparing slice ID: C02 injected FlushTo failure [prepareID@writer.go:99]
+--- PASS: TestC02FlushToFailureIsObservable (0.00s)
+=== RUN   TestC02PartialThenFullAfterIDDispatchesOnce
+--- PASS: TestC02PartialThenFullAfterIDDispatchesOnce (0.05s)
+=== RUN   TestC02DelayedNewSliceDoesNotBlockWriteAt
+--- PASS: TestC02DelayedNewSliceDoesNotBlockWriteAt (0.00s)
+=== RUN   TestC02NonEIONewSliceDoesNotRetryBeforeFlush
+--- PASS: TestC02NonEIONewSliceDoesNotRetryBeforeFlush (0.50s)
+=== RUN   TestC02TransientEIORecoversOnFreeze
+--- PASS: TestC02TransientEIORecoversOnFreeze (0.00s)
+=== RUN   TestC02PermanentENOSPCAbortsFrozenSlice
+2026/08/17 19:00:37.325769 juicefs[2947237] <INFO>: flush inode: 2 chunk: 0 err: no space left on device [flushData@writer.go:124]
+--- PASS: TestC02PermanentENOSPCAbortsFrozenSlice (0.00s)
+=== RUN   TestC02FrozenSliceSkipsCatchupFlush
+--- PASS: TestC02FrozenSliceSkipsCatchupFlush (0.00s)
+=== RUN   TestC02ConcurrentIndependentFullBlocks
+--- PASS: TestC02ConcurrentIndependentFullBlocks (0.00s)
+=== RUN   TestC02FullBlockDispatchAfterDelayedID
+--- PASS: TestC02FullBlockDispatchAfterDelayedID (0.05s)
+=== RUN   TestC02MultiBlockDispatchUsesLatestLength
+--- PASS: TestC02MultiBlockDispatchUsesLatestLength (0.05s)
+=== RUN   TestC02FlushToFailureIsObservable
+2026/08/17 19:00:37.436596 juicefs[2947237] <WARNING>: flush inode: 2 chunk: 13 after preparing slice ID: C02 injected FlushTo failure [prepareID@writer.go:99]
+--- PASS: TestC02FlushToFailureIsObservable (0.00s)
+=== RUN   TestC02PartialThenFullAfterIDDispatchesOnce
+--- PASS: TestC02PartialThenFullAfterIDDispatchesOnce (0.05s)
+=== RUN   TestC02DelayedNewSliceDoesNotBlockWriteAt
+--- PASS: TestC02DelayedNewSliceDoesNotBlockWriteAt (0.00s)
+=== RUN   TestC02NonEIONewSliceDoesNotRetryBeforeFlush
+--- PASS: TestC02NonEIONewSliceDoesNotRetryBeforeFlush (0.50s)
+=== RUN   TestC02TransientEIORecoversOnFreeze
+--- PASS: TestC02TransientEIORecoversOnFreeze (0.00s)
+=== RUN   TestC02PermanentENOSPCAbortsFrozenSlice
+2026/08/17 19:00:37.997484 juicefs[2947237] <INFO>: flush inode: 2 chunk: 0 err: no space left on device [flushData@writer.go:124]
+--- PASS: TestC02PermanentENOSPCAbortsFrozenSlice (0.00s)
+=== RUN   TestC02FrozenSliceSkipsCatchupFlush
+--- PASS: TestC02FrozenSliceSkipsCatchupFlush (0.00s)
+=== RUN   TestC02ConcurrentIndependentFullBlocks
+--- PASS: TestC02ConcurrentIndependentFullBlocks (0.00s)
+=== RUN   TestC02FullBlockDispatchAfterDelayedID
+--- PASS: TestC02FullBlockDispatchAfterDelayedID (0.05s)
+=== RUN   TestC02MultiBlockDispatchUsesLatestLength
+--- PASS: TestC02MultiBlockDispatchUsesLatestLength (0.05s)
+=== RUN   TestC02FlushToFailureIsObservable
+2026/08/17 19:00:38.109344 juicefs[2947237] <WARNING>: flush inode: 2 chunk: 13 after preparing slice ID: C02 injected FlushTo failure [prepareID@writer.go:99]
+--- PASS: TestC02FlushToFailureIsObservable (0.00s)
+=== RUN   TestC02PartialThenFullAfterIDDispatchesOnce
+--- PASS: TestC02PartialThenFullAfterIDDispatchesOnce (0.05s)
+=== RUN   TestC02DelayedNewSliceDoesNotBlockWriteAt
+--- PASS: TestC02DelayedNewSliceDoesNotBlockWriteAt (0.00s)
+=== RUN   TestC02NonEIONewSliceDoesNotRetryBeforeFlush
+--- PASS: TestC02NonEIONewSliceDoesNotRetryBeforeFlush (0.50s)
+=== RUN   TestC02TransientEIORecoversOnFreeze
+--- PASS: TestC02TransientEIORecoversOnFreeze (0.00s)
+=== RUN   TestC02PermanentENOSPCAbortsFrozenSlice
+2026/08/17 19:00:38.668546 juicefs[2947237] <INFO>: flush inode: 2 chunk: 0 err: no space left on device [flushData@writer.go:124]
+--- PASS: TestC02PermanentENOSPCAbortsFrozenSlice (0.00s)
+=== RUN   TestC02FrozenSliceSkipsCatchupFlush
+--- PASS: TestC02FrozenSliceSkipsCatchupFlush (0.00s)
+=== RUN   TestC02ConcurrentIndependentFullBlocks
+--- PASS: TestC02ConcurrentIndependentFullBlocks (0.00s)
+=== RUN   TestC02FullBlockDispatchAfterDelayedID
+--- PASS: TestC02FullBlockDispatchAfterDelayedID (0.05s)
+=== RUN   TestC02MultiBlockDispatchUsesLatestLength
+--- PASS: TestC02MultiBlockDispatchUsesLatestLength (0.05s)
+=== RUN   TestC02FlushToFailureIsObservable
+2026/08/17 19:00:38.780509 juicefs[2947237] <WARNING>: flush inode: 2 chunk: 13 after preparing slice ID: C02 injected FlushTo failure [prepareID@writer.go:99]
+--- PASS: TestC02FlushToFailureIsObservable (0.00s)
+=== RUN   TestC02PartialThenFullAfterIDDispatchesOnce
+--- PASS: TestC02PartialThenFullAfterIDDispatchesOnce (0.05s)
+=== RUN   TestC02DelayedNewSliceDoesNotBlockWriteAt
+--- PASS: TestC02DelayedNewSliceDoesNotBlockWriteAt (0.00s)
+=== RUN   TestC02NonEIONewSliceDoesNotRetryBeforeFlush
+--- PASS: TestC02NonEIONewSliceDoesNotRetryBeforeFlush (0.50s)
+=== RUN   TestC02TransientEIORecoversOnFreeze
+--- PASS: TestC02TransientEIORecoversOnFreeze (0.00s)
+=== RUN   TestC02PermanentENOSPCAbortsFrozenSlice
+2026/08/17 19:00:39.339533 juicefs[2947237] <INFO>: flush inode: 2 chunk: 0 err: no space left on device [flushData@writer.go:124]
+--- PASS: TestC02PermanentENOSPCAbortsFrozenSlice (0.00s)
+=== RUN   TestC02FrozenSliceSkipsCatchupFlush
+--- PASS: TestC02FrozenSliceSkipsCatchupFlush (0.00s)
+=== RUN   TestC02ConcurrentIndependentFullBlocks
+--- PASS: TestC02ConcurrentIndependentFullBlocks (0.00s)
+=== RUN   TestC02FullBlockDispatchAfterDelayedID
+--- PASS: TestC02FullBlockDispatchAfterDelayedID (0.05s)
+=== RUN   TestC02MultiBlockDispatchUsesLatestLength
+--- PASS: TestC02MultiBlockDispatchUsesLatestLength (0.05s)
+=== RUN   TestC02FlushToFailureIsObservable
+2026/08/17 19:00:39.450841 juicefs[2947237] <WARNING>: flush inode: 2 chunk: 13 after preparing slice ID: C02 injected FlushTo failure [prepareID@writer.go:99]
+--- PASS: TestC02FlushToFailureIsObservable (0.00s)
+=== RUN   TestC02PartialThenFullAfterIDDispatchesOnce
+--- PASS: TestC02PartialThenFullAfterIDDispatchesOnce (0.05s)
+=== RUN   TestC02DelayedNewSliceDoesNotBlockWriteAt
+--- PASS: TestC02DelayedNewSliceDoesNotBlockWriteAt (0.00s)
+=== RUN   TestC02NonEIONewSliceDoesNotRetryBeforeFlush
+--- PASS: TestC02NonEIONewSliceDoesNotRetryBeforeFlush (0.50s)
+=== RUN   TestC02TransientEIORecoversOnFreeze
+--- PASS: TestC02TransientEIORecoversOnFreeze (0.00s)
+=== RUN   TestC02PermanentENOSPCAbortsFrozenSlice
+2026/08/17 19:00:40.013606 juicefs[2947237] <INFO>: flush inode: 2 chunk: 0 err: no space left on device [flushData@writer.go:124]
+--- PASS: TestC02PermanentENOSPCAbortsFrozenSlice (0.00s)
+=== RUN   TestC02FrozenSliceSkipsCatchupFlush
+--- PASS: TestC02FrozenSliceSkipsCatchupFlush (0.00s)
+=== RUN   TestC02ConcurrentIndependentFullBlocks
+--- PASS: TestC02ConcurrentIndependentFullBlocks (0.00s)
+=== RUN   TestC02FullBlockDispatchAfterDelayedID
+--- PASS: TestC02FullBlockDispatchAfterDelayedID (0.05s)
+=== RUN   TestC02MultiBlockDispatchUsesLatestLength
+--- PASS: TestC02MultiBlockDispatchUsesLatestLength (0.05s)
+=== RUN   TestC02FlushToFailureIsObservable
+2026/08/17 19:00:40.124975 juicefs[2947237] <WARNING>: flush inode: 2 chunk: 13 after preparing slice ID: C02 injected FlushTo failure [prepareID@writer.go:99]
+--- PASS: TestC02FlushToFailureIsObservable (0.00s)
+=== RUN   TestC02PartialThenFullAfterIDDispatchesOnce
+--- PASS: TestC02PartialThenFullAfterIDDispatchesOnce (0.05s)
+=== RUN   TestC02DelayedNewSliceDoesNotBlockWriteAt
+--- PASS: TestC02DelayedNewSliceDoesNotBlockWriteAt (0.00s)
+=== RUN   TestC02NonEIONewSliceDoesNotRetryBeforeFlush
+--- PASS: TestC02NonEIONewSliceDoesNotRetryBeforeFlush (0.50s)
+=== RUN   TestC02TransientEIORecoversOnFreeze
+--- PASS: TestC02TransientEIORecoversOnFreeze (0.00s)
+=== RUN   TestC02PermanentENOSPCAbortsFrozenSlice
+2026/08/17 19:00:40.686400 juicefs[2947237] <INFO>: flush inode: 2 chunk: 0 err: no space left on device [flushData@writer.go:124]
+--- PASS: TestC02PermanentENOSPCAbortsFrozenSlice (0.00s)
+=== RUN   TestC02FrozenSliceSkipsCatchupFlush
+--- PASS: TestC02FrozenSliceSkipsCatchupFlush (0.00s)
+=== RUN   TestC02ConcurrentIndependentFullBlocks
+--- PASS: TestC02ConcurrentIndependentFullBlocks (0.00s)
+=== RUN   TestC02FullBlockDispatchAfterDelayedID
+--- PASS: TestC02FullBlockDispatchAfterDelayedID (0.05s)
+=== RUN   TestC02MultiBlockDispatchUsesLatestLength
+--- PASS: TestC02MultiBlockDispatchUsesLatestLength (0.05s)
+=== RUN   TestC02FlushToFailureIsObservable
+2026/08/17 19:00:40.799265 juicefs[2947237] <WARNING>: flush inode: 2 chunk: 13 after preparing slice ID: C02 injected FlushTo failure [prepareID@writer.go:99]
+--- PASS: TestC02FlushToFailureIsObservable (0.00s)
+=== RUN   TestC02PartialThenFullAfterIDDispatchesOnce
+--- PASS: TestC02PartialThenFullAfterIDDispatchesOnce (0.05s)
+=== RUN   TestC02DelayedNewSliceDoesNotBlockWriteAt
+--- PASS: TestC02DelayedNewSliceDoesNotBlockWriteAt (0.00s)
+=== RUN   TestC02NonEIONewSliceDoesNotRetryBeforeFlush
+--- PASS: TestC02NonEIONewSliceDoesNotRetryBeforeFlush (0.50s)
+=== RUN   TestC02TransientEIORecoversOnFreeze
+--- PASS: TestC02TransientEIORecoversOnFreeze (0.00s)
+=== RUN   TestC02PermanentENOSPCAbortsFrozenSlice
+2026/08/17 19:00:41.359198 juicefs[2947237] <INFO>: flush inode: 2 chunk: 0 err: no space left on device [flushData@writer.go:124]
+--- PASS: TestC02PermanentENOSPCAbortsFrozenSlice (0.00s)
+=== RUN   TestC02FrozenSliceSkipsCatchupFlush
+--- PASS: TestC02FrozenSliceSkipsCatchupFlush (0.00s)
+=== RUN   TestC02ConcurrentIndependentFullBlocks
+--- PASS: TestC02ConcurrentIndependentFullBlocks (0.00s)
+=== RUN   TestC02FullBlockDispatchAfterDelayedID
+--- PASS: TestC02FullBlockDispatchAfterDelayedID (0.05s)
+=== RUN   TestC02MultiBlockDispatchUsesLatestLength
+--- PASS: TestC02MultiBlockDispatchUsesLatestLength (0.05s)
+=== RUN   TestC02FlushToFailureIsObservable
+2026/08/17 19:00:41.470279 juicefs[2947237] <WARNING>: flush inode: 2 chunk: 13 after preparing slice ID: C02 injected FlushTo failure [prepareID@writer.go:99]
+--- PASS: TestC02FlushToFailureIsObservable (0.00s)
+=== RUN   TestC02PartialThenFullAfterIDDispatchesOnce
+--- PASS: TestC02PartialThenFullAfterIDDispatchesOnce (0.05s)
+=== RUN   TestC02DelayedNewSliceDoesNotBlockWriteAt
+--- PASS: TestC02DelayedNewSliceDoesNotBlockWriteAt (0.00s)
+=== RUN   TestC02NonEIONewSliceDoesNotRetryBeforeFlush
+--- PASS: TestC02NonEIONewSliceDoesNotRetryBeforeFlush (0.50s)
+=== RUN   TestC02TransientEIORecoversOnFreeze
+--- PASS: TestC02TransientEIORecoversOnFreeze (0.00s)
+=== RUN   TestC02PermanentENOSPCAbortsFrozenSlice
+2026/08/17 19:00:42.030788 juicefs[2947237] <INFO>: flush inode: 2 chunk: 0 err: no space left on device [flushData@writer.go:124]
+--- PASS: TestC02PermanentENOSPCAbortsFrozenSlice (0.00s)
+=== RUN   TestC02FrozenSliceSkipsCatchupFlush
+--- PASS: TestC02FrozenSliceSkipsCatchupFlush (0.00s)
+=== RUN   TestC02ConcurrentIndependentFullBlocks
+--- PASS: TestC02ConcurrentIndependentFullBlocks (0.00s)
+=== RUN   TestC02FullBlockDispatchAfterDelayedID
+--- PASS: TestC02FullBlockDispatchAfterDelayedID (0.05s)
+=== RUN   TestC02MultiBlockDispatchUsesLatestLength
+--- PASS: TestC02MultiBlockDispatchUsesLatestLength (0.05s)
+=== RUN   TestC02FlushToFailureIsObservable
+2026/08/17 19:00:42.141756 juicefs[2947237] <WARNING>: flush inode: 2 chunk: 13 after preparing slice ID: C02 injected FlushTo failure [prepareID@writer.go:99]
+--- PASS: TestC02FlushToFailureIsObservable (0.00s)
+=== RUN   TestC02PartialThenFullAfterIDDispatchesOnce
+--- PASS: TestC02PartialThenFullAfterIDDispatchesOnce (0.05s)
+=== RUN   TestC02DelayedNewSliceDoesNotBlockWriteAt
+--- PASS: TestC02DelayedNewSliceDoesNotBlockWriteAt (0.00s)
+=== RUN   TestC02NonEIONewSliceDoesNotRetryBeforeFlush
+--- PASS: TestC02NonEIONewSliceDoesNotRetryBeforeFlush (0.50s)
+=== RUN   TestC02TransientEIORecoversOnFreeze
+--- PASS: TestC02TransientEIORecoversOnFreeze (0.00s)
+=== RUN   TestC02PermanentENOSPCAbortsFrozenSlice
+2026/08/17 19:00:42.702573 juicefs[2947237] <INFO>: flush inode: 2 chunk: 0 err: no space left on device [flushData@writer.go:124]
+--- PASS: TestC02PermanentENOSPCAbortsFrozenSlice (0.00s)
+=== RUN   TestC02FrozenSliceSkipsCatchupFlush
+--- PASS: TestC02FrozenSliceSkipsCatchupFlush (0.00s)
+=== RUN   TestC02ConcurrentIndependentFullBlocks
+--- PASS: TestC02ConcurrentIndependentFullBlocks (0.00s)
+=== RUN   TestC02FullBlockDispatchAfterDelayedID
+--- PASS: TestC02FullBlockDispatchAfterDelayedID (0.05s)
+=== RUN   TestC02MultiBlockDispatchUsesLatestLength
+--- PASS: TestC02MultiBlockDispatchUsesLatestLength (0.05s)
+=== RUN   TestC02FlushToFailureIsObservable
+2026/08/17 19:00:42.813658 juicefs[2947237] <WARNING>: flush inode: 2 chunk: 13 after preparing slice ID: C02 injected FlushTo failure [prepareID@writer.go:99]
+--- PASS: TestC02FlushToFailureIsObservable (0.00s)
+=== RUN   TestC02PartialThenFullAfterIDDispatchesOnce
+--- PASS: TestC02PartialThenFullAfterIDDispatchesOnce (0.05s)
+=== RUN   TestC02DelayedNewSliceDoesNotBlockWriteAt
+--- PASS: TestC02DelayedNewSliceDoesNotBlockWriteAt (0.00s)
+=== RUN   TestC02NonEIONewSliceDoesNotRetryBeforeFlush
+--- PASS: TestC02NonEIONewSliceDoesNotRetryBeforeFlush (0.50s)
+=== RUN   TestC02TransientEIORecoversOnFreeze
+--- PASS: TestC02TransientEIORecoversOnFreeze (0.00s)
+=== RUN   TestC02PermanentENOSPCAbortsFrozenSlice
+2026/08/17 19:00:43.375168 juicefs[2947237] <INFO>: flush inode: 2 chunk: 0 err: no space left on device [flushData@writer.go:124]
+--- PASS: TestC02PermanentENOSPCAbortsFrozenSlice (0.00s)
+=== RUN   TestC02FrozenSliceSkipsCatchupFlush
+--- PASS: TestC02FrozenSliceSkipsCatchupFlush (0.00s)
+=== RUN   TestC02ConcurrentIndependentFullBlocks
+--- PASS: TestC02ConcurrentIndependentFullBlocks (0.00s)
+=== RUN   TestC02FullBlockDispatchAfterDelayedID
+--- PASS: TestC02FullBlockDispatchAfterDelayedID (0.05s)
+=== RUN   TestC02MultiBlockDispatchUsesLatestLength
+--- PASS: TestC02MultiBlockDispatchUsesLatestLength (0.05s)
+=== RUN   TestC02FlushToFailureIsObservable
+2026/08/17 19:00:43.485521 juicefs[2947237] <WARNING>: flush inode: 2 chunk: 13 after preparing slice ID: C02 injected FlushTo failure [prepareID@writer.go:99]
+--- PASS: TestC02FlushToFailureIsObservable (0.00s)
+=== RUN   TestC02PartialThenFullAfterIDDispatchesOnce
+--- PASS: TestC02PartialThenFullAfterIDDispatchesOnce (0.05s)
+=== RUN   TestC02DelayedNewSliceDoesNotBlockWriteAt
+--- PASS: TestC02DelayedNewSliceDoesNotBlockWriteAt (0.00s)
+=== RUN   TestC02NonEIONewSliceDoesNotRetryBeforeFlush
+--- PASS: TestC02NonEIONewSliceDoesNotRetryBeforeFlush (0.50s)
+=== RUN   TestC02TransientEIORecoversOnFreeze
+--- PASS: TestC02TransientEIORecoversOnFreeze (0.00s)
+=== RUN   TestC02PermanentENOSPCAbortsFrozenSlice
+2026/08/17 19:00:44.047761 juicefs[2947237] <INFO>: flush inode: 2 chunk: 0 err: no space left on device [flushData@writer.go:124]
+--- PASS: TestC02PermanentENOSPCAbortsFrozenSlice (0.00s)
+=== RUN   TestC02FrozenSliceSkipsCatchupFlush
+--- PASS: TestC02FrozenSliceSkipsCatchupFlush (0.00s)
+=== RUN   TestC02ConcurrentIndependentFullBlocks
+--- PASS: TestC02ConcurrentIndependentFullBlocks (0.00s)
+=== RUN   TestC02FullBlockDispatchAfterDelayedID
+--- PASS: TestC02FullBlockDispatchAfterDelayedID (0.05s)
+=== RUN   TestC02MultiBlockDispatchUsesLatestLength
+--- PASS: TestC02MultiBlockDispatchUsesLatestLength (0.05s)
+=== RUN   TestC02FlushToFailureIsObservable
+2026/08/17 19:00:44.159873 juicefs[2947237] <WARNING>: flush inode: 2 chunk: 13 after preparing slice ID: C02 injected FlushTo failure [prepareID@writer.go:99]
+--- PASS: TestC02FlushToFailureIsObservable (0.00s)
+=== RUN   TestC02PartialThenFullAfterIDDispatchesOnce
+--- PASS: TestC02PartialThenFullAfterIDDispatchesOnce (0.05s)
+=== RUN   TestC02DelayedNewSliceDoesNotBlockWriteAt
+--- PASS: TestC02DelayedNewSliceDoesNotBlockWriteAt (0.00s)
+=== RUN   TestC02NonEIONewSliceDoesNotRetryBeforeFlush
+--- PASS: TestC02NonEIONewSliceDoesNotRetryBeforeFlush (0.50s)
+=== RUN   TestC02TransientEIORecoversOnFreeze
+--- PASS: TestC02TransientEIORecoversOnFreeze (0.00s)
+=== RUN   TestC02PermanentENOSPCAbortsFrozenSlice
+2026/08/17 19:00:44.721487 juicefs[2947237] <INFO>: flush inode: 2 chunk: 0 err: no space left on device [flushData@writer.go:124]
+--- PASS: TestC02PermanentENOSPCAbortsFrozenSlice (0.00s)
+=== RUN   TestC02FrozenSliceSkipsCatchupFlush
+--- PASS: TestC02FrozenSliceSkipsCatchupFlush (0.00s)
+=== RUN   TestC02ConcurrentIndependentFullBlocks
+--- PASS: TestC02ConcurrentIndependentFullBlocks (0.00s)
+=== RUN   TestC02FullBlockDispatchAfterDelayedID
+--- PASS: TestC02FullBlockDispatchAfterDelayedID (0.05s)
+=== RUN   TestC02MultiBlockDispatchUsesLatestLength
+--- PASS: TestC02MultiBlockDispatchUsesLatestLength (0.05s)
+=== RUN   TestC02FlushToFailureIsObservable
+2026/08/17 19:00:44.832120 juicefs[2947237] <WARNING>: flush inode: 2 chunk: 13 after preparing slice ID: C02 injected FlushTo failure [prepareID@writer.go:99]
+--- PASS: TestC02FlushToFailureIsObservable (0.00s)
+=== RUN   TestC02PartialThenFullAfterIDDispatchesOnce
+--- PASS: TestC02PartialThenFullAfterIDDispatchesOnce (0.05s)
+=== RUN   TestC02DelayedNewSliceDoesNotBlockWriteAt
+--- PASS: TestC02DelayedNewSliceDoesNotBlockWriteAt (0.00s)
+=== RUN   TestC02NonEIONewSliceDoesNotRetryBeforeFlush
+--- PASS: TestC02NonEIONewSliceDoesNotRetryBeforeFlush (0.50s)
+=== RUN   TestC02TransientEIORecoversOnFreeze
+--- PASS: TestC02TransientEIORecoversOnFreeze (0.00s)
+=== RUN   TestC02PermanentENOSPCAbortsFrozenSlice
+2026/08/17 19:00:45.393966 juicefs[2947237] <INFO>: flush inode: 2 chunk: 0 err: no space left on device [flushData@writer.go:124]
+--- PASS: TestC02PermanentENOSPCAbortsFrozenSlice (0.00s)
+=== RUN   TestC02FrozenSliceSkipsCatchupFlush
+--- PASS: TestC02FrozenSliceSkipsCatchupFlush (0.00s)
+=== RUN   TestC02ConcurrentIndependentFullBlocks
+--- PASS: TestC02ConcurrentIndependentFullBlocks (0.00s)
+=== RUN   TestC02FullBlockDispatchAfterDelayedID
+--- PASS: TestC02FullBlockDispatchAfterDelayedID (0.05s)
+=== RUN   TestC02MultiBlockDispatchUsesLatestLength
+--- PASS: TestC02MultiBlockDispatchUsesLatestLength (0.05s)
+=== RUN   TestC02FlushToFailureIsObservable
+2026/08/17 19:00:45.504646 juicefs[2947237] <WARNING>: flush inode: 2 chunk: 13 after preparing slice ID: C02 injected FlushTo failure [prepareID@writer.go:99]
+--- PASS: TestC02FlushToFailureIsObservable (0.00s)
+=== RUN   TestC02PartialThenFullAfterIDDispatchesOnce
+--- PASS: TestC02PartialThenFullAfterIDDispatchesOnce (0.05s)
+=== RUN   TestC02DelayedNewSliceDoesNotBlockWriteAt
+--- PASS: TestC02DelayedNewSliceDoesNotBlockWriteAt (0.00s)
+=== RUN   TestC02NonEIONewSliceDoesNotRetryBeforeFlush
+--- PASS: TestC02NonEIONewSliceDoesNotRetryBeforeFlush (0.50s)
+=== RUN   TestC02TransientEIORecoversOnFreeze
+--- PASS: TestC02TransientEIORecoversOnFreeze (0.00s)
+=== RUN   TestC02PermanentENOSPCAbortsFrozenSlice
+2026/08/17 19:00:46.065933 juicefs[2947237] <INFO>: flush inode: 2 chunk: 0 err: no space left on device [flushData@writer.go:124]
+--- PASS: TestC02PermanentENOSPCAbortsFrozenSlice (0.00s)
+=== RUN   TestC02FrozenSliceSkipsCatchupFlush
+--- PASS: TestC02FrozenSliceSkipsCatchupFlush (0.00s)
+=== RUN   TestC02ConcurrentIndependentFullBlocks
+--- PASS: TestC02ConcurrentIndependentFullBlocks (0.00s)
+=== RUN   TestC02FullBlockDispatchAfterDelayedID
+--- PASS: TestC02FullBlockDispatchAfterDelayedID (0.05s)
+=== RUN   TestC02MultiBlockDispatchUsesLatestLength
+--- PASS: TestC02MultiBlockDispatchUsesLatestLength (0.05s)
+=== RUN   TestC02FlushToFailureIsObservable
+2026/08/17 19:00:46.174786 juicefs[2947237] <WARNING>: flush inode: 2 chunk: 13 after preparing slice ID: C02 injected FlushTo failure [prepareID@writer.go:99]
+--- PASS: TestC02FlushToFailureIsObservable (0.00s)
+=== RUN   TestC02PartialThenFullAfterIDDispatchesOnce
+--- PASS: TestC02PartialThenFullAfterIDDispatchesOnce (0.05s)
+=== RUN   TestC02DelayedNewSliceDoesNotBlockWriteAt
+--- PASS: TestC02DelayedNewSliceDoesNotBlockWriteAt (0.00s)
+=== RUN   TestC02NonEIONewSliceDoesNotRetryBeforeFlush
+--- PASS: TestC02NonEIONewSliceDoesNotRetryBeforeFlush (0.50s)
+=== RUN   TestC02TransientEIORecoversOnFreeze
+--- PASS: TestC02TransientEIORecoversOnFreeze (0.00s)
+=== RUN   TestC02PermanentENOSPCAbortsFrozenSlice
+2026/08/17 19:00:46.731653 juicefs[2947237] <INFO>: flush inode: 2 chunk: 0 err: no space left on device [flushData@writer.go:124]
+--- PASS: TestC02PermanentENOSPCAbortsFrozenSlice (0.00s)
+=== RUN   TestC02FrozenSliceSkipsCatchupFlush
+--- PASS: TestC02FrozenSliceSkipsCatchupFlush (0.00s)
+=== RUN   TestC02ConcurrentIndependentFullBlocks
+--- PASS: TestC02ConcurrentIndependentFullBlocks (0.00s)
+=== RUN   TestC02FullBlockDispatchAfterDelayedID
+--- PASS: TestC02FullBlockDispatchAfterDelayedID (0.05s)
+=== RUN   TestC02MultiBlockDispatchUsesLatestLength
+--- PASS: TestC02MultiBlockDispatchUsesLatestLength (0.05s)
+=== RUN   TestC02FlushToFailureIsObservable
+2026/08/17 19:00:46.842430 juicefs[2947237] <WARNING>: flush inode: 2 chunk: 13 after preparing slice ID: C02 injected FlushTo failure [prepareID@writer.go:99]
+--- PASS: TestC02FlushToFailureIsObservable (0.00s)
+=== RUN   TestC02PartialThenFullAfterIDDispatchesOnce
+--- PASS: TestC02PartialThenFullAfterIDDispatchesOnce (0.05s)
+=== RUN   TestC02DelayedNewSliceDoesNotBlockWriteAt
+--- PASS: TestC02DelayedNewSliceDoesNotBlockWriteAt (0.00s)
+=== RUN   TestC02NonEIONewSliceDoesNotRetryBeforeFlush
+--- PASS: TestC02NonEIONewSliceDoesNotRetryBeforeFlush (0.50s)
+=== RUN   TestC02TransientEIORecoversOnFreeze
+--- PASS: TestC02TransientEIORecoversOnFreeze (0.00s)
+=== RUN   TestC02PermanentENOSPCAbortsFrozenSlice
+2026/08/17 19:00:47.402680 juicefs[2947237] <INFO>: flush inode: 2 chunk: 0 err: no space left on device [flushData@writer.go:124]
+--- PASS: TestC02PermanentENOSPCAbortsFrozenSlice (0.00s)
+=== RUN   TestC02FrozenSliceSkipsCatchupFlush
+--- PASS: TestC02FrozenSliceSkipsCatchupFlush (0.00s)
+=== RUN   TestC02ConcurrentIndependentFullBlocks
+--- PASS: TestC02ConcurrentIndependentFullBlocks (0.00s)
+PASS
+ok  	github.com/juicedata/juicefs/pkg/vfs	14.549s

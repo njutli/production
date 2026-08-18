@@ -1,0 +1,267 @@
+diff --git a/pkg/vfs/writer.go b/pkg/vfs/writer.go
+index 91297fa..ed432cc 100644
+--- a/pkg/vfs/writer.go
++++ b/pkg/vfs/writer.go
+@@ -94,6 +94,13 @@ func (s *sliceWriter) prepareID(ctx meta.Context, retry bool) {
+ 	}
+ 	if s.writer != nil && s.writer.ID() == 0 {
+ 		s.writer.SetID(s.id)
++		if s.id > 0 && !s.freezed && int(s.slen) >= f.w.blockSize {
++			if err := s.writer.FlushTo(int(s.slen)); err != nil {
++				logger.Warnf("flush inode: %v chunk: %d after preparing slice ID: %s",
++					s.chunk.file.inode, s.id, err)
++				s.err = syscall.EIO
++			}
++		}
+ 	}
+ 	f.Unlock()
+ }
+diff --git a/pkg/vfs/writer_flush_test.go b/pkg/vfs/writer_flush_test.go
+new file mode 100644
+index 0000000..e51fd8d
+--- /dev/null
++++ b/pkg/vfs/writer_flush_test.go
+@@ -0,0 +1,243 @@
++/*
++ * JuiceFS, Copyright 2020 Juicedata, Inc.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package vfs
++
++import (
++	"errors"
++	"sync"
++	"syscall"
++	"testing"
++	"time"
++
++	"github.com/juicedata/juicefs/pkg/chunk"
++	"github.com/juicedata/juicefs/pkg/meta"
++	"github.com/juicedata/juicefs/pkg/object"
++)
++
++const flushDispatchBlockSize = 256 << 10
++
++type delayedSliceMeta struct {
++	meta.Meta
++	called  chan struct{}
++	release chan struct{}
++	once    sync.Once
++}
++
++func newDelayedSliceMeta() *delayedSliceMeta {
++	return &delayedSliceMeta{
++		called:  make(chan struct{}),
++		release: make(chan struct{}),
++	}
++}
++
++func (m *delayedSliceMeta) NewSlice(_ meta.Context, id *uint64) syscall.Errno {
++	m.once.Do(func() { close(m.called) })
++	<-m.release
++	*id = 1
++	return 0
++}
++
++type recordingChunkWriter struct {
++	mu        sync.Mutex
++	id        uint64
++	idSet     chan struct{}
++	idOnce    sync.Once
++	flushes   chan int
++	flushErr  error
++	finishes  int
++	abortions int
++}
++
++func newRecordingChunkWriter(flushErr error) *recordingChunkWriter {
++	return &recordingChunkWriter{
++		idSet:    make(chan struct{}),
++		flushes:  make(chan int, 4),
++		flushErr: flushErr,
++	}
++}
++
++func (w *recordingChunkWriter) WriteAt(p []byte, _ int64) (int, error) {
++	return len(p), nil
++}
++
++func (w *recordingChunkWriter) ID() uint64 {
++	w.mu.Lock()
++	defer w.mu.Unlock()
++	return w.id
++}
++
++func (w *recordingChunkWriter) SetID(id uint64) {
++	w.mu.Lock()
++	w.id = id
++	w.mu.Unlock()
++	w.idOnce.Do(func() { close(w.idSet) })
++}
++
++func (w *recordingChunkWriter) SetWriteback(bool) {}
++
++func (w *recordingChunkWriter) FlushTo(offset int) error {
++	w.flushes <- offset
++	return w.flushErr
++}
++
++func (w *recordingChunkWriter) Finish(int) error {
++	w.mu.Lock()
++	w.finishes++
++	w.mu.Unlock()
++	return nil
++}
++
++func (w *recordingChunkWriter) Abort() {
++	w.mu.Lock()
++	w.abortions++
++	w.mu.Unlock()
++}
++
++type singleWriterStore struct {
++	writer chunk.Writer
++}
++
++func (s *singleWriterStore) NewReader(uint64, int) chunk.Reader { return nil }
++
++func (s *singleWriterStore) NewWriter(uint64, uint8) chunk.Writer { return s.writer }
++
++func (s *singleWriterStore) Remove(uint64, int) error { return nil }
++
++func (s *singleWriterStore) FillCache(uint64, uint32) error { return nil }
++
++func (s *singleWriterStore) EvictCache(uint64, uint32) error { return nil }
++
++func (s *singleWriterStore) CheckCache(uint64, uint32, func(bool, string, int)) error {
++	return nil
++}
++
++func (s *singleWriterStore) UsedMemory() int64 { return 0 }
++
++func (s *singleWriterStore) UpdateLimit(int64, int64) {}
++
++func (s *singleWriterStore) BlobStorage() object.ObjectStorage { return nil }
++
++type flushDispatchHarness struct {
++	file   *fileWriter
++	slice  *sliceWriter
++	writer *recordingChunkWriter
++}
++
++func writeSliceWithDelayedID(t *testing.T, size int, flushErr error) *flushDispatchHarness {
++	t.Helper()
++
++	m := newDelayedSliceMeta()
++	writer := newRecordingChunkWriter(flushErr)
++	w := &dataWriter{
++		m:         m,
++		store:     &singleWriterStore{writer: writer},
++		blockSize: flushDispatchBlockSize,
++	}
++	f := &fileWriter{
++		w:      w,
++		inode:  2,
++		chunks: make(map[uint32]*chunkWriter),
++	}
++	c := &chunkWriter{indx: 0, file: f}
++	// Keep commitThread out of this dispatch-only test.
++	c.slices = []*sliceWriter{{
++		chunk:   c,
++		off:     8 * flushDispatchBlockSize,
++		slen:    flushDispatchBlockSize,
++		freezed: true,
++	}}
++	f.chunks[0] = c
++
++	go func() {
++		<-m.called
++		close(m.release)
++	}()
++
++	f.Lock()
++	st := f.writeChunk(meta.Background(), 0, 0, make([]byte, size))
++	f.Unlock()
++	if st != 0 && flushErr == nil {
++		t.Fatalf("writeChunk returned %s", st)
++	}
++
++	select {
++	case <-writer.idSet:
++	case <-time.After(2 * time.Second):
++		t.Fatal("slice ID was not assigned")
++	}
++
++	f.Lock()
++	s := c.slices[len(c.slices)-1]
++	f.Unlock()
++	return &flushDispatchHarness{file: f, slice: s, writer: writer}
++}
++
++func (h *flushDispatchHarness) sliceError() syscall.Errno {
++	h.file.Lock()
++	defer h.file.Unlock()
++	return h.slice.err
++}
++
++func TestFullBlockDispatchedWhenSliceIDBecomesReady(t *testing.T) {
++	h := writeSliceWithDelayedID(t, flushDispatchBlockSize, nil)
++
++	select {
++	case got := <-h.writer.flushes:
++		if got != flushDispatchBlockSize {
++			t.Fatalf("FlushTo offset = %d, want %d", got, flushDispatchBlockSize)
++		}
++	case <-time.After(time.Second):
++		t.Fatal("full block was not dispatched after slice ID became ready")
++	}
++
++	select {
++	case got := <-h.writer.flushes:
++		t.Fatalf("duplicate FlushTo(%d)", got)
++	case <-time.After(100 * time.Millisecond):
++	}
++}
++
++func TestPartialBlockNotDispatchedWhenSliceIDBecomesReady(t *testing.T) {
++	h := writeSliceWithDelayedID(t, flushDispatchBlockSize/2, nil)
++
++	select {
++	case got := <-h.writer.flushes:
++		t.Fatalf("partial block unexpectedly dispatched with FlushTo(%d)", got)
++	case <-time.After(250 * time.Millisecond):
++	}
++}
++
++func TestFlushErrorRecordedWhenSliceIDBecomesReady(t *testing.T) {
++	h := writeSliceWithDelayedID(t, flushDispatchBlockSize, errors.New("injected flush error"))
++
++	select {
++	case got := <-h.writer.flushes:
++		if got != flushDispatchBlockSize {
++			t.Fatalf("FlushTo offset = %d, want %d", got, flushDispatchBlockSize)
++		}
++	case <-time.After(time.Second):
++		t.Fatal("full block with injected flush error was not dispatched")
++	}
++
++	deadline := time.Now().Add(time.Second)
++	for h.sliceError() == 0 && time.Now().Before(deadline) {
++		time.Sleep(time.Millisecond)
++	}
++	if got := h.sliceError(); got != syscall.EIO {
++		t.Fatalf("slice error = %s, want EIO", got)
++	}
++}

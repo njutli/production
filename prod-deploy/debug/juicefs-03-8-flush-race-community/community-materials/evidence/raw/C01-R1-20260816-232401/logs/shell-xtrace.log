@@ -1,0 +1,36 @@
++C01-R1 for ARM in S-stock A-sync B-async-catchup
++C01-R1 git clone --no-hardlinks --no-checkout /home/lilingfeng/project/juicefs /home/lilingfeng/tmp/juicefs-c01-r1-20260816-232401/src/S-stock
++C01-R1 git -C /home/lilingfeng/tmp/juicefs-c01-r1-20260816-232401/src/S-stock cat-file -e 'edabf9c24601510476e7453abff177f4aaca07ac^{commit}'
++C01-R1 git -C /home/lilingfeng/tmp/juicefs-c01-r1-20260816-232401/src/S-stock checkout --detach edabf9c24601510476e7453abff177f4aaca07ac
+++C01-R1 git -C /home/lilingfeng/tmp/juicefs-c01-r1-20260816-232401/src/S-stock rev-parse HEAD
++C01-R1 HEAD_NOW=edabf9c24601510476e7453abff177f4aaca07ac
++C01-R1 printf '%s\t%s\n' S-stock edabf9c24601510476e7453abff177f4aaca07ac
++C01-R1 git -C /home/lilingfeng/tmp/juicefs-c01-r1-20260816-232401/src/S-stock status --porcelain
++C01-R1 echo 'OK: S-stock HEAD=edabf9c24601510476e7453abff177f4aaca07ac'
++C01-R1 for ARM in S-stock A-sync B-async-catchup
++C01-R1 git clone --no-hardlinks --no-checkout /home/lilingfeng/project/juicefs /home/lilingfeng/tmp/juicefs-c01-r1-20260816-232401/src/A-sync
++C01-R1 git -C /home/lilingfeng/tmp/juicefs-c01-r1-20260816-232401/src/A-sync cat-file -e 'edabf9c24601510476e7453abff177f4aaca07ac^{commit}'
++C01-R1 git -C /home/lilingfeng/tmp/juicefs-c01-r1-20260816-232401/src/A-sync checkout --detach edabf9c24601510476e7453abff177f4aaca07ac
+++C01-R1 git -C /home/lilingfeng/tmp/juicefs-c01-r1-20260816-232401/src/A-sync rev-parse HEAD
++C01-R1 HEAD_NOW=edabf9c24601510476e7453abff177f4aaca07ac
++C01-R1 printf '%s\t%s\n' A-sync edabf9c24601510476e7453abff177f4aaca07ac
++C01-R1 git -C /home/lilingfeng/tmp/juicefs-c01-r1-20260816-232401/src/A-sync status --porcelain
++C01-R1 echo 'OK: A-sync HEAD=edabf9c24601510476e7453abff177f4aaca07ac'
++C01-R1 for ARM in S-stock A-sync B-async-catchup
++C01-R1 git clone --no-hardlinks --no-checkout /home/lilingfeng/project/juicefs /home/lilingfeng/tmp/juicefs-c01-r1-20260816-232401/src/B-async-catchup
++C01-R1 git -C /home/lilingfeng/tmp/juicefs-c01-r1-20260816-232401/src/B-async-catchup cat-file -e 'edabf9c24601510476e7453abff177f4aaca07ac^{commit}'
++C01-R1 git -C /home/lilingfeng/tmp/juicefs-c01-r1-20260816-232401/src/B-async-catchup checkout --detach edabf9c24601510476e7453abff177f4aaca07ac
+++C01-R1 git -C /home/lilingfeng/tmp/juicefs-c01-r1-20260816-232401/src/B-async-catchup rev-parse HEAD
++C01-R1 HEAD_NOW=edabf9c24601510476e7453abff177f4aaca07ac
++C01-R1 printf '%s\t%s\n' B-async-catchup edabf9c24601510476e7453abff177f4aaca07ac
++C01-R1 git -C /home/lilingfeng/tmp/juicefs-c01-r1-20260816-232401/src/B-async-catchup status --porcelain
++C01-R1 echo 'OK: B-async-catchup HEAD=edabf9c24601510476e7453abff177f4aaca07ac'
++C01-R1 set +x
++C01-R1 export GOPROXY=https://goproxy.cn,direct
++C01-R1 GOPROXY=https://goproxy.cn,direct
++C01-R1 export GOMODCACHE=/home/lilingfeng/tmp/juicefs-c01-r1-20260816-232401/cache/go-mod
++C01-R1 GOMODCACHE=/home/lilingfeng/tmp/juicefs-c01-r1-20260816-232401/cache/go-mod
++C01-R1 export GOTMPDIR=/home/lilingfeng/tmp/juicefs-c01-r1-20260816-232401/cache/go-tmp
++C01-R1 GOTMPDIR=/home/lilingfeng/tmp/juicefs-c01-r1-20260816-232401/cache/go-tmp
++C01-R1 echo '=== Go 1.25.7 toolchain setup ==='
++C01-R1 env GOTOOLCHAIN=go1.25.7 GOCACHE=/home/lilingfeng/tmp/juicefs-c01-r1-20260816-232401/cache/go-build-125 go version
