@@ -123,7 +123,71 @@ SOURCE-MANIFEST.tsv        关键材料来源、SHA 和边界
 V02 回答 v1.3.1 真实 Ceph 下 S/A/B 性能、正确性和环境稳定性。它能帮助内部生产决策，
 但不是 main 修复 PR 的必要前置，也不能替代 main 的确定性回归测试。两条线可并行。
 
-## 8. 使用规则
+## 8. 测试方案说明
+
+### 8.1 测试方式：Go 单元测试（非 fio/挂载测试）
+
+本项目的三项社区测试和十项 C02 语义测试都是**纯 Go 单元测试**，在 WSL
+本地通过 `go test` 运行，不涉及 FUSE 挂载、fio、Ceph 或 TiKV。测试验证的是
+`writer.go` 的**代码路径逻辑**（FlushTo 有没有被调），而非端到端吞吐。
+
+### 8.2 为什么单元测试能覆盖这个 bug
+
+Bug 的根因是 `writeChunk`（第 257 行，持 `f.Lock()`）启动了 `go s.prepareID()`
+goroutine，而 `prepareID`（第 68 行）也要 `f.Lock()`——被锁阻塞，必然在
+`writeChunk` 返回后才执行。因此 `write` 检查 `s.id > 0` 时 `s.id` 必然为 0，
+FlushTo 被跳过。这是**锁顺序决定的确定性时序**，不是随机竞态。
+
+测试用三个 mock 替换依赖，但 `writeChunk`/`write`/`prepareID` 走的都是
+production 代码的真实路径——同一把锁、同一个 goroutine 启动、同一个条件判断：
+
+| 生产依赖 | Mock 实现 | 作用 |
+|---------|----------|------|
+| TiKV 元数据 (`meta.Meta`) | `delayedSliceMeta` | `NewSlice` 阻塞等放行，精确控制 ID 就绪时序 |
+| Ceph RADOS (`chunk.Writer`) | `recordingChunkWriter` | `WriteAt` 直接返回成功；`FlushTo` 往 channel 写值，测试据此判断派发是否发生 |
+| chunk store (`chunk.ChunkStore`) | `singleWriterStore` | 总是返回同一个 `recordingChunkWriter` |
+
+Go 的 interface 机制让 mock 无缝接入：测试代码构造 `&dataWriter{m: mockMeta,
+store: mockStore}` 传入，`writeChunk` 内部调 `f.w.m.NewSlice()` 和
+`s.writer.FlushTo()` 时自然走到 mock 实现，production 代码一行不改。
+
+### 8.3 测试执行方式
+
+在源码 clone 目录下执行 `go test`，通过 `-run` 正则指定测试函数：
+
+```bash
+# stock 判别：10 个独立进程，每个预期 FAIL + marker
+go test -count=1 -run '^TestFullBlockDispatchedWhenSliceIDBecomesReady$' ./pkg/vfs/
+
+# B 验证：count=100（跑 100 次）
+go test -count=100 -run '^TestFullBlockDispatchedWhenSliceIDBecomesReady$' ./pkg/vfs/
+
+# B race 检测
+go test -race -count=20 -run '^TestFullBlockDispatchedWhenSliceIDBecomesReady$' ./pkg/vfs/
+```
+
+参数说明：
+- `-count=N`：每个测试函数跑 N 次（禁用缓存）
+- `-run`：正则过滤只运行匹配的测试函数
+- `-race`：启用 Go 的数据竞争检测器
+- `./pkg/vfs/`：要测试的包路径
+
+任务书要求 U1/U3 各跑 10 个**独立进程**（不能用 `-count=10` 代替，因为那是
+一个进程内跑 10 次），所以要分 10 次执行命令。完整 `pkg/vfs` 测试需要 Redis
+（上游测试用它做元数据引擎），所以开了一个隔离 Docker Redis 容器。
+
+### 8.4 单元测试与 fio 测试的关系
+
+单元测试测**根因**（代码路径是否走对），fio 测**症状**（吞吐是否恢复）。
+两者互补，不能互相替代：
+
+- 单元测试证明 `FlushTo` 有没有被调——确定性 100% 复现，0.1 秒跑完
+- fio 测试证明修复在生产中带来性能恢复——需要真实 Ceph/挂载，180 秒一轮
+
+V02 任务书设计了完整的 S/A/B fio 性能矩阵来回答后者，但因 pool objects
+超过安全门（7.46M > 3.11M）而阻塞。
+
+## 9. 使用规则
 
 1. 不原地改写 `candidate/`、`tests/` 或 raw evidence；新版本使用新文件和新 SHA。
 2. 不把整个 `community-materials` 或历史 archive 上传社区。
