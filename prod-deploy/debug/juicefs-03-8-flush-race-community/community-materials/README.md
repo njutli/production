@@ -187,6 +187,37 @@ go test -race -count=20 -run '^TestFullBlockDispatchedWhenSliceIDBecomesReady$' 
 V02 任务书设计了完整的 S/A/B fio 性能矩阵来回答后者，但因 pool objects
 超过安全门（7.46M > 3.11M）而阻塞。
 
+### 8.5 为什么不通过实际集群 fio 测试来复现验证
+
+理论上可以用 fio 在真实 Ceph + JuiceFS 挂载上复现 bug（stock 吞吐 ~551 MiB/s
+vs B 修复后 ~3000 MiB/s），但这条路作为**社区提交证据**存在以下问题：
+
+1. **不是确定性复现**：竞态在生产中 99.2% 触发，不是 100%。fio 每轮结果受
+   OSD compaction、缓冲暂态、网络波动、pool 对象数等环境因素影响，可能某轮
+   stock 也不塌，需要多轮统计才能归因，而社区 reviewer 难以从一批 fio 数据中
+   独立判定根因。
+
+2. **环境不可复制**：fio 测试依赖特定 Ceph 集群状态、TiKV、挂载参数和 pool
+   对象数。社区 reviewer 无法在自己的环境中复现完全相同的条件。而 Go 单元测试
+   只需 `go test` 和一个隔离 Redis，任何人 clone 代码后都能跑出相同结果。
+
+3. **测的是症状不是根因**：fio 只能观察吞吐数字，无法直接证明"FlushTo 没有被
+   调用"。单元测试直接检查 mock 的 channel 里有没有值——如果断言失败，错误信息
+   精确指出"full block was not dispatched after slice ID became ready"，reviewer
+   一眼看到根因。
+
+4. **成本和时间**：一轮 fio 需要 180 秒 + health 检查 + drop_caches + gc/compact
+   cooldown，完整 S/A/B 矩阵需要 9 个挂载 × 6 轮 = 54 轮，约 8~12 小时；而单元测试
+   single + count=100 + race=20 总共不到 1 分钟。
+
+5. **main 上补丁对性能无效**：历史调查（DeepSeek 二分 + 模式 B 判决实验）证明，
+   同一竞态代码在 main 上是旁观者——main 的塌态由上传队列排水驱动，不是竞态驱动。
+   补丁对 main 性能无影响，因此 fio 在 main 上无法展示 stock vs patched 的差异。
+
+因此社区提交的确定性证据用 Go 单元测试，fio 性能验证作为独立的 v1.3 生产验证线
+（V02）单独执行。两条线相互独立：单元测试证明代码逻辑正确，fio 证明修复在 v1.3
+生产环境恢复吞吐。
+
 ## 9. 使用规则
 
 1. 不原地改写 `candidate/`、`tests/` 或 raw evidence；新版本使用新文件和新 SHA。
