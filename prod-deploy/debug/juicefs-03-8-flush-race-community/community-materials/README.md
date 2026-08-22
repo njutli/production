@@ -151,19 +151,39 @@ Go 的 interface 机制让 mock 无缝接入：测试代码构造 `&dataWriter{m
 store: mockStore}` 传入，`writeChunk` 内部调 `f.w.m.NewSlice()` 和
 `s.writer.FlushTo()` 时自然走到 mock 实现，production 代码一行不改。
 
-### 8.3 测试执行方式
+### 8.3 三项测试函数
+
+| 函数 | 简称 | 写入量 | stock 预期 | B patch 预期 | 验证什么 |
+|------|------|--------|-----------|-------------|---------|
+| `TestFullBlockDispatchedWhenSliceIDBecomesReady` | U1 | 256K（满 block） | FAIL：FlushTo 没被调 | PASS：FlushTo 被调 | 主路径：满 block 该派发 |
+| `TestPartialBlockNotDispatchedWhenSliceIDBecomesReady` | U2 | 128K（半 block） | PASS：FlushTo 没被调 | PASS：FlushTo 没被调 | 负控：不满 block 不该派发 |
+| `TestFlushErrorRecordedWhenSliceIDBecomesReady` | U3 | 256K + 注入 flush 错误 | FAIL：FlushTo 没被调 | PASS：FlushTo 被调 + s.err=EIO | 错误路径：派发失败要记 EIO |
+
+U1 是主测试，U2 是负对照（证明 B 不会过度派发），U3 验证错误传播（FlushTo 失败
+时映射为 `s.err = syscall.EIO`）。三者都用同一个 `writeSliceWithDelayedID` harness，
+只是传入的 size 和 flushErr 参数不同。
+
+### 8.4 测试执行方式
 
 在源码 clone 目录下执行 `go test`，通过 `-run` 正则指定测试函数：
 
 ```bash
-# stock 判别：10 个独立进程，每个预期 FAIL + marker
+# stock 判别：U1 跑 10 个独立进程，每个预期 FAIL + marker
 go test -count=1 -run '^TestFullBlockDispatchedWhenSliceIDBecomesReady$' ./pkg/vfs/
+# U2 跑 1 次，预期 PASS
+go test -count=1 -run '^TestPartialBlockNotDispatchedWhenSliceIDBecomesReady$' ./pkg/vfs/
+# U3 跑 10 个独立进程，每个预期 FAIL + marker
+go test -count=1 -run '^TestFlushErrorRecordedWhenSliceIDBecomesReady$' ./pkg/vfs/
 
-# B 验证：count=100（跑 100 次）
+# B 验证：三项各跑 count=100
 go test -count=100 -run '^TestFullBlockDispatchedWhenSliceIDBecomesReady$' ./pkg/vfs/
+go test -count=100 -run '^TestPartialBlockNotDispatchedWhenSliceIDBecomesReady$' ./pkg/vfs/
+go test -count=100 -run '^TestFlushErrorRecordedWhenSliceIDBecomesReady$' ./pkg/vfs/
 
-# B race 检测
+# B race 检测：三项各跑 -race -count=20
 go test -race -count=20 -run '^TestFullBlockDispatchedWhenSliceIDBecomesReady$' ./pkg/vfs/
+go test -race -count=20 -run '^TestPartialBlockNotDispatchedWhenSliceIDBecomesReady$' ./pkg/vfs/
+go test -race -count=20 -run '^TestFlushErrorRecordedWhenSliceIDBecomesReady$' ./pkg/vfs/
 ```
 
 参数说明：
@@ -176,7 +196,7 @@ go test -race -count=20 -run '^TestFullBlockDispatchedWhenSliceIDBecomesReady$' 
 一个进程内跑 10 次），所以要分 10 次执行命令。完整 `pkg/vfs` 测试需要 Redis
 （上游测试用它做元数据引擎），所以开了一个隔离 Docker Redis 容器。
 
-### 8.4 单元测试与 fio 测试的关系
+### 8.5 单元测试与 fio 测试的关系
 
 单元测试测**根因**（代码路径是否走对），fio 测**症状**（吞吐是否恢复）。
 两者互补，不能互相替代：

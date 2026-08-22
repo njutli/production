@@ -26,6 +26,18 @@
 #   - patched 臂：无论环境如何，ROUNDS 轮全部健康（首写必刷，不依赖兜底清仓）。
 #   判读：summary.tsv 逐轮 bw 曲线。若 stock 全程未塌 ⇒ 环境仍新鲜，加大 ROUNDS
 #   或先做预热写入后再跑；⛔ 对比结论必须同会话（跨时段单跑对比会被环境漂移混淆）。
+#
+# ⚑ 模式 A（默认，RESET=1）：每臂开跑前做环境复位（gc --compact + OSD compact 追平 +
+#   drop_caches）——用于"同起点对照"。
+# ⚑ 模式 B（RESET=0）：无复位预热复现——两臂连续、环境持续累积退化。
+#   用途：①从干净状态必现塌态起始（stock 臂逐轮下滑、跨节流阈值后自锁 ~550）；
+#        ②同脚本验证补丁。基座预期（重要）：
+#   - v1.3.1 基座（STOCK=v1.3.1 原版、PATCHED=v1.3.1+补丁）：stock 第 1 轮即自锁 ~550；
+#     patched 全程明显更高（~1000+）⇒ 补丁有效可见。
+#   - main 基座（STOCK=main 原版、PATCHED=main+补丁）：两臂**一起**随轮次下滑、
+#     先后进入塌态 ⇒ 补丁对 main 无收益（既定结论 A.4.1），此模式在 main 上的
+#     价值 = 演示"main 也会塌"+ 记录塌态起始轮次。
+#   塌态判定（summary 自动标注）：bw<600 且该轮缓冲峰>300MiB ⇒ "塌态"。
 set -uo pipefail
 
 META="${META:?用法: META=... STOCK=... PATCHED=... ./repro.sh}"
@@ -130,9 +142,15 @@ run_arm() {   # $1=arm(stock|patched) $2=二进制路径 —— 同一挂载内�
         > "$OUT/fio-$arm-r$r.txt" 2>&1
     local rc=$?
     kill "$SAMPLER" 2>/dev/null; wait "$SAMPLER" 2>/dev/null
-    local bw
+    local bw mbw peak flag
     bw=$(grep -E '^\s+WRITE: bw=' "$OUT/fio-$arm-r$r.txt" | head -1)
-    printf '%s\tr%s\trc=%s\tmax_read=%s\t%s\n' "$arm" "$r" "$rc" "${mr:-NA}" "$bw" \
+    mbw=$(echo "$bw" | grep -oE "[0-9.]+" | head -1)
+    peak=$(awk -F'\t' '$2=="juicefs_used_buffer_size_bytes"{if($3+0>m)m=$3+0} END{printf "%.0f", m/1048576}' "$OUT/sample-$arm-r$r.tsv" 2>/dev/null || echo 0)
+    flag=""
+    if [ -n "$mbw" ] && [ -n "$peak" ]; then
+      python3 -c "import sys; sys.exit(0 if float('$mbw')<600 and float('$peak')>300 else 1)" 2>/dev/null && flag="⚑塌态"
+    fi
+    printf '%s\tr%s\trc=%s\tmax_read=%s\t%s\t%s\n' "$arm" "$r" "$rc" "${mr:-NA}" "$bw" "$flag" \
       | tee -a "$OUT/summary.tsv" "$OUT/repro.log"
     sleep 10   # 轮间沉降，在飞 IO 落地
   done

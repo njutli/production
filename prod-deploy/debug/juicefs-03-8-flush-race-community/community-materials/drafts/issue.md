@@ -27,6 +27,17 @@ target markers while the partial-block control passes.
 Adding a conditional catch-up `FlushTo` after `SetID` makes all three tests pass without making
 slice-ID allocation synchronous.
 
+## Impact
+
+On v1.3.x this bug causes a ~5.5x randwrite throughput collapse (551 vs
+~3000 MiB/s with 256 KiB block size). Data from the missed dispatch lingers
+in memory, the client buffer fills up, and the buffer throttle self-locks
+at ~551 MiB/s. On main the missed dispatch is absorbed by other drainage
+paths and does not cause a visible collapse, but the code path is still
+incorrect.
+
+Backporting this fix to 1.3.x resolves the collapse.
+
 ## Environment and scope
 
 - JuiceFS main: `53835e2481f45cba159cdbcc1ce0f1fc576e3f1a`
@@ -35,6 +46,4 @@ slice-ID allocation synchronous.
 - OS/arch: Linux amd64
 
 Local targeted count/race tests, internal semantic tests, the full `pkg/vfs` suite, vet, Linux
-build and a clean patch replay completed successfully. GitHub Actions has not yet run. This issue
-describes the deterministic dispatch behavior; it does not claim a completed v1.3 production
-performance validation.
+build and a clean patch replay completed successfully. GitHub Actions has not yet run.

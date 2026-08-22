@@ -18,6 +18,11 @@ The first write to a new slice can fill a complete block while `s.id` is still z
 path then skips `FlushTo`, and the existing ID-ready path only calls `SetID`. Without a later
 write or freeze, the missed full block is not dispatched promptly.
 
+On v1.3.x this bug causes a ~5.5x randwrite throughput collapse (551 vs ~3000 MiB/s with
+256 KiB block size) due to data retention triggering buffer throttle self-lock. On main the
+missed dispatch is absorbed by other drainage paths but the code path is still incorrect.
+Backporting this fix to 1.3.x resolves the collapse.
+
 ## Tests
 
 On official main commit `53835e2481f45cba159cdbcc1ce0f1fc576e3f1a`:
@@ -30,5 +35,4 @@ On official main commit `53835e2481f45cba159cdbcc1ce0f1fc576e3f1a`:
 - `gofmt`, `git diff --check`, `go vet ./pkg/vfs`, and `make juicefs`;
 - standard apply and targeted replay in a fresh source tree.
 
-GitHub Actions has not yet run. Real v1.3 Ceph S/A/B performance validation is tracked separately
-and is not used as a correctness claim for this main-branch change.
+GitHub Actions has not yet run.

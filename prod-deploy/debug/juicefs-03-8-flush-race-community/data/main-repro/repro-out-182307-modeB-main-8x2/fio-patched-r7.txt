@@ -1,0 +1,30 @@
+storage_test: (g=0): rw=randwrite, bs=(R) 256KiB-256KiB, (W) 256KiB-256KiB, (T) 256KiB-256KiB, ioengine=libaio, iodepth=128
+...
+fio-3.28
+Starting 128 processes
+
+storage_test: (groupid=0, jobs=128): err= 0: pid=3081595: Sun Aug 16 19:17:14 2026
+  write: IOPS=2513, BW=628MiB/s (659MB/s)(100GiB/163443msec); 0 zone resets
+    slat (usec): min=81, max=78473k, avg=43524.52, stdev=1357778.32
+    clat (nsec): min=1773, max=134406M, avg=5512160194.51, stdev=15064691413.75
+     lat (msec): min=4, max=134501, avg=5555.69, stdev=15122.26
+    clat percentiles (msec):
+     |  1.00th=[  401],  5.00th=[  667], 10.00th=[  802], 20.00th=[  953],
+     | 30.00th=[ 1062], 40.00th=[ 1183], 50.00th=[ 1334], 60.00th=[ 1670],
+     | 70.00th=[ 2802], 80.00th=[ 4212], 90.00th=[ 5805], 95.00th=[17113],
+     | 99.00th=[17113], 99.50th=[17113], 99.90th=[17113], 99.95th=[17113],
+     | 99.99th=[17113]
+   bw (  MiB/s): min=  250, max= 6878, per=100.00%, avg=1948.76, stdev=11.32, samples=13619
+   iops        : min= 1002, max=27514, avg=7795.03, stdev=45.27, samples=13619
+  lat (usec)   : 2=0.01%, 4=0.01%, 10=0.01%, 20=0.02%, 50=0.01%
+  lat (msec)   : 10=0.01%, 20=0.01%, 50=0.05%, 100=0.02%, 250=0.23%
+  lat (msec)   : 500=1.56%, 750=5.87%, 1000=16.55%, 2000=39.11%, >=2000=36.57%
+  cpu          : usr=0.05%, sys=0.05%, ctx=411398, majf=0, minf=1718
+  IO depths    : 1=0.1%, 2=0.1%, 4=0.1%, 8=0.2%, 16=0.5%, 32=1.0%, >=64=98.0%
+     submit    : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.0%
+     complete  : 0=0.0%, 4=100.0%, 8=0.0%, 16=0.0%, 32=0.0%, 64=0.0%, >=64=0.1%
+     issued rwts: total=0,410802,0,0 short=0,0,0,0 dropped=0,0,0,0
+     latency   : target=0, window=0, percentile=100.00%, depth=128
+
+Run status group 0 (all jobs):
+  WRITE: bw=628MiB/s (659MB/s), 628MiB/s-628MiB/s (659MB/s-659MB/s), io=100GiB (108GB), run=163443-163443msec

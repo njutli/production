@@ -29,7 +29,7 @@ diff --git a/pkg/vfs/writer.go b/pkg/vfs/writer.go
 index 91297fa4..937a6a20 100644
 --- a/pkg/vfs/writer.go
 +++ b/pkg/vfs/writer.go
-@@ -280,7 +280,18 @@ func (f *fileWriter) writeChunk(ctx meta.Context, indx uint32, off uint32, data
+@@ -280,7 +280,24 @@ func (f *fileWriter) writeChunk(ctx meta.Context, indx uint32, off uint32, data
  			notify:  utils.NewCond(&f.Mutex),
  			started: time.Now(),
  		}
@@ -39,6 +39,12 @@ index 91297fa4..937a6a20 100644
 +		// registration leaves a window where the first (and for random
 +		// writes, the only) write fills the slice to blockSize while
 +		// s.id is still 0, so FlushTo() skips the upload permanently.
++		// Lock discipline: this code runs under f.Lock (held by
++		// fileWriter.Write), which protects s.id and s.writer.SetID.
++		// NOTE: this deviates from prepareID's pattern of releasing f.Lock
++		// around NewSlice — the meta roundtrip (once per 4096 slices) now
++		// briefly stalls this file's writes; negligible with a healthy
++		// meta engine.
 +		var id uint64
 +		if st := f.w.m.NewSlice(meta.Background(), &id); st == 0 {
 +			s.id = id

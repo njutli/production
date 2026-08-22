@@ -1,0 +1,50 @@
+[2026-08-16 18:23:07] 环境信息 → repro-out-20260816-182307/env-info.txt
+[2026-08-16 18:23:07] === 臂 stock：挂载 /tmp/juicefs-main-stock（8 轮 × 120s，单挂载）===
+2026/08/16 18:23:12.447573 juicefs[2529645] <INFO>: Meta address: <redacted-meta-url> [NewClient@interface.go:652]
+2026/08/16 18:23:12.447686 juicefs[2529645] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:90]
+2026/08/16 18:23:12.455159 juicefs[2529645] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:565]
+2026/08/16 18:23:12.463363 juicefs[2529645] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:619]
+2026/08/16 18:23:12.966577 juicefs[2529645] <INFO>: [92mOK[0m, juicefs-prod is ready at "/mnt/juicefs" [checkMountpoint@mount_unix.go:327]
+[2026-08-16 18:23:17] stock max_read=262144（期望 = BS 字节数）
+[2026-08-16 18:23:17] === stock 第 1/8 轮 ===
+stock	r1	rc=0	max_read=262144	  WRITE: bw=732MiB/s (767MB/s), 732MiB/s-732MiB/s (767MB/s-767MB/s), io=112GiB (120GB), run=156839-156839msec	
+[2026-08-16 18:26:30] === stock 第 2/8 轮 ===
+stock	r2	rc=0	max_read=262144	  WRITE: bw=641MiB/s (672MB/s), 641MiB/s-641MiB/s (672MB/s-672MB/s), io=106GiB (114GB), run=169813-169813msec	
+[2026-08-16 18:30:04] === stock 第 3/8 轮 ===
+stock	r3	rc=0	max_read=262144	  WRITE: bw=581MiB/s (609MB/s), 581MiB/s-581MiB/s (609MB/s-609MB/s), io=104GiB (111GB), run=182925-182925msec	⚑塌态
+[2026-08-16 18:33:54] === stock 第 4/8 轮 ===
+stock	r4	rc=0	max_read=262144	  WRITE: bw=619MiB/s (649MB/s), 619MiB/s-619MiB/s (649MB/s-649MB/s), io=99.5GiB (107GB), run=164540-164540msec	
+[2026-08-16 18:37:25] === stock 第 5/8 轮 ===
+stock	r5	rc=0	max_read=262144	  WRITE: bw=535MiB/s (561MB/s), 535MiB/s-535MiB/s (561MB/s-561MB/s), io=92.9GiB (99.7GB), run=177779-177779msec	⚑塌态
+[2026-08-16 18:41:05] === stock 第 6/8 轮 ===
+stock	r6	rc=0	max_read=262144	  WRITE: bw=525MiB/s (551MB/s), 525MiB/s-525MiB/s (551MB/s-551MB/s), io=88.2GiB (94.7GB), run=172043-172043msec	⚑塌态
+[2026-08-16 18:44:33] === stock 第 7/8 轮 ===
+stock	r7	rc=0	max_read=262144	  WRITE: bw=626MiB/s (657MB/s), 626MiB/s-626MiB/s (657MB/s-657MB/s), io=102GiB (109GB), run=166089-166089msec	
+[2026-08-16 18:48:08] === stock 第 8/8 轮 ===
+stock	r8	rc=0	max_read=262144	  WRITE: bw=578MiB/s (606MB/s), 578MiB/s-578MiB/s (606MB/s-606MB/s), io=89.0GiB (95.5GB), run=157699-157699msec	⚑塌态
+[2026-08-16 18:51:39] === 臂 patched：挂载 /tmp/juicefs-main-patched（8 轮 × 120s，单挂载）===
+2026/08/16 18:51:44.736265 juicefs[2840234] <INFO>: Meta address: <redacted-meta-url> [NewClient@interface.go:652]
+2026/08/16 18:51:44.736697 juicefs[2840234] <INFO>: TiKV gc interval is set to 3h0m0s [newTikvClient@tkv_tikv.go:90]
+2026/08/16 18:51:44.746987 juicefs[2840234] <WARNING>: cache-size is 0, writeback and prefetch will be disabled [SelfCheck@cached_store.go:565]
+2026/08/16 18:51:44.756772 juicefs[2840234] <INFO>: Data use ceph://juicefs-data/juicefs-prod/ [mount@mount.go:619]
+2026/08/16 18:51:45.260644 juicefs[2840234] <INFO>: [92mOK[0m, juicefs-prod is ready at "/mnt/juicefs" [checkMountpoint@mount_unix.go:327]
+[2026-08-16 18:51:50] patched max_read=262144（期望 = BS 字节数）
+[2026-08-16 18:51:50] === patched 第 1/8 轮 ===
+patched	r1	rc=0	max_read=262144	  WRITE: bw=556MiB/s (583MB/s), 556MiB/s-556MiB/s (583MB/s-583MB/s), io=92.5GiB (99.3GB), run=170274-170274msec	⚑塌态
+[2026-08-16 18:55:29] === patched 第 2/8 轮 ===
+patched	r2	rc=0	max_read=262144	  WRITE: bw=512MiB/s (536MB/s), 512MiB/s-512MiB/s (536MB/s-536MB/s), io=86.8GiB (93.2GB), run=173817-173817msec	⚑塌态
+[2026-08-16 18:59:14] === patched 第 3/8 轮 ===
+patched	r3	rc=0	max_read=262144	  WRITE: bw=573MiB/s (600MB/s), 573MiB/s-573MiB/s (600MB/s-600MB/s), io=91.4GiB (98.1GB), run=163465-163465msec	⚑塌态
+[2026-08-16 19:02:46] === patched 第 4/8 轮 ===
+patched	r4	rc=0	max_read=262144	  WRITE: bw=608MiB/s (637MB/s), 608MiB/s-608MiB/s (637MB/s-637MB/s), io=97.4GiB (105GB), run=164132-164132msec	
+[2026-08-16 19:06:16] === patched 第 5/8 轮 ===
+patched	r5	rc=0	max_read=262144	  WRITE: bw=517MiB/s (542MB/s), 517MiB/s-517MiB/s (542MB/s-542MB/s), io=89.4GiB (96.0GB), run=176989-176989msec	⚑塌态
+[2026-08-16 19:10:13] === patched 第 6/8 轮 ===
+patched	r6	rc=0	max_read=262144	  WRITE: bw=554MiB/s (581MB/s), 554MiB/s-554MiB/s (581MB/s-581MB/s), io=91.4GiB (98.1GB), run=168891-168891msec	⚑塌态
+[2026-08-16 19:13:54] === patched 第 7/8 轮 ===
+patched	r7	rc=0	max_read=262144	  WRITE: bw=628MiB/s (659MB/s), 628MiB/s-628MiB/s (659MB/s-659MB/s), io=100GiB (108GB), run=163443-163443msec	
+[2026-08-16 19:17:24] === patched 第 8/8 轮 ===
+patched	r8	rc=0	max_read=262144	  WRITE: bw=539MiB/s (565MB/s), 539MiB/s-539MiB/s (565MB/s-565MB/s), io=91.8GiB (98.5GB), run=174443-174443msec	⚑塌态
+[2026-08-16 19:21:12] === 完成。结果：repro-out-20260816-182307/summary.tsv ===
+[2026-08-16 19:21:12] 预期：stock 臂随轮次进入塌态（~550，自锁）；patched 臂全程健康（~3000）。
+[2026-08-16 19:21:12] 判读：stock 全程健康 ⇒ 环境仍新鲜，加大 ROUNDS 或预热后重跑；缓冲/延迟证据见 sample-*.tsv
