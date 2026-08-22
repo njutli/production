@@ -15,8 +15,16 @@ BIN=/tmp/juicefs-main-stock
 BASE_OPTS="--max-uploads 150 --cache-size 0 --max-fuse-io 256K"
 CCF=/etc/ceph/ceph.conf
 CCF_BAK=/etc/ceph/ceph.conf.t43bak
-mkdir -p "$OUT"
+mkdir -p "$OUT" "$OUT/bwlog"
 log() { echo "[$(date '+%F %T')] $*" | tee -a "$OUT/wrapper.log"; }
+CCF_CHANGED=0
+restore_ccf() {
+  if [ "$CCF_CHANGED" = 1 ] && [ -f "$CCF_BAK" ]; then
+    cp "$CCF_BAK" "$CCF"
+    echo "trap_restore ceph.conf $(date '+%F %T')" >> "$OUT/ceph-conf-restore.log"
+  fi
+}
+trap restore_ccf EXIT
 
 umount_jfs() {
   P=$(pgrep -af juicefs | awk '/mount.*\/mnt\/juicefs([[:space:]]|$)/{print $1; exit}')
@@ -36,13 +44,14 @@ gate() {   # 当前挂载上跑 ns/B 判档门（I1 直连 mseqread）；$1=labe
   SAMP=$!
   fio --name=mseqread --directory="$TD/mseqread/" --rw=read --refill_buffers --bs=256k \
       --size=4G --numjobs=16 --group_reporting --direct=1 --ioengine=psync --iodepth=1 \
-      --time_based --runtime=180 > "$OUT/fio-probe-$lab.txt" 2>&1
+      --time_based --runtime=180 --write_bw_log="$OUT/bwlog/probe-$lab" --log_avg_msec=1000 \
+      > "$OUT/fio-probe-$lab.txt" 2>&1
   kill "$SAMP" 2>/dev/null; wait "$SAMP" 2>/dev/null
   bash "$GATE" --i1 "$OUT/i1-probe-$lab.tsv" 2>&1 | tee -a "$OUT/probe-gate.log" | grep -q "verdict=PASS"
 }
 
-mount_and_run() {   # $1=label  $2=额外挂载参数（可为空）→ 过门 + randread j128 1 轮 + pprof；echo bw
-  local lab="$1" extra="$2" mr q bw rc
+mount_and_run() {   # $1=label $2=额外挂载参数 $3=纯数字结果文件
+  local lab="$1" extra="$2" result="$3" mr q bw rc
   umount_jfs || return 2
   "$BIN" mount -d $BASE_OPTS $extra "$META" /mnt/juicefs >> "$OUT/mount.log" 2>&1; sleep 5
   mount | grep -q juice || { log "$lab mount failed"; return 2; }
@@ -63,46 +72,66 @@ mount_and_run() {   # $1=label  $2=额外挂载参数（可为空）→ 过门 +
   # 1 轮 randread j128 + pprof goroutine + i1
   ( printf 'ts\tkey\tvalue\n'
     while :; do t=$(date +%s); timeout 3 cat /mnt/juicefs/.stats 2>/dev/null \
-      | grep -E '^(juicefs_fuse_ops_durations_histogram_seconds_(sum|total)|juicefs_fuse_ops_total_read) ' \
+      | grep -E '^(juicefs_fuse_ops_durations_histogram_seconds_(sum|total)|juicefs_fuse_ops_total_(read|write)|juicefs_fuse_(read|write)_size_bytes_sum|juicefs_meta_ops_durations_histogram_seconds_(sum|total)|juicefs_object_request_durations_histogram_seconds_(GET|PUT)_(sum|total)|juicefs_object_request_data_bytes_(GET|PUT)|juicefs_used_(read_)?buffer_size_bytes) ' \
       | awk -v t="$t" '{print t"\t"$1"\t"$2}'; sleep 1; done ) > "$OUT/i1-$lab.tsv" &
   SAMP=$!
   ( sleep 120; p=$(jfs_port); timeout 10 curl -s "http://127.0.0.1:${p}/debug/pprof/goroutine?debug=2" \
       > "$OUT/pprof-goroutine-$lab.txt" 2>/dev/null ) & DUMP=$!
   fio --directory="$TD" --name=read_test --filesize=1G --size=1G --bs=256k --rw=randread \
       --ioengine=libaio --iodepth=128 --numjobs=128 --direct=1 --fallocate=none --openfiles=128 \
-      --readonly --group_reporting --time_based --runtime=180 > "$OUT/fio-$lab.txt" 2>&1
+      --readonly --group_reporting --time_based --runtime=180 \
+      --write_bw_log="$OUT/bwlog/$lab" --log_avg_msec=1000 > "$OUT/fio-$lab.txt" 2>&1
   rc=$?
   kill "$SAMP" "$DUMP" 2>/dev/null; wait "$SAMP" "$DUMP" 2>/dev/null
-  bw=$(grep -E '^\s+READ: bw=' "$OUT/fio-$lab.txt" | head -1 | grep -oE '[0-9.]+MiB/s' | head -1)
-  echo "$lab rc=$rc bw=${bw:-NA}" | tee -a "$OUT/progress.txt" "$OUT/wrapper.log"
-  echo "${bw:-0}"
+  bw=$(grep -E '^\s+READ: bw=' "$OUT/fio-$lab.txt" | head -1 | grep -oE '[0-9.]+MiB/s' | head -1 | sed 's#MiB/s##')
+  echo "$lab rc=$rc bw=${bw:-NA}MiB/s" | tee -a "$OUT/progress.txt" "$OUT/wrapper.log"
+  [ "$rc" -eq 0 ] && [[ "${bw:-}" =~ ^[0-9]+([.][0-9]+)?$ ]] || {
+    log "STOP $lab 结果不是纯数字或 fio rc=$rc"; return 4;
+  }
+  printf '%s\n' "$bw" > "$result"
+}
+
+read_bw_result() { # $1=file $2=variable name
+  local f="$1" var="$2" v
+  IFS= read -r v < "$f" || return 1
+  [[ "$v" =~ ^[0-9]+([.][0-9]+)?$ ]] || { log "STOP 非法 BW 结果：$f='$v'"; return 1; }
+  printf -v "$var" '%s' "$v"
 }
 
 # ================= T1：max-downloads 扫描 =================
 log "=== T1：--max-downloads 扫描（main edabf9c2）==="
-B1=$(mount_and_run "T43A-md200"  "--max-downloads 200"  || { log "STOP T1-200 失败"; exit 3; })
-B2=$(mount_and_run "T43A-md512"  "--max-downloads 512"  || { log "STOP T1-512 失败"; exit 3; })
-B3=$(mount_and_run "T43A-md1024" "--max-downloads 1024" || { log "STOP T1-1024 失败"; exit 3; })
-DELTA=$(awk -v a="$B3" -v b="$B1" 'BEGIN{printf "%.1f", (a-b)/b*100}')
+mount_and_run "T43A-md200"  "--max-downloads 200"  "$OUT/result-md200.txt"  || { log "STOP T1-200 失败"; exit 3; }
+mount_and_run "T43A-md512"  "--max-downloads 512"  "$OUT/result-md512.txt"  || { log "STOP T1-512 失败"; exit 3; }
+mount_and_run "T43A-md1024" "--max-downloads 1024" "$OUT/result-md1024.txt" || { log "STOP T1-1024 失败"; exit 3; }
+read_bw_result "$OUT/result-md200.txt" B1 || exit 3
+read_bw_result "$OUT/result-md512.txt" B2 || exit 3
+read_bw_result "$OUT/result-md1024.txt" B3 || exit 3
+DELTA=$(awk -v a="$B3" -v b="$B1" 'BEGIN{if ((b+0)<=0) exit 2; printf "%.1f", ((a+0)-(b+0))/(b+0)*100}') || {
+  log "STOP T1 delta 计算失败"; exit 3;
+}
 log "T1 结果：200=${B1} 512=${B2} 1024=${B3} Δ(1024 vs 200)=${DELTA}%"
-if awk -v b="$B3" -v d="$DELTA" 'BEGIN{exit !(b>=4200 || d>=3)}'; then
-  log "✅ 破墙（bw>=4200 或 Δ>=3%）⇒ T2 跳过，F42=下载并发墙，转反向同步 #6472"
+if awk -v b="$B3" -v d="$DELTA" 'BEGIN{exit !((b+0)>=4200 || (d+0)>=3)}'; then
+  log "分支触发（bw>=4200 或 Δ>=3%）⇒ 按预登记跳过 T2；归因由分析方复核，脚本不点名 F42"
 else
   # ================= T2：librados 参数（条件执行）=================
   log "⚑ 不破墙 ⇒ T2 执行：ceph.conf [client] 参数"
   cp "$CCF" "$CCF_BAK"
+  CCF_CHANGED=1
   md5sum "$CCF" "$CCF_BAK" | tee -a "$OUT/ceph-conf-md5.txt"
   cp "$CCF_BAK" "$OUT/ceph.conf.original"
   # t2a：ms_async_op_threads=8
   cp "$CCF_BAK" "$CCF" && printf '\n[client]\n\tms_async_op_threads = 8\n' >> "$CCF"
   log "t2a 生效参数：$(tail -3 $CCF | tr '\n' ' ')"
-  B4=$(mount_and_run "T43B-t2a" "" || { log "STOP T2a 失败"; exit 3; })
+  mount_and_run "T43B-t2a" "" "$OUT/result-t2a.txt" || { log "STOP T2a 失败"; exit 3; }
+  read_bw_result "$OUT/result-t2a.txt" B4 || exit 3
   # t2b：叠加 objecter_inflight_ops=4096
   printf '\tobjecter_inflight_ops = 4096\n' >> "$CCF"
   log "t2b 生效参数：$(tail -4 $CCF | tr '\n' ' ')"
-  B5=$(mount_and_run "T43B-t2b" "" || { log "STOP T2b 失败"; exit 3; })
+  mount_and_run "T43B-t2b" "" "$OUT/result-t2b.txt" || { log "STOP T2b 失败"; exit 3; }
+  read_bw_result "$OUT/result-t2b.txt" B5 || exit 3
   # ⛔ 强制还原 + md5 校验
   cp "$CCF_BAK" "$CCF"
+  CCF_CHANGED=0
   md5sum "$CCF" | tee -a "$OUT/ceph-conf-md5.txt"
   md5sum -c "$OUT/ceph-conf-md5.txt" > "$OUT/ceph-conf-verify.txt" 2>&1
   log "T2 结果：t2a=${B4} t2b=${B5}（ceph.conf 还原校验见 ceph-conf-verify.txt）"

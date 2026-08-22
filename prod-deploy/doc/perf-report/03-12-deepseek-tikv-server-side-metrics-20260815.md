@@ -209,9 +209,9 @@ TiKV 内部健康（排除 TiKV 本身故障）：L0=0（无 compaction 积压�
 
 ## 十二、DeepSeek 独立复核裁定（2026-08-15 追加）
 
-### 12.1 数据校验：抓取有效但不足以回答 F44 归属（脚本指标名假设错误，DeepSeek 责任）
+### 12.1 数据校验：抓取有效但不足以回答 F44 归属（2026-08-17 订正：exposition 截断）
 
-对归档三文件逐一解析后，实际抓到的 TiKV 侧指标只有 **3 个**（`tikv_engine_block_cache_size_bytes`/`blob_cache_size_bytes`/`bloom_efficiency`）+ PD/etcd 的 `grpc_server_handling_seconds`（那是 PD 内嵌 etcd 的调用，**不在 TiKV kv 路径上**）。根因：t42-segD.sh 的 grep 前缀按旧版 TiKV 命名假设（`tikv_grpc_msg_duration` 等）；本环境 TiKV 是 raft-engine 基（v8.x 风格），核心指标实际叫 **`tikv_storage_engine_async_request_duration_seconds`**（含 `type=get/write` 标签的逐 op 服务端延迟——归属判定的关键）、`tikv_storage_command_total`、`tikv_scheduler_*`、`tikv_raftstore_*`（20180 端点实测共 **442 个 tikv_ 指标**，全部未抓到）。
+对归档三文件逐一解析后，实际抓到的 TiKV 侧指标只有 **3 个**（`tikv_engine_block_cache_size_bytes`/`blob_cache_size_bytes`/`bloom_efficiency`）+ PD/etcd 的 `grpc_server_handling_seconds`（不在 TiKV kv 路径上）。**原“grep 前缀按旧版指标名、核心族完全没匹配”归因已撤回。** 仓库宽前缀实际包含目标族；真根因是 `head -80/-200` 按 exposition 顺序截断，`tikv_engine_bloom_efficiency` 的 label 展开先吃掉绝大多数行。宽前缀在该环境可匹配约 11,340 行/端点/次，单纯增大 head 仍会失败。
 
 ⇒ **"F44 归属三选一"无法从本批数据判定**——抓到了数据 ≠ 抓到了关键指标。这是采集设计错误（DeepSeek 责任，非 GLM）。
 
@@ -219,9 +219,11 @@ TiKV 内部健康（排除 TiKV 本身故障）：L0=0（无 compaction 积压�
 
 - 三节点 `block_cache_size_bytes` 全程恒定 **4.3GB/节点**（固定大小缓存），而退化时 TiKV 元数据工作集 42GB（L6 962 SST）≫ 三节点缓存合计 ~12.9GB ⇒ **thrashing 假设方向成立**，但缺逐秒命中率曲线（`tikv_engine_cache_hit/miss` 未抓到）不能闭环。
 - 客户端侧 250ms meta 延迟 vs 服务端数据缺失 ⇒ "服务端慢（thrashing）"与"客户端在飞盖顶"**仍两可**：Little's law 下，服务端 100ms+客户端盖 2000 ⇒ 20K/s；服务端 250ms+无盖 ⇒ 10K/s——两模型都拟合观测，无服务端数据不可区分。
-- GLM 的 gc 前后对比（meta 15.9K/s/bw 4404）独立成立：**对象残留是墙的主变量**这一点不受指标缺失影响。
+- GLM 的 gc 前后对比（meta 15.9K/s/bw 4404）证明对象残留是**强性能状态协变量和实验有效性闸门**；时间窗、后台 GC/删除、cache/LSM/MVCC 与 remount 等混杂未切开，暂不能写“对象数本身是主因”。
 
 ### 12.3 收尾路径（替代"待解析"）
 
-1. **重抓一轮**（~15min）：t42-segD.sh 的 grep 前缀改为实拉验证过的名字（`tikv_storage_engine_async_request_duration_seconds|tikv_storage_command_total|tikv_scheduler_|tikv_engine_|tikv_raftstore_|tikv_server_report_failures|grpc_server_handling_seconds|etcd_server_`，`head -80` 提到 `-200`），挂 `/tmp/juicefs-03-8` 跑 1 轮 randwrite + 抓取。可与 03-13 T2 补跑合并同一会话。
+1. **重抓一轮**（~15min，须在 03-16 Phase R 回传后另发任务）：仓库 `t42-segD.sh` 已改为 TiKV/PD 端点分离、精确 metric、完全去掉 `head`；fio 前校验 histogram sum/count label 集合与 plain metric，保存每端点完整 pre/post `/metrics` gzip，1Hz 文件不裁剪并生成行数 manifest。线上 preflight 任一失败即 STOP。
 2. 会话内降速（r1 1432→r2 882）已记档（§12.2 旧版）——写类判读加"轮间对象增长"纪律。
+
+> 03-15 Gate 0 状态：采集器仓库实现与离线语法检查已完成；尚未在生产环境实采。旧版 60s randwrite “静置探针”同时被取消，第一轮正式健康 randwrite 才承担状态测量。详见 `03-15-gate0-offline-reconciliation-20260817.md`。

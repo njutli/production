@@ -29,6 +29,13 @@
 | `01-2b-randrw-rerun-report.md` | 01-2b | `results/prod-nolimit-randrw-rerun-20260716-114143/` | 可信 |
 | `01-2c-default-backfill-report.md` | 01-2c | `results/prod-nolimit-default-backfill-20260716-194602/` | 可信（default 读放大 2.01×；randrw default 为 ra0 的 57-84%）|
 | `01-3-client-scalability-report.md` | 01-3 | `results/prod-nolimit-scalability-20260716-162750/` | 可信（现象层 6 核封顶属实，根因待 01-4 定位）|
+| `03-12-deepseek-tikv-server-side-metrics-20260815.md` | 03-12 | `results/prod-stage03-raw-20260815/opencode-t3.12-20260815.tar.gz` | 部分可信（客户端证据可用；TiKV 归属未闭环） |
+| `03-13-deepseek-f42-download-concurrency-20260815.md` | 03-13 | `results/prod-stage03-raw-20260815/opencode-t3.13-20260815.tar.gz` | 部分可信（fio 原始值可用；脚本分支作废） |
+| `03-14-deepseek-segA-shared-wall-segB-seqread-20260815.md` | 03-14 | `results/prod-stage03-raw-20260815/opencode-t3.14-20260815.tar.gz` | 部分可信（共享性/seqread 可用；绝对层级与 buffer 已在 §8 订正） |
+| `03-15-gate0-offline-reconciliation-20260817.md` | 03-15 Gate 0（离线） | 上述三包 + 03-11 goroutine dump | 可信（零机器对账；线上脚本待 03-16 preflight） |
+| `03-16-n1n2-read-boundary-20260820.md` | 03-16 | `results/prod-stage03-raw-20260820/opencode-t3.16-20260820.tar.gz` | 可信（Pair A 18 run；读侧约束定为 per-mount，B2 解除；Pair B 无数据不影响结论） |
+| `03-17-interim-abort-20260820.md` | 03-17（阶段性，未完成） | 157 `/tmp/production/opencode-t3.17-abort1/`、`/tmp/production/opencode-t3.17/`（未归档） | 阶段性可信（自变量未测到；新增 F54/F55 与阻塞 B8；订正 03-16 §六 的归因）｜⚑ F54 已被 03-17b 订正为"多值抽签" |
+| `03-17b-msgr-worker-bottleneck-20260820.md` | 03-17b（T48） | `results/prod-stage03-raw-20260820/opencode-t3.17b-20260820.tar.gz`（md5 `4caca50eaf79a9c2546c4f4ce4bbe1c8`，MANIFEST 380 文件全通过） | 可信（8/8 轮完成；H1 成立、H2/H3/H4 排除；B8 解除；新增 F56/F57；bw=1438 MiB/s×满载 worker，r=0.9962） |
 
 > 待补：`01-4-rootcause-cephfs-report.md`（任务书 `perf-tasks/01-4-rootcause-and-cephfs-control-task-book.md`）——
 > pprof 根因定位（C1/C2/C3）+ 条件触发的 CephFS 对照。

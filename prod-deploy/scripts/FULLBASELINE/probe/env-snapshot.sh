@@ -25,9 +25,9 @@ F="$OUT/env-snapshot-$TAG.txt"
     2>/dev/null || echo NA
   echo "--- juicefs mount ---"
   mount | grep juice || echo "(无 juicefs 挂载)"
-  grep juicefs /proc/mounts | head -1
+  grep juicefs /proc/mounts || true
   echo "--- juicefs 进程 ---"
-  pgrep -af juicefs | grep -v instrument | head -3
+  pgrep -af juicefs | grep -v instrument || true
   echo "--- 客户端 ---"
   uname -a; echo "cores=$(nproc)"
   echo "--- fio ---"

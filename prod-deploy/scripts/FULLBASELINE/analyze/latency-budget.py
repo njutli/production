@@ -30,6 +30,7 @@ KEYS = [
     "juicefs_used_read_buffer_size_bytes", "juicefs_staging_blocks",
 ]
 U = {"K": 1024, "M": 1024 ** 2, "G": 1024 ** 3, "T": 1024 ** 4}
+WRITE_ONLY_ITEMS = {"randwrite", "seqwrite", "mseqwrite"}
 
 
 def parse_stats(p):
@@ -288,6 +289,10 @@ def collect(root, labels, instr):
             r["put_n"] = D["juicefs_object_request_durations_histogram_seconds_PUT_total"]
             r["put_lat"] = rat(D["juicefs_object_request_durations_histogram_seconds_PUT_sum"],
                                D["juicefs_object_request_durations_histogram_seconds_PUT_total"]) * 1e6
+            # 写-only 项里的少量 FUSE read 是 open/stat/元数据伴生读，不是业务读。
+            # 用它作 GET 分母会制造约 40x 的假“读放大”；该列对写-only 项无定义。
+            r["get_per_io"] = (float("nan") if item in WRITE_ONLY_ITEMS
+                               else rat(r["get_n"], r["fuse_rd"]))
             r["amp_rx"] = rat(RX, f["rbw"])
             r["amp_tx"] = rat(TX, f["wbw"])
             r["amp_jfs_get"] = rat(D["juicefs_object_request_data_bytes_GET"], f["rio"])
@@ -347,9 +352,11 @@ def main():
          f"{'在飞GET':>8} {'在飞meta':>9} {'核数':>6}")
     print(H); print("-" * len(H))
     for (lab, item), g in sorted(groups.items()):
+        get_per_io = agg(g, "get_per_io")
+        get_per_io_text = f"{get_per_io:7.2f}" if get_per_io == get_per_io else f"{'NA':>7}"
         print(f"{lab:10} {item:10} {len(g):2} {agg(g,'eff_r'):8.0f} {agg(g,'eff_w'):8.0f} {agg(g,'fuse_rdsz'):8.0f}B "
               f"{agg(g,'fuse_lat'):8.0f}u {agg(g,'get_lat'):8.0f}u {agg(g,'put_lat'):8.0f}u "
-              f"{agg(g,'meta_lat'):9.0f}u {agg(g,'get_n')/max(1,agg(g,'fuse_rd')):7.2f} "
+              f"{agg(g,'meta_lat'):9.0f}u {get_per_io_text} "
               f"{agg(g,'amp_rx'):7.2f} {agg(g,'amp_tx'):7.2f} {agg(g,'inflight_get'):8.0f} "
               f"{agg(g,'inflight_meta'):9.0f} {agg(g,'cores'):6.2f}")
 

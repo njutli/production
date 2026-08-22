@@ -82,7 +82,10 @@ start)
     echo "$!" >> "${PIDFILE}"
 
     # ---- I2b: 逐线程 CPU（间隔 I2B_SEC，默认 30s；定位单线程饱和时设 10s）----
+    # /proc/<pid>/task/<tid>/stat 的 comm 字段允许包含空格和右括号，不能直接用
+    # awk 的 $14/$15；必须以最后一个 ") " 为边界再按 Linux proc(5) 字段编号解析。
     (
+        _interval="${I2B_SEC:-30}"
         printf 'ts\tpid\ttid\tcomm\tutime\tstime\n'
         while :; do
             _t=$(date +%s)
@@ -91,13 +94,26 @@ start)
                 for _s in /proc/${_p}/task/*/stat; do
                     [ -r "${_s}" ] || continue
                     awk -v t="${_t}" -v p="${_p}" \
-                        '{c=$2; gsub(/[()]/,"",c); print t"\t"p"\t"$1"\t"c"\t"$14"\t"$15}' "${_s}" 2>/dev/null
+                        '{
+                          tid=$1
+                          line=$0
+                          sub(/^[0-9]+ \(/, "", line)
+                          # POSIX awk 的匹配是最左最长；尾部禁止再出现右括号，故命中最后一个 ") ".
+                          if (!match(line, /\) [^)]*$/)) next
+                          comm=substr(line, 1, RSTART-1)
+                          rest=substr(line, RSTART+2)
+                          n=split(rest, f, /[[:space:]]+/)
+                          # rest 从原 field 3(state) 开始：f[12]/f[13] = field 14/15。
+                          if (n >= 13 && f[12] ~ /^[0-9]+$/ && f[13] ~ /^[0-9]+$/)
+                            print t"\t"p"\t"tid"\t"comm"\t"f[12]"\t"f[13]
+                        }' "${_s}" 2>/dev/null
                 done
             fi
-            sleep "${I2B_SEC:-30}"
+            sleep "${_interval}"
         done
     ) > "${OUTDIR}/i2-threads-${TAG}.tsv" 2>/dev/null &
     echo "$!" >> "${PIDFILE}"
+    echo "i2b_interval_sec=${I2B_SEC:-30}" >> "${OUTDIR}/i0-meta-${TAG}.txt"
 
     # ---- I3: 1Hz 双网卡计数器 + TiKV RTT ----
     (
