@@ -133,7 +133,7 @@
 2. **磁盘非瓶颈**（BeeGFS 同硬件 9045，NVMe 单盘 1.5+ GB/s）。EC per-OSD 仅 290 MB/s = 磁盘能力的 19%。
 3. **Ceph OSD 软件栈在 EC 是瓶颈**（4 ops × 250μs = 1000μs/op，CephFS+EC 也只 4608），**在 Rep 非瓶颈**（CephFS+Rep 6718 ✅ 达标）。
 4. **FUSE 是 JuiceFS 主瓶颈**（直接证据：ceph-fuse 单变量对照 4972 → 2884，损失 42%；slat 暴涨 15×：729μs → 11092μs）。
-5. **Go runtime 和 TiKV 不是瓶颈**（直接证据：ceph-fuse 无 Go/TiKV 但和 JuiceFS 一样慢，2884 vs 2969 差 3%）。
+5. **在 01-5 的 randread 口径中，Go runtime 和 TiKV 不是额外主损失**（ceph-fuse 无 Go/TiKV 但和 JuiceFS 一样慢，2884 vs 2969 差 3%）。该结论不得外推到 randwrite；03-18～03-22 已证明写侧受 per-inode 同步 TiKV 事务和 TiKV 本地写路径约束。
 6. **01-4 C1（FUSE）结论正确**，01-5 实验 B 提供**直接证据**确认。
 7. **rados bench 不能代表后端真实能力**——librados 用户态客户端比 CephFS 内核客户端低效 63%（rados bench Rep 4123 vs CephFS Rep 6718）。因为 librados 使用用户态 messenger，每次网络收发都需 user↔kernel context switch，而 kernel CephFS 内核模块使用内核态 socket 直连 OSD，无此开销。
 8. **达标 6250 路径**：✅ kernel CephFS+Rep（6718）/ ✅ BeeGFS（9045），其余均不达标。
@@ -146,4 +146,76 @@
 | "6 NVMe OSD 单盘 750 MB/s × 6 = 4500 = 磁盘硬件天花板" | ❌ 磁盘可跑 9+ GB/s（BeeGFS 9045 实测）|
 | "Ceph 软件栈 per-IO 延迟是后端瓶颈" | ⚠️ 仅 EC 路径成立，Rep 路径非瓶颈（CephFS Rep 6718 ✅）|
 | "01-4 CephFS Rep +46% 证明后端 Rep 强于 EC" | ❌ CephFS 客户端层效应，非后端本质差异 |
-| "JuiceFS 瓶颈是 FUSE+Go+TiKV（01-4 间接推断）" | ⚠️ FUSE 是主瓶颈（直接证据），Go/TiKV 非瓶颈（直接证据）|
+| "JuiceFS 瓶颈是 FUSE+Go+TiKV（01-4 间接推断）" | ⚠️ 对 01-5 randread，FUSE 是主瓶颈且 Go/TiKV 非额外主损失；该结论不适用于 randwrite，写侧见 03-18～03-22 |
+
+## 六、03-22 TiKV RAM block 存储隔离 A/B（2026-08-25～26）
+
+> 详细报告：`doc/perf-report/03-22-tikv-ram-block-storage-isolation-ab-20260826.md`。正式 RUN_ID `20260825-163811` 在 R05 触发本地容量硬门，整体分类为 **`EVIDENCE_INVALID`**；下列 R01--R04 数值是可复算的部分工程证据，不是完整 A/B 签收结果。
+
+### 6.1 已完成 arm
+
+| arm | TiKV 本地存储 | 正式窗 median MiB/s | CV | W4/W1 | 6250 达成率 | 证据状态 |
+|---|---|---:|---:|---:|---:|---|
+| R01/A | 128 GiB RAM loop，共享 KV/WAL/Raft | 3665.43 | 6.49% | 0.959 | 58.65% | arm/GC 完整 |
+| R02/B | 96 GiB KV + 32 GiB WAL/Raft RAM loop | 3743.41 | 5.54% | 0.965 | 59.89% | arm/GC 完整 |
+| R03/B | 同上 | 3689.86 | 6.12% | 0.926 | 59.04% | arm/GC 完整 |
+| R04/A | 同 R01 | 3733.17 | 7.92% | 0.945 | 59.73% | arm/GC 完整 |
+| R05/B | 同 R02 | — | — | — | — | logs 文件系统 94%--98%，TiKV `AlmostFull/AlreadyFull`；无 BW log/analysis |
+| R06--R08 | 未启动 | — | — | — | — | 按硬门停止 |
+
+### 6.2 部分比较与正式判定
+
+| 比较 | 结果 | 判读 |
+|---|---:|---|
+| A 点中位数 | 3699.30 MiB/s | 只含 R01/R04 |
+| B 点中位数 | 3716.64 MiB/s | 只含 R02/R03 |
+| 部分 B/A | **+0.47%** | 配对 +2.13%/−1.16%，方向不一致；缺第二 block，不作正式因果结论 |
+| 历史 H→A | +28.45%（相对中心 2880） | fresh TiKV + RAM + 临时集群起点的组合效应 |
+| 历史 H→B | +29.05%（相对中心 2880） | 同上，不能拆 fresh 与介质贡献 |
+| B 距目标 | 2533.36 MiB/s | 部分点值只达目标 59.47% |
+| 正式分类 | **`EVIDENCE_INVALID`** | R05 storage 生命周期/容量合同失败，禁止补样修复同 RUN |
+
+### 6.3 归档与下一步
+
+| 项 | 值 |
+|---|---|
+| archive | `results/prod-stage03-raw-20260826/opencode-t3.22-20260825-163811.tar.gz` |
+| bytes | `124546067` |
+| SHA-256 | `1352878807325128fa3a07ac9325b74c89119ea24cbfab9f6e420fbc50096929` |
+| teardown | 六组 RAM storage、临时集群、seed/GC 均清理；生产 PD/TiKV 与 JuiceFS 挂载正常，Ceph `HEALTH_OK` |
+| 下一因果任务 | 03-22b已执行并按invalid合同收口，详见下一节；后续转03-22c同窗B1c/D1物理路径探针，条件C仍保持独立 |
+
+## 七、03-22b TiKV NVMe-backed A1/B1（2026-08-26～27）
+
+> 详细报告：`doc/perf-report/03-22b-tikv-nvme-backed-storage-attribution-20260827.md`。RUN_ID `20260826-164047`在R03触发预注册CV硬门，整体分类为 **`EVIDENCE_INVALID`**；R01--R03均有完整负载与采集证据，但只有R01/R02生成正式arm分析，不能用一个A1/B1配对签收逻辑隔离效应。
+
+### 7.1 已完成arm
+
+| arm | 臂 | 正式窗 median MiB/s | CV | W4/W1 | 6250达成率 | 判定 |
+|---|:---:|---:|---:|---:|---:|---|
+| R01 | A1：128 GiB共享loop/ext4 | 3709.03 | 6.83% | 0.971 | 59.34% | PASS |
+| R02 | B1：96 GiB KV + 32 GiB logs两个loop/ext4，同一物理NVMe | 3651.45 | 8.52% | 0.947 | 58.42% | PASS |
+| R03 | B1，同R02 | 3651.23 | **10.70%** | 0.917 | 58.42% | **FAIL：CV** |
+| R04--R08 | — | — | — | — | — | 未运行 |
+
+### 7.2 判定与机制
+
+| 项 | 结果 | 判读 |
+|---|---:|---|
+| R02/B1相对R01/A1 | −1.55% | 只有一个相邻配对且全RUN无效，仅作描述 |
+| R02→R03 median | 3651.45→3651.23 MiB/s | 中心几乎不变，问题不是平均服务率整体下移 |
+| R01→R02→R03 CV | 6.83%→8.52%→10.70% | 尾段低谷逐渐加深；正式窗最低秒2986.6→2193.4→1508.6 MiB/s |
+| R03 W1→W4 | BW 3811.0→3329.6 MiB/s；pending compaction 0.12→11.29 GiB；NVMe `w_await` 2.60→18.05 ms | 直接触发层为轮内compaction与WAL/Raft同步写共享同一NVMe造成的软排队 |
+| RocksDB hard stall | stall及stall reason均为0 | 排除硬写停顿；跨轮残差仍不能唯一拆为compaction相位、NVMe FTL/GC/温度或Ceph/OSD扰动 |
+| 目标 | 最好3709.03 MiB/s，距6250差2540.97 MiB/s | A1/B1点值都只达到目标约58%--59% |
+
+### 7.3 闭包、归档与下一步
+
+| 项 | 值 |
+|---|---|
+| 正式分类 | **`EVIDENCE_INVALID`**；`failed_instance=R03`，reason=`formal-stability-cv-gate-failed` |
+| archive | `results/prod-stage03-raw-20260827/opencode-t3.22b-20260826-164047.tar.gz` |
+| bytes / SHA-256 | `59001849` / `7cd9e57276a19b2ee17966b369bc3a0fac75da3869582ae226689b8e225ac137` |
+| 环境闭包 | A1/B1 backing与临时资源精确销毁；生产PD/TiKV恢复，stores 3/3 Up，Ceph `HEALTH_OK` |
+| seed边界 | metadata dump与layout/anchor合同已归档，但formal seed已销毁、Ceph数据对象已回收；后续只能复用合同，不能仅load旧dump |
+| 下一任务 | 03-22c同RUN重测B1c，并以D1仅把32 GiB WAL/Raft backing移到RAM；稳定性作为正式端点，不再作为证据删除门。条件C另立 |
