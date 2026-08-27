@@ -3,10 +3,10 @@
 ## 日期与状态
 
 - 日期：2026-08-27
-- 面向：GLM 执行；GPT/用户分阶段签收
+- 面向：GLM 按冻结状态机自主执行；GPT 在完成后集中审核
 - 上游：`03-22b-tikv-nvme-backed-storage-attribution.md`及其最终报告
-- 当前状态：**03-22b已按`EVIDENCE_INVALID`完成闭包、生产恢复和原始证据归档；03-22c设计已据此修订，`t66-*`尚未实现**
-- 当前允许动作：阅读、评审和修订本任务书；离线编写`t66-*`脚本、生成manifest并执行Gate 0
+- 当前状态：**03-22b已按`EVIDENCE_INVALID`完成闭包、生产恢复和原始证据归档；03-22c设计与23文件`t66-*`基础包已实现，本地Gate 0通过，manifest SHA256=`20c9eb7f6f5334895bd01ceef5fe6a41961a339553c8c66310296abaa4218e2e`**
+- 当前允许动作：将冻结提交交付GLM；GLM先执行Gate 0、只读inventory和全部plans，用户一次性批准维护窗口后再自主执行后续状态机
 - 当前禁止动作：任何远程操作（包括inventory）；创建tmpfs/backing/loop、mkfs、停止生产、启动临时集群、restore/clone/fio/GC均须后续分层授权
 - 启动条件：`t66-*`离线Gate 0、只读inventory和全部sudo/lifecycle plan通过签收，三节点生产指纹重新冻结，用户另行批准新维护窗口
 
@@ -137,7 +137,7 @@ effect_pct = 100 × (BW_D1 - BW_B1c) / BW_B1c
 
 | 判据 | 阈值 |
 |---|---:|
-| 正式覆盖 | 160/160秒且256/256 BW logs |
+| 正式覆盖 | 256/256 BW logs；160秒正式窗内node/client采样≥152点且相邻间隔≤2.5秒，TiKV/PD/OSD 5秒采样每对象≥29点且相邻间隔≤10秒 |
 | 身份与时间轴 | RUN/instance、PID/starttime、UUID/Name/session、loop/backing/mount和I/O起点全部唯一且一致 |
 | TiKV本地容量 | 所有role `<70% used`且`avail ≥8 GiB` |
 | D1内存门 | 无swap-in/out，tmpfs/backing身份不变，MemAvailable不低于冻结安全线 |
@@ -179,24 +179,30 @@ CV与`W4/W1`不再属于证据有效门。只要arm完整、身份正确、环�
 
 ## 四、执行步骤（当前均未授权）
 
-### 4.1 批量执行授权模型
+### 4.1 GLM自主执行、问题留痕与授权模型
 
-本任务默认采用“少量人工签收点 + 已冻结状态机批量执行”，不再要求每个正常子命令都返回GPT等待。放权不改变安全边界，也不授权GLM临场修变量。
+本任务默认采用“维护窗口一次授权 + 已冻结状态机自主批量执行”，不再要求每个正常子命令、canary或正式arm都返回GPT等待。GLM负责从Gate 0、inventory/plans、canary、formal matrix、closure到归档的连续执行和现场问题处理，GPT在最终报告、原始证据和仓库修改齐备后集中审核。放权不改变安全边界，也不授权临场改变因果变量、判据、顺序、介质、容量或清理范围。
 
-必须人工/GPT签收的边界仅保留为：
+GLM开始时必须执行`t66-autonomy.sh init <RUN_ID>`，全程维护只增不改的`control/incidents.tsv`。所有问题（包括脚本bug、预期外输出、重试、等待超时、手工调查和无害告警）必须在采取修复动作前后分别记录，字段至少包括phase、instance、严重度、症状、原始证据路径、动作、继续/闭包决策和当时脚本SHA。正常阶段用`progress`记录证据SHA；不得覆盖、删除或改写既有问题行和进度marker。
+
+GLM可以自主修复**不改变测试合同且不扩展mutation vocabulary**的脚本实现问题，但必须遵守：先保留现场并只读定位；若存在活跃挂载/loop/临时服务，则只使用已审查的精确closure脚本恢复到静止态；在本地离线修改；重新执行完整Gate 0、生成新manifest、记录前后SHA；确认远端无活跃t66状态后才允许`resync`。禁止热替换正在运行的脚本，禁止用临场shell命令绕过失败的身份门。
+
+正式R01开始前发现并修复实现问题，可在闭合环境后继续同一RUN；R01开始后任一非性能证据失败或实现修复需求都必须写`RUN_INVALID.tsv`、终止后续arm、按预审invalid closure恢复生产并归档，不得在同一RUN补跑或替换。CV/W4/W1表现不好不是实现问题，也不触发停止。
+
+交付GLM前由GPT签收第1项；GLM先自主完成第2项并向用户呈交一次维护窗口总计划，用户批准后第3--6项不再逐步等待GPT：
 
 1. `t66-*`完整包、manifest和离线Gate 0首次通过；
 2. 只读inventory、全部sudo plans、容量/内存公式和生产stop/start计划；
-3. 首次单节点D1 tmpfs/backing/loop/ext4 create→activate→deactivate→destroy全生命周期；
-4. 首次三节点D1完整cluster→restore/clone→B0→GC/pool/local reset canary；
-5. 正式矩阵批量授权前的环境冻结；
-6. 最终destroy与生产恢复closure计划。
+3. 首次单节点B1c/D1 backing/loop/ext4（含D1 tmpfs）完整生命周期；
+4. 三节点B1c/D1完整cluster→restore/clone→B0→GC/pool/local reset canary；
+5. 正式矩阵前的环境冻结与固定顺序八臂；
+6. 最终destroy、生产恢复和证据归档。
 
-第1--4项全部签收后，可以一次性授权固定顺序的8个正式arm。GLM可在无需逐臂等待的情况下连续执行R01→R08，但只有前一arm同时具备以下全部closure marker时才可进入下一arm：analyzer完成并报告全部性能端点、非性能证据门通过、graceful umount/stop完成、GC seed return通过、pool回基线、本地storage回fresh baseline、Ceph/OSD/TiKV/内存门全绿、原始证据已落盘且SHA manifest完成。CV>10%或`W4/W1<0.90`只写入性能结果，不阻断下一arm；每臂结束写独立只增不改的进度摘要，供旁路查看，正常通过不要求人工回复。
+维护窗口批准后，GLM可在无需逐臂等待的情况下连续执行canary和R01→R08，但只有前一阶段/arm同时具备全部closure marker时才可进入下一项：analyzer完成并报告全部性能端点、非性能证据门通过、graceful umount/stop完成、GC seed return通过、pool回基线、本地storage回fresh baseline、Ceph/OSD/TiKV/内存门全绿、原始证据已落盘且SHA manifest完成。CV>10%或`W4/W1<0.90`只写入性能结果，不阻断下一arm；每臂结束写独立只增不改的进度摘要，正常通过不要求人工回复。
 
-建议03-22c第一次正式运行采用一次中间观察点：R01--R02首个完整B1c/D1配对闭合后自动暂停一次。该暂停只核对新D1变量的正式证据合同，不允许按带宽结果修改顺序、判据或后六臂。首对合同通过后，一次授权R03--R08连续执行。后续同类任务若复用同一成熟状态机，可取消该中间暂停，直接授权全矩阵。
+R01--R02首个完整配对闭合后由GLM自动执行证据合同复核并写marker；通过即继续R03--R08，不需要人工响应。复核失败按`RUN_INVALID`路径闭包，不得根据带宽调整后六臂。
 
-以下任一情况必须fail-closed并立即暂停，不得自动清理、补跑、跳过或改脚本后续跑：
+以下任一情况必须fail-closed并停止当前测试动作；GLM可自主只读调查并执行事先审查的精确closure，但不得补跑、跳过或带着活跃环境改脚本：
 
 - manifest/SHA、RUN/instance/token、PID/starttime、UUID/Name/session、loop/backing/mount或生产指纹不一致；
 - 出现任务书未列出的sudo命令、需要shell手工绕过、热同步脚本或改变变量；
@@ -205,7 +211,7 @@ CV与`W4/W1`不再属于证据有效门。只要arm完整、身份正确、环�
 - 超时、进程异常、EIO/OOM、Ceph异常、生产服务意外变化；
 - 正式arm中途被中断。中断arm直接判无效，不允许从中点resume或用补跑替换。
 
-失败后GLM仍可自主执行只读inspect和生成精确closure plan；任何umount/detach/destroy、生产start/stop或其他状态恢复，必须使用事先签收的closure授权。正常8/8完成后可自动进行只读分析，但最终销毁和生产恢复仍在一个已审查的批量closure授权中执行，不能拆成临场命令。
+失败后GLM使用维护窗口总授权中已签收的token和精确脚本完成closure；若现状超出预审脚本可证明处理的范围，则保持现场并向用户求助，禁止扩大sudo或清理目标。正常8/8完成后自动进行最终销毁、优先恢复生产、离线分析和归档，不因等待GPT审核延长停机。
 
 ### 步骤0：测试前skill合规确认
 
@@ -274,7 +280,7 @@ CV与`W4/W1`不再属于证据有效门。只要arm完整、身份正确、环�
 5. **健康静置**：fio前必须Ceph HEALTH_OK、OSD全up/in、TiKV readiness连续稳定、NVMe bounded-idle、D1 memory/swap门和容量门全部通过。
 6. **清理**：只使用UUID/Name/session守卫的JuiceFS destroy和fresh-seed GC return；禁止pool delete/create。loop和tmpfs只按精确state/token清理，禁止`rm -rf`、force umount和批量loop detach。
 7. **记录**：每个职责目录保留commands、state、identity、SHA及原始输出；报告每个数字必须可追到文件和字段。
-8. **分层授权**：脚本bug只可离线修复并重跑Gate 0；变量、矩阵、路径、介质、容量、清理方式或sudo mutation变化必须暂停重批。
+8. **自主修复边界**：脚本bug只可在静止态离线修复并重跑完整Gate 0/manifest；GLM可在既有mutation vocabulary内自行继续。变量、矩阵、路径、介质、容量、清理方式或sudo mutation变化必须停止并重新请求用户批准。
 9. **挂载档位**：只记录active worker CV作协变量；没有预注册坏档判别器，禁止detect-and-replace、重挂剔除或按结果挑档。
 10. **静置超时**：compaction/readiness/quiet/memory门在冻结上限内不收敛即停止，不得无限等待后混入不同起点。
 11. **长跑监督**：监督器只告警，不自动做破坏性恢复；fio或sampler异常保留现场，当前RUN正式矩阵失效。
