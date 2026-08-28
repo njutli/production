@@ -1,0 +1,33 @@
+id	severity	class	symptom	origin	fixture_assertion	static_check
+D01	HIGH	timing	fio 实际 I/O 起点被当成 fork/登记时刻	03-20B-R2 §10.3（错 58 s，W1 落在进程启动期，末 58 s 未判读）	起点=完成时刻−run=毫秒；对同一归档做 ±1s/+58s 三算：±1s 变化<1%，+58s 必须显著改变 W1-W4	grep -nE 'fio_start|registered_start' 驱动脚本，若被用于分窗即 FAIL
+D02	HIGH	stats	多 job interval log 按行号当秒，未做重叠加权重采样	03-19 §9.2 / 03-20A §8.1（summary 24-26% vs 正式窗 10-13%）	喂入区间边界与自然秒错位的合成 log，重采样结果必须与解析解一致	grep -n 'enumerate' 分析器，行号直接当秒即 FAIL
+D03	HIGH	stats	用 fio summary 代替正式窗主口径	03-19 §4.2 / 03-20A §3 / 03-20B §8.2	分析器必须同时输出正式窗与 summary 并打印两者差；判定只许引用正式窗	
+D04	HIGH	proc	pgrep -f 匹配到多个 PID（juicefs mount -d 父子进程）后 head -1 取错	03-20B-R2 第 1 次失败	伪造两个 PID 的 /proc，必须返回全部 mount pid 并逐个校验 exe md5	grep -nE 'pgrep -f.*head -1' 即 FAIL
+D05	HIGH	proc	root 进程的 /proc/<pid>/{stat,environ,exe} 无 sudo 读不到，静默留空	03-20B-R2 第 4 次失败	无权限时必须 STOP 并写 incidents，⛔ 不许留空继续	grep -nE 'md5sum /proc/' 未带 sudo 即 WARN
+D06	HIGH	bash	local 多变量声明前向引用 + set -u 触发未绑定变量	03-20B-R1 第 2 次 / 03-20B-R2 第 5 次	bash -u -n 通过；静态检查每个 local 只声明一个变量	grep -nE '^\s*local +[A-Za-z_]+=[^ ]+ +[A-Za-z_]+=' 即 FAIL
+D07	MED	bash	echo | tee 在 set -e -o pipefail 下 SIGPIPE 退出	03-20B 偏离 1	日志函数不含管道；self-test 在下游提前关闭时不得退出	grep -nE 'echo .*\| *tee' 即 WARN
+D08	HIGH	bash	ssh 在 while read 循环内消费 fd 0，只处理第一行	03-20B-R2 第 3 次失败	循环内调用 ssh 后仍能读到全部 32 行矩阵；必须用 <&3 / 3<<< 隔离	grep -nE 'while .*read' 附近有 ssh 且无 <&3 即 FAIL
+D09	HIGH	parse	rados df 列切分错位（892 GiB 占两列，objects 落在第 4 列）	03-19 §9.6（8M 硬门从未生效）/ U141（5.31M 被解析成 1.3）	只用 ceph df --format=json + python3；喂入真实 JSON 与被截断 JSON 各一份	grep -n 'rados df' 即 FAIL
+D10	MED	parse	bc 不支持科学计数法，阈值比较恒假	03-20A 偏离 3 / 03-20B 偏离 3	数值比较全部用 awk；fixture 喂入 7e-05 必须正确比较	grep -nE '\| *bc' 即 WARN
+D11	MED	bash	find 权限错误在 set -e 下直接退出	03-20A 偏离 7	find 调用带 || true；fixture 含不可读目录	grep -nE 'find [^|]*$' 未带 || true 即 WARN
+D12	HIGH	coverage	把 metrics exposition 行数当 scrape 数，覆盖率出现 17541/8	03-20B-R1 §10.4 第 4 条	按唯一 epoch 半开窗口计数；fixture 含边界秒与重复 HELP/TYPE 行	grep -nE 'wc -l.*metrics' 即 FAIL
+D13	HIGH	iostat	iostat 扩展 schema 在 d/s 处截断，把末列误当 aqu-sz/%util	03-20B-R1 §10.4 第 2 条	按 header 名解析而非固定列号；缺字段必须预检失败	grep -nE '\$1[0-4]' remote sampler 即 WARN
+D14	HIGH	psi	PSI 解析用 grep '^total=' 但实际行以 some/full 开头，恒为 -1	03-20B-R1 §10.4 第 3 条	分别取 some/full 的 total；fixture 校验数值非负且可推进	grep -n "'\^total='" 即 FAIL
+D15	HIGH	validator	预检窗口取 [start-120,start] 而 sampler 数据在 [start,start+120]	03-20B-R1 Bug 1	预检窗必须为 [start,start+120]；fixture 用已知时间戳验证	
+D16	HIGH	cleanup	只 kill 本地 wrapper PID，远端子进程仍在写，manifest 生成时文件仍在变	03-20B-R1 §10.4 第 5 条	停止后逐个 wait 登记 PGID，确认文件 size/mtime 静止再生成 manifest 并 md5sum -c 自校验	
+D17	HIGH	bash	wait "$PID" || true; RC=$? 把任意退出码覆盖成 0	03-20B-R1 §10.4 第 8 条	fixture 模拟 fio rc=1，门必须 FAIL	grep -nE 'wait .*\|\| true' 后紧跟 \$\? 即 FAIL
+D18	MED	ceph	OSD perf dump 的 key 路径凭印象猜（bluestore.bluestore_rocksdb）	03-20A 偏离 3（误判为字段不存在）/ 03-20B 修正为 rocksdb.compact_running	key 必须递归搜索实查；找不到时 STOP 而非降级为固定等待	
+D19	HIGH	label	复用同一 label 重试，rounds.tsv 按 label 累计导致中位被旧读数稀释	03-7L 段2b（真坏档 2959 被稀释成 3968 而放行）	每次重试必须换 label；fixture 验证同 label 追加会污染门值	grep 驱动脚本是否对失败轮复用 LABEL
+D20	HIGH	v4	OBJ_GATE=0 时 [ ]&&obj_gate 作为循环体末句返回 1，set -e 在 summary() 前退出	FULLBASELINE_V4.sh:918/929/940/953 + :1352	调用 V4 必须显式 OBJ_GATE=1；fixture 断言驱动脚本传了该变量	grep -n 'OBJ_GATE=1' 驱动脚本，缺失即 FAIL
+D21	HIGH	capacity	旧实例目录跨 arm 累积耗尽本地 FS，触发 TiKV AlmostFull/AlreadyFull 与 EIO	03-22 R05（logs FS 达 98%/96%/94%）	每 arm 前后核对 per-role 总量/已用/可用/旧目录，预计增量必须小于可用并留余量	
+D22	HIGH	sampler	sampler 固定生命周期到时退出被 runner 当作运行中故障	03-22 R05（fio 286 s 未完成，sampler 300 s 到时）	sampler 生命周期以 fio 进程结束为准；超时与 sampler 自身失败必须分型	
+D23	MED	juicefs	跨 namespace 要求逐路径数字 inode 相同（错误合同）	03-22 R01	合同应为 path-size-anchor 精确一致 + inode 唯一且不相交	
+D24	MED	bash	可选的 legacy 文件作为引用字面量入数组，导致 finalize 静默退出	03-22b §2	legacy 仅在 -e 或 -L 时加入；SHA-bound audit 用 nullglob 且总数≥1	
+D25	CRIT	secret	脚本内嵌 SSH 明文口令并随归档分发	首次 03-22c §2.5；既有例外 FULLBASELINE_V4.sh:37	Gate 0 必须 grep 自身全部脚本，发现明文口令即 FAIL	grep -nE '(sshpass -p|PASSWORD=)[^$]' 即 FAIL
+D26	CRIT	cleanup	未审查编排器含 rm -rf / fusermount -uz / umount -l / losetup -D / 宽范围 kill	首次 03-22c §2.3	全部脚本必须入 manifest 并过 Gate 0；上述动作静态检查即 FAIL	grep -nE 'rm -rf|fusermount -uz|umount -l|losetup -D|pkill|killall|fuser -k' 即 FAIL
+D27	CRIT	protocol	正式矩阵开始后热改脚本/换 RUN_ID/补样后仍按 normal 签收	首次 03-22c §2.4；03-20B-R1 §10.4 第 7 条	冻结 manifest 后任何脚本变更必须写 RUN_INVALID 并从该阶段首轮重来	
+D28	HIGH	ledger	incidents/授权账本不完整，事后汇总出现账本里没有的修复项	首次 03-22c §2.2	append-only，动作前后各一条；fixture 断言汇总项数≤账本项数	
+D29	MED	layout	fio filesize=1GiB 不等于预分配，文件只长到实际写入长度	03-22 §7（P0 文件只到 512 MiB）	layout 后必须逐文件核对 size，不能只查存在	
+D30	MED	juicefs	juicefs mount -d 父子 PID / Go argv 空格化 / status JSON Setting.UUID 解析	03-22 §7	身份采集对父子 PID 都取；UUID 从 Setting.UUID 取并 fixture 验证	
+D31	LOW	ceph	HEALTH_OK 与 'HEALTH OK' 两种格式 / ceph osd dump | grep 多行解析	03-19 偏离 1、2	两种格式均兼容；OSD 计数用 ceph osd stat	
+D32	LOW	remote	远端 drop_caches 缺 sudo 导致权限不足静默失败	03-19 偏离 4	echo 3 | sudo tee；fixture 断言失败节点数被计数并上报	

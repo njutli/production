@@ -234,3 +234,41 @@
 | 环境结局 | 归档显示生产PD/TiKV恢复、stores 3/3 Up、Ceph `HEALTH_OK`、临时资源清除；无需重新操作旧环境 |
 | 允许引用 | 仅可写“无效RUN工程观察提示RAM logs收益可能很小”；不得写“03-22c正式证明D1≈B1c” |
 | 下一步 | 使用新RUN_ID、新formal seed和冻结的25文件`t66-*`包完整重做R01--R08；旧RUN不得resume、补跑或拼样 |
+
+## 九、03-22c TiKV RAM logs正式重跑（2026-08-28）
+
+> 正式报告：`doc/perf-report/03-22c-tikv-hybrid-ram-logs-attribution-20260828.md`。RUN_ID `20260828-083811`按冻结顺序完成8/8 arm与G01--G08闭环，GPT基于持久归档独立复核为 **`EVIDENCE_VALID`**。B1c/D1唯一差异是32 GiB WAL/Raft backing位于共享NVMe还是RAM；D1不是第二块真实NVMe等价物。
+
+### 9.1 正式arm与配对
+
+| arm | 臂 | median MiB/s | CV | W4/W1 | 6250达成率 | 部署稳定 |
+|---|:---:|---:|---:|---:|---:|:---:|
+| R01 | B1c | 3599.85 | 9.42% | 0.922 | 57.60% | ✅ |
+| R02 | D1 | 3816.67 | 6.52% | 0.994 | 61.07% | ✅ |
+| R03 | D1 | 3749.91 | 7.28% | 0.990 | 60.00% | ✅ |
+| R04 | B1c | 3661.94 | 8.60% | 0.926 | 58.59% | ✅ |
+| R05 | D1 | 3763.12 | 7.55% | 0.946 | 60.21% | ✅ |
+| R06 | B1c | 3615.40 | 9.38% | 0.878 | 57.85% | ❌ |
+| R07 | B1c | 3490.29 | 12.19% | 0.810 | 55.84% | ❌ |
+| R08 | D1 | 3739.36 | 6.30% | 0.959 | 59.83% | ✅ |
+
+| 正式端点 | 结果 | 判定 |
+|---|---:|---|
+| B1c四臂中位 | 3607.63 MiB/s | — |
+| D1四臂中位 | 3756.51 MiB/s | 目标60.10%，差2493.49 MiB/s |
+| 四配对D1/B1c | +6.02% / +2.40% / +4.09% / +7.14%；中位 **+5.05%** | 4/4正向但<15%，带宽材料门 **FAIL** |
+| CV改善 | 4/4；中位+2.36 pp | 稳定性门 **PASS** |
+| W4/W1改善 | 4/4；中位+0.0694 | 稳定性门 **PASS** |
+| D1部署稳定 | 4/4 CV≤10%且W4/W1≥0.90 | **PASS** |
+
+### 9.2 机制与闭环
+
+| 项 | 正式结论 |
+|---|---|
+| B1c尾段 | pending约0.13--0.27→11.1--12.7 GiB，Raft sync约0.22--0.23→0.74--0.80 ms，NVMe `w_await`约1.7--2.0→16.4--17.7 ms；与带宽尾段下滑同向 |
+| D1尾段 | Raft sync稳定在约0.074--0.083 ms，故CV/W4/W1改善；但KV pending仍升到11.3--15.7 GiB，物理NVMe await也未消失，说明logs是波动放大因素而非平均服务率主墙 |
+| 内存/容量 | D1父tmpfs 89% used、4 GiB available；内层logs最大46% used、最少约17.3 GiB available；MemAvailable最低约741 GiB、无swap/OOM/abort |
+| GC/seed | G01--G08均回到valid=524288、leaked=0；G08 UUID一致，post-final pool三点均精确回到pre-format 2434664 |
+| 生产闭环 | 三节点生产PD/TiKV active，stores 3/3 Up，Ceph `HEALTH_OK`，无t66临时资源残留 |
+| archive | `results/opencode-t3.22c-20260828-083811.tar.gz`，SHA-256=`3b5559c0ed905ba110ace02b1286a477db5b143678bad99daffa80f0e5978ba7` |
+| 后续 | 不再扫inode/worker/`max-uploads`或重复A1/B1/D1；条件C仅作native ext4/fresh状态可选归因，真实第二NVMe仅在有硬件和部署决策时测试 |

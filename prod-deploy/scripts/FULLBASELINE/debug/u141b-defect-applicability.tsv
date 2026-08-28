@@ -1,0 +1,33 @@
+id	disposition	evidence	na_reason
+D01	ENFORCED_IN_IMPL	u141b-analyze.py: io_start = done_epoch - run_ms; fixture 起点敏感性三算	
+D02	ENFORCED_IN_IMPL	u141b-analyze.py: resample_sum 重叠加权；selftest 用错位区间验证	
+D03	ENFORCED_IN_IMPL	u141b-analyze.py: summary 仅作偏差参照；selftest 用 9999 假 summary 验证	
+D04	ENFORCED_IN_IMPL	u141b-collect.sh cmd_mount: mapfile 取全部 pid；fixture 验证第二个 pid 错版本也 FAIL	
+D05	ENFORCED_IN_IMPL	u141b-collect.sh: sudo md5sum /proc/<pid>/exe，读不到即 die	
+D06	ENFORCED_IN_GATE0	gate0 静态扫描 multi-var local；已把三脚本全部改为单变量 local	
+D07	ENFORCED_IN_GATE0	gate0 静态扫描 echo|tee -a；日志函数不含管道	
+D08	ENFORCED_IN_GATE0	gate0 静态扫描 pgrep|head 与循环内 ssh；U141b 驱动全程本地执行，无 ssh 循环	
+D09	ENFORCED_IN_IMPL	u141b-collect.sh: 只用 ceph df --format=json；awk 断言三列纯整数，字面 GiB 直接 die	
+D10	ENFORCED_IN_GATE0	gate0 静态扫描 |bc；数值比较一律 awk	
+D11	ENFORCED_IN_IMPL	u141b-driver.sh gate_bwlogs: find 只作用于本地产物目录，无权限面	
+D12	NOT_APPLICABLE		U141b 无 Prometheus/metrics sampler，不存在 scrape 覆盖率概念
+D13	NOT_APPLICABLE		U141b 不采集 iostat，无扩展 schema 解析
+D14	NOT_APPLICABLE		U141b 不采集 /proc/pressure PSI
+D15	NOT_APPLICABLE		U141b 无 120s sampler 预检窗口
+D16	NOT_APPLICABLE		U141b 无远端 sampler/子进程；V4 内部 nic sampler 由冻结的 V4 自行收尾
+D17	ENFORCED_IN_IMPL	u141b-driver.sh: set +e 后显式 rc=$?，不用 wait||true；analyze 对畸形输入抛 GateFail	
+D18	NOT_APPLICABLE		U141b 不读 OSD perf dump；compact cooldown 由冻结的 V4 内部处理
+D19	ENFORCED_IN_IMPL	u141b-driver.sh: label=U141B-<phase>-R<nn>-<arm> 由矩阵唯一生成；失败即 STOP，⛔ 无重试复用	
+D20	ENFORCED_IN_IMPL	u141b-driver.sh: 每次调 V4 均带 OBJ_GATE=1；driver selftest 断言其存在	
+D21	NOT_APPLICABLE		U141b 不创建临时本地文件系统；对象数棘轮由 S09 硬门 + drain 处理
+D22	NOT_APPLICABLE		U141b 无独立 sampler 生命周期；单轮由 V4 自身 timeout 管理
+D23	NOT_APPLICABLE		U141b 不使用 seed/clone，无跨 namespace inode 合同
+D24	NOT_APPLICABLE		U141b 无 finalize legacy audit 数组
+D25	ENFORCED_IN_GATE0	gate0 扫描 sshpass -p 与硬编码口令；既有例外 FULLBASELINE_V4.sh:37 已在任务书登记	
+D26	ENFORCED_IN_GATE0	gate0 扫描 rm 递归强删/lazy umount/losetup -D/模式 kill；driver 的 graceful_umount 无 lazy 回退	
+D27	ENFORCED_IN_GATE0	gate0 输出 provenance.md5 并声明冻结纪律：改一字节即该 phase 作废并从首轮重来	
+D28	ENFORCED_IN_IMPL	u141b-driver.sh incident(): append-only；selftest 断言首行保留	
+D29	ENFORCED_IN_IMPL	u141b-collect.sh cmd_assets: 逐文件断言 size==1073741824，不只查存在	
+D30	ENFORCED_IN_IMPL	u141b-collect.sh 取全部 mount pid；driver cmd_p0 从 Setting 取 UUID 等字段比对	
+D31	ENFORCED_IN_IMPL	u141b-collect.sh cmd_ceph: 同时接受 HEALTH_OK 与 'HEALTH OK'	
+D32	NOT_APPLICABLE		drop_caches 由冻结的 V4 内部对三节点执行，不在本任务脚本范围

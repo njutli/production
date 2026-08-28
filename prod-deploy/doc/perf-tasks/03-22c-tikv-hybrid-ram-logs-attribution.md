@@ -2,15 +2,21 @@
 
 ## 日期与状态
 
-- 日期：2026-08-27；2026-08-28 首次RUN审计后冻结重跑版
+- 日期：2026-08-27；2026-08-28 首次RUN审计后冻结重跑版并完成正式重跑
 - 面向：GLM 按冻结状态机自主执行；GPT 在完成后集中审核
 - 上游：`03-22b-tikv-nvme-backed-storage-attribution.md`及其最终报告
-- 当前状态：**首次03-22c RUN `20260827-232428`经GPT归档复核改判`EVIDENCE_INVALID`，只能保留工程观察；重跑版25文件`t66-*`冻结包已实现，本地Gate 0通过，`t66-manifest.sha256`自身SHA256=`14906dfd04f464f28935a7725f3f8e78bb9ff9014bd760616430791cc03c8092`**
-- 当前允许动作：将冻结提交交付GLM；GLM使用全新RUN_ID执行Gate 0、只读inventory和全部plans，向用户呈交一次维护窗口总计划
-- 当前禁止动作：维护窗口获批前不得创建tmpfs/backing/loop、mkfs、停止生产、启动临时集群、restore/clone/fio/GC；旧RUN不得resume、补跑、复用seed或复用任何活跃state
-- 启动条件：`t66-*`离线Gate 0、只读inventory和全部sudo/lifecycle plan通过签收，三节点生产指纹重新冻结，用户另行批准新维护窗口
+- 当前状态：**正式重跑RUN `20260828-083811`已由冻结入口完成8/8 arm、G01--G08、final destroy、生产恢复和持久归档；GPT独立审核判`EVIDENCE_VALID`。D1相对B1c带宽效应中位`+5.05%`，未过15%材料门；稳定性改善门与D1部署稳定门通过；D1中位`3756.51 MiB/s`，未达6250。**
+- 当前允许动作：只读引用正式报告与归档；是否另立条件C由用户按归因价值和维护成本决定
+- 当前禁止动作：不得resume、补跑或复用首次/正式RUN的已销毁seed与state；不得为改善结果重跑R01--R08
+- 正式报告：`../perf-report/03-22c-tikv-hybrid-ram-logs-attribution-20260828.md`
 
 > 本任务不是03-22b追加arm，也不得复用03-22b的RUN_ID。03-22b的B1数据只作跨RUN参考；03-22c必须在同一新RUN内重测B1c控制臂。
+
+### 正式重跑结论（2026-08-28）
+
+重跑归档`results/opencode-t3.22c-20260828-083811.tar.gz`，SHA256=`3b5559c0ed905ba110ace02b1286a477db5b143678bad99daffa80f0e5978ba7`。8/8正式arm及全部GC/closure证据通过：B1c四臂中位`3607.63 MiB/s`，D1四臂中位`3756.51 MiB/s`；四配对效应`+6.02%/+2.40%/+4.09%/+7.14%`，中位`+5.05%`。带宽材料门失败，CV与W4/W1稳定性改善门通过，D1四臂部署稳定门通过，6250目标门失败。
+
+机制上，B1c的Raft sync由W1约0.22--0.23 ms升到W4约0.74--0.80 ms；D1四臂始终约0.074--0.083 ms。但D1仍出现11--16 GiB pending compaction和更高的KV侧物理NVMe await，因此RAM logs只消除了同步logs路径的尾部放大，未消除KV/compaction共享服务率瓶颈。条件C和真实第二NVMe仍是独立可选问题，不进入本RUN结论。
 
 ### 首次03-22c RUN审计改判（2026-08-28）
 
@@ -33,10 +39,10 @@
       ↓
 F77：轮内compaction + WAL/Raft共享NVMe软排队；跨轮残差未唯一归因
       ↓
-03-22c Gate 0 → 同窗B1c/D1八臂配对             ← 你在这里
-      ├─ D1材料性提升：logs设备延迟/共享介质争用重要
-      ├─ D1无材料提升：logs物理路径不是主要瓶颈
-      └─ 无论哪支：不能直接等价为第二块真实NVMe收益
+03-22c 同窗B1c/D1八臂正式重跑（已完成）
+      ├─ 带宽：4/4正向、中位+5.05% < 15%材料门
+      ├─ 稳定性：CV与W4/W1均4/4改善
+      └─ 结论：logs是尾部放大因素，不是剩余带宽主墙
 ```
 
 一句话目标：在KV数据路径保持NVMe不变的前提下，仅把TiKV RocksDB WAL与Raft Engine的32 GiB backing从同一物理NVMe迁到RAM，判断移除logs物理设备延迟及共享NVMe争用是否能稳定提升256-inode randwrite。
