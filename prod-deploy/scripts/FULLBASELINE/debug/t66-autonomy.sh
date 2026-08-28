@@ -38,6 +38,27 @@ progress() {
   printf 'PROGRESS_RECORDED %s %s\n' "$instance" "$phase"
 }
 
+formal_ready() {
+  local approval=${3:-} marker="$CONTROL/FORMAL_MATRIX_AUTHORIZED.tsv" manifest_sha
+  [[ "$approval" == /* && -s "$approval" ]] || t66_die 'formal-ready requires an absolute nonempty approval evidence file'
+  t66_assert_abs_scoped_path "$approval" "$RUN_ID"
+  [[ ! -e "$marker" && ! -e "$ROOT/RUN_INVALID.tsv" ]] || t66_die 'formal-ready marker/invalid state conflict'
+  for required in \
+    "$ROOT/seeds/formal/SEED_BUNDLE_PASS" \
+    "$ROOT/instances/RESTORE-PREFLIGHT-B1c/CLONE_PASS" \
+    "$ROOT/instances/RESTORE-PREFLIGHT-D1/CLONE_PASS" \
+    "$ROOT/instances/GC-PREFLIGHT/GC_INSPECT_PASS" \
+    "$ROOT/instances/ARM-CANARY-B1c/arm-analysis.json" \
+    "$ROOT/instances/ARM-CANARY-D1/arm-analysis.json"; do
+    [[ -s "$required" ]] || t66_die "formal prerequisite missing: $required"
+  done
+  manifest_sha=$(sha256sum "$SCRIPT_DIR/t66-manifest.sha256" | awk '{print $1}')
+  printf 'epoch\t%s\nrun_id\t%s\napproval_evidence\t%s\napproval_sha256\t%s\nmanifest_sha256\t%s\nsequence\tR01,R02,R03,R04,R05,R06,R07,R08\n' \
+    "$(date +%s)" "$RUN_ID" "$approval" "$(sha256sum "$approval" | awk '{print $1}')" "$manifest_sha" > "$marker"
+  t66_record_incident "$RUN_ID" authorization GLOBAL INFO formal-matrix-authorized "$approval" frozen-matrix continue
+  printf 'FORMAL_MATRIX_READY_PASS run_id=%s manifest_sha256=%s\n' "$RUN_ID" "$manifest_sha"
+}
+
 mark_invalid() {
   local failed=${3:-} reason=${4:-} evidence=${5:-}
   [[ "$failed" =~ ^R0[1-8]$ && -n "$reason" && "$reason" != *$'\t'* && -s "$evidence" ]] || t66_die 'invalid RUN_INVALID arguments'
@@ -60,7 +81,8 @@ case "$ACTION" in
   init) init;;
   record) shift 2; record "$@";;
   progress) progress "$@";;
+  formal-ready) formal_ready "$@";;
   mark-invalid) mark_invalid "$@";;
   status) status;;
-  *) t66_die 'usage: t66-autonomy.sh init|record|progress|mark-invalid|status RUN_ID ...';;
+  *) t66_die 'usage: t66-autonomy.sh init|record|progress|formal-ready|mark-invalid|status RUN_ID ...';;
 esac

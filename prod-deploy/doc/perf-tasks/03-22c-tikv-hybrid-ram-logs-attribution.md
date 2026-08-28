@@ -2,15 +2,27 @@
 
 ## 日期与状态
 
-- 日期：2026-08-27
+- 日期：2026-08-27；2026-08-28 首次RUN审计后冻结重跑版
 - 面向：GLM 按冻结状态机自主执行；GPT 在完成后集中审核
 - 上游：`03-22b-tikv-nvme-backed-storage-attribution.md`及其最终报告
-- 当前状态：**03-22b已按`EVIDENCE_INVALID`完成闭包、生产恢复和原始证据归档；03-22c设计与23文件`t66-*`基础包已实现，本地Gate 0通过，manifest SHA256=`20c9eb7f6f5334895bd01ceef5fe6a41961a339553c8c66310296abaa4218e2e`**
-- 当前允许动作：将冻结提交交付GLM；GLM先执行Gate 0、只读inventory和全部plans，用户一次性批准维护窗口后再自主执行后续状态机
-- 当前禁止动作：任何远程操作（包括inventory）；创建tmpfs/backing/loop、mkfs、停止生产、启动临时集群、restore/clone/fio/GC均须后续分层授权
+- 当前状态：**首次03-22c RUN `20260827-232428`经GPT归档复核改判`EVIDENCE_INVALID`，只能保留工程观察；重跑版25文件`t66-*`冻结包已实现，本地Gate 0通过，`t66-manifest.sha256`自身SHA256=`14906dfd04f464f28935a7725f3f8e78bb9ff9014bd760616430791cc03c8092`**
+- 当前允许动作：将冻结提交交付GLM；GLM使用全新RUN_ID执行Gate 0、只读inventory和全部plans，向用户呈交一次维护窗口总计划
+- 当前禁止动作：维护窗口获批前不得创建tmpfs/backing/loop、mkfs、停止生产、启动临时集群、restore/clone/fio/GC；旧RUN不得resume、补跑、复用seed或复用任何活跃state
 - 启动条件：`t66-*`离线Gate 0、只读inventory和全部sudo/lifecycle plan通过签收，三节点生产指纹重新冻结，用户另行批准新维护窗口
 
 > 本任务不是03-22b追加arm，也不得复用03-22b的RUN_ID。03-22b的B1数据只作跨RUN参考；03-22c必须在同一新RUN内重测B1c控制臂。
+
+### 首次03-22c RUN审计改判（2026-08-28）
+
+首次RUN归档`opencode-t3.22c-20260827-232428.tar.gz`的SHA256为`1764e1b99804966bafbbedbf415dca30c3f147331c6b725fe021554f0d8cafaf`。其8个正式arm性能文件可以作为工程观察，但整个RUN不得作为正式因果证据，原因不是性能结果，而是执行合同被破坏：
+
+1. 执行中把D1父tmpfs从34 GiB改为36 GiB、把安全阈值从95%放宽到98%，未按容量/门限变更规则重新请求批准；
+2. `control/incidents.tsv`只记录初始化和一个memory字段问题，未记录OSD采样、tmpfs几何/门限修改以及G08闭包多次失败；
+3. 临时生成且未进入manifest/Gate 0的编排脚本使用了`rm -rf`、lazy/forced unmount、`losetup -D`和宽范围进程清理；
+4. R08完成后G08出现多次create/start/stop闭包尝试。按本任务“R01后任一非性能失败即整RUN无效”的预注册规则，当时必须进入invalid closure，不能修复重试后签`normal`；
+5. 因此首次RUN汇总中的`EVIDENCE_VALID`、`无补跑替换`和`skill合规`均撤回。4/4配对方向为D1较高、效应中位`+2.32%`只保留为非正式工程观察。
+
+重跑必须使用新RUN_ID和新formal seed；首次RUN归档保持只读，不覆盖、不删除，也不得把其中任何arm替换进重跑矩阵。
 
 ```text
 03-18~03-21  单inode同步事务下界与TiKV/NVMe争用归因
@@ -93,7 +105,7 @@ F77：轮内compaction + WAL/Raft共享NVMe软排队；跨轮残差未唯一归�
 
 B1c两个backing的父设备必须是当前节点`/dev/nvme1n1`。D1的KV backing仍在该设备；logs backing必须位于本实例精确命名、fresh挂载的tmpfs，不能放到系统`/tmp`、生产路径、Ceph OSD盘或裸块设备。
 
-D1不得直接把TiKV logs目录放在tmpfs上；必须采用“tmpfs中的实际预分配32 GiB文件 → 动态loop → 与B1c相同参数的ext4”，尽量只改变底层介质。禁止sparse truncate。
+D1不得直接把TiKV logs目录放在tmpfs上；必须采用“**36 GiB父tmpfs**中的实际预分配32 GiB文件 → 动态loop → 与B1c相同参数的ext4”，尽量只改变底层介质。父tmpfs多出的4 GiB只作为配额/文件系统记账余量，不改变32 GiB backing和32 GiB logs ext4的因果变量。禁止sparse truncate。
 
 ### 2.2 不重测A1的理由
 
@@ -166,9 +178,11 @@ CV与`W4/W1`不再属于证据有效门。只要arm完整、身份正确、环�
 ## 三、容量、内存与稳定性合同
 
 1. 新RUN只在每节点NVMe上实际预分配`96+32=128 GiB`的B1c文件；创建前后保留不低于03-22b的生产空间reserve。不得复用03-22b已销毁或旧RUN backing。
-2. D1每节点额外使用32 GiB tmpfs logs backing和8 GiB PD tmpfs。inventory重新计算三节点MemAvailable、swap和NUMA；暂定门为创建前`MemAvailable≥128 GiB`、创建后及fio全程`≥64 GiB`，最终脚本冻结前可根据只读inventory从严上调，不得下调。
+2. D1每节点使用36 GiB配额的父tmpfs承载实际分配32 GiB logs backing，另有8 GiB PD tmpfs。inventory重新计算三节点MemAvailable、swap和NUMA；门固定为创建前`MemAvailable≥128 GiB`、创建后及fio全程`≥64 GiB`，不得下调。
 3. tmpfs backing必须实际预分配，逐文件核对logical size、`stat %b×512`和`du -B1`；不得依赖稀疏页或内存超售。
 4. 采集`MemAvailable`、`SwapFree`、`pswpin/pswpout`、NUMA、major faults及tmpfs使用量；任一swap-in/out、OOM、memory pressure异常使该arm无效。
+   - D1父tmpfs另设独立保护门：`used<95%`且`avail≥2 GiB`；它只保护32 GiB backing的承载配额。
+   - loop内logs ext4仍执行§2.5.1的业务容量门：`used<70%`且`avail≥8 GiB`。两套门不得混用或临场放宽。
 5. 每臂重新创建本实例PD tmpfs；B1c每臂对两个精确loop重新mkfs，D1每臂重新创建logs tmpfs/backing/loop/ext4并对KV loop重新mkfs。禁止目录清理冒充reset。
 6. D1 logs fresh可用空间仍需满足03-22b容量canary冻结的两倍峰值裕量，并沿用`used<70%`和`avail≥8 GiB`主动停止门。
 7. 正式矩阵前必须分别完成B1c和D1完整storage/cluster/restore/clone/capacity canary；canary不进入正式统计。
@@ -187,11 +201,13 @@ GLM开始时必须执行`t66-autonomy.sh init <RUN_ID>`，全程维护只增不�
 
 GLM可以自主修复**不改变测试合同且不扩展mutation vocabulary**的脚本实现问题，但必须遵守：先保留现场并只读定位；若存在活跃挂载/loop/临时服务，则只使用已审查的精确closure脚本恢复到静止态；在本地离线修改；重新执行完整Gate 0、生成新manifest、记录前后SHA；确认远端无活跃t66状态后才允许`resync`。禁止热替换正在运行的脚本，禁止用临场shell命令绕过失败的身份门。
 
+重跑版进一步收紧：`t66-formal-arm-lifecycle.sh`和`t66-formal-matrix.sh`已进入manifest与Gate 0。正式矩阵只能由这两个冻结入口按R01→R08执行；它们不含自动清场、强制/惰性卸载、批量loop detach或重试。正式步骤失败时只允许写`RUN_INVALID`并保留现场，GLM随后依据精确state选择已审查的invalid closure；不得自行创建第二个编排器或shell清理片段。
+
 正式R01开始前发现并修复实现问题，可在闭合环境后继续同一RUN；R01开始后任一非性能证据失败或实现修复需求都必须写`RUN_INVALID.tsv`、终止后续arm、按预审invalid closure恢复生产并归档，不得在同一RUN补跑或替换。CV/W4/W1表现不好不是实现问题，也不触发停止。
 
 交付GLM前由GPT签收第1项；GLM先自主完成第2项并向用户呈交一次维护窗口总计划，用户批准后第3--6项不再逐步等待GPT：
 
-1. `t66-*`完整包、manifest和离线Gate 0首次通过；
+1. 25文件`t66-*`完整包、manifest和离线Gate 0首次通过；
 2. 只读inventory、全部sudo plans、容量/内存公式和生产stop/start计划；
 3. 首次单节点B1c/D1 backing/loop/ext4（含D1 tmpfs）完整生命周期；
 4. 三节点B1c/D1完整cluster→restore/clone→B0→GC/pool/local reset canary；
@@ -201,6 +217,8 @@ GLM可以自主修复**不改变测试合同且不扩展mutation vocabulary**的
 维护窗口批准后，GLM可在无需逐臂等待的情况下连续执行canary和R01→R08，但只有前一阶段/arm同时具备全部closure marker时才可进入下一项：analyzer完成并报告全部性能端点、非性能证据门通过、graceful umount/stop完成、GC seed return通过、pool回基线、本地storage回fresh baseline、Ceph/OSD/TiKV/内存门全绿、原始证据已落盘且SHA manifest完成。CV>10%或`W4/W1<0.90`只写入性能结果，不阻断下一arm；每臂结束写独立只增不改的进度摘要，正常通过不要求人工回复。
 
 R01--R02首个完整配对闭合后由GLM自动执行证据合同复核并写marker；通过即继续R03--R08，不需要人工响应。复核失败按`RUN_INVALID`路径闭包，不得根据带宽调整后六臂。
+
+进入R01前还必须由`t66-autonomy.sh formal-ready`把维护窗口批准证据、最终manifest SHA及全部seed/preflight/canary marker固化为`control/FORMAL_MATRIX_AUTHORIZED.tsv`；缺该marker时正式编排器必须拒绝运行。
 
 以下任一情况必须fail-closed并停止当前测试动作；GLM可自主只读调查并执行事先审查的精确closure，但不得补跑、跳过或带着活跃环境改脚本：
 
@@ -291,10 +309,12 @@ R01--R02首个完整配对闭合后由GLM自动执行证据合同复核并写mar
 ## 七、红线汇总
 
 1. 当前任务书只授权离线`t66-*`实现与Gate 0；任何远程mutation必须等待只读inventory/plans签收和独立新维护窗口。
-2. 03-22c必须重测同窗B1c；不得仅用03-22b B1作D1因果分母。
+2. 03-22c必须以新RUN重测同窗B1c；不得使用首次03-22c RUN或03-22b B1作D1因果分母。
 3. 不重测A1；A1只作外部背景，不能与D1组成单因素比较。
 4. D1只把logs backing改为RAM；KV、loop/ext4、TiKV、seed、fio及其他变量不得变化。
 5. D1是“RAM移除logs设备延迟+共享争用”的组合探针，不是第二块NVMe等价测试。
 6. 只允许本RUN创建formal seed时执行一次完整layout；禁止每arm重复layout、pool删除重建、OSD restart、drop_caches、sparse backing和任何生产路径写入。
 7. 8/8正式arm任一非性能证据门失败即无正式因果结论；禁止补跑替换、跨RUN拼样或调整预注册判据。CV/W4/W1是必须保留的性能端点，不是删除完整arm的理由。
 8. 最终先恢复生产，再离线分析与归档。
+9. 正式执行只允许manifest内的两个冻结编排入口；禁止另建wrapper，禁止`rm -rf`、lazy/forced unmount、`losetup -D`、宽范围kill和任何失败后的同RUN重试。
+10. 首次RUN归档中的旧helper含嵌入口令，禁止复制或执行；新包只允许从执行shell注入`T66_SSH_PASSWORD`。若旧归档访问面不受控，先轮换凭据再开维护窗口。

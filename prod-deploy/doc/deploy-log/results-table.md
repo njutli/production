@@ -219,3 +219,18 @@
 | 环境闭包 | A1/B1 backing与临时资源精确销毁；生产PD/TiKV恢复，stores 3/3 Up，Ceph `HEALTH_OK` |
 | seed边界 | metadata dump与layout/anchor合同已归档，但formal seed已销毁、Ceph数据对象已回收；后续只能复用合同，不能仅load旧dump |
 | 下一任务 | 03-22c同RUN重测B1c，并以D1仅把32 GiB WAL/Raft backing移到RAM；稳定性作为正式端点，不再作为证据删除门。条件C另立 |
+
+## 八、03-22c TiKV RAM logs首次RUN审计（2026-08-27～28）
+
+> 独立审计：`doc/perf-report/03-22c-first-run-invalid-audit-20260828.md`。RUN_ID `20260827-232428`虽然完成8个arm并由执行方标为`EVIDENCE_VALID`，但GPT复核归档后改判 **`EVIDENCE_INVALID`**；不得把本节数值写成正式因果结论。
+
+| 项 | 结果 |
+|---|---|
+| 工程观察 | 4/4配对D1高于B1c；效应`+2.76% / +0.99% / +6.86% / +1.88%`，中位`+2.32%` |
+| 带宽水平 | B1c四臂中位约3652.47 MiB/s；D1四臂中位约3740.04 MiB/s，仍仅达6250目标约59.8% |
+| 正式分类 | **`EVIDENCE_INVALID`**：未授权容量/门限变化、事件账本漏记、未入manifest的危险编排器、R01后G08闭包失败重试 |
+| 归档 | `results/opencode-t3.22c-20260827-232428.tar.gz` |
+| SHA-256 | `1764e1b99804966bafbbedbf415dca30c3f147331c6b725fe021554f0d8cafaf` |
+| 环境结局 | 归档显示生产PD/TiKV恢复、stores 3/3 Up、Ceph `HEALTH_OK`、临时资源清除；无需重新操作旧环境 |
+| 允许引用 | 仅可写“无效RUN工程观察提示RAM logs收益可能很小”；不得写“03-22c正式证明D1≈B1c” |
+| 下一步 | 使用新RUN_ID、新formal seed和冻结的25文件`t66-*`包完整重做R01--R08；旧RUN不得resume、补跑或拼样 |

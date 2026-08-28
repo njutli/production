@@ -49,7 +49,7 @@ sample_node() {
   DEVS+=(/dev/nvme1n1)
   expected_devices=3
   (( ${#DEVS[@]} == expected_devices )) || t66_die 'unexpected loop device count'
-  read -r _ base_swap base_in base_out < <(awk -F '\t' '$1=="memory_baseline"{print $1,$2,$3,$4}' "$state")
+  read -r base_swap base_in base_out < <(awk -F '\t' '$1=="memory_baseline"{print $3,$4,$5}' "$state")
   [[ "$base_swap" =~ ^[0-9]+$ && "$base_in" =~ ^[0-9]+$ && "$base_out" =~ ^[0-9]+$ ]] || t66_die 'activation memory baseline missing'
   command -v smartctl >/dev/null || t66_die 'smartctl missing on TiKV node'
   sudo smartctl -a -j /dev/nvme1n1 > "$OUT/nvme-smart-pre.json"
@@ -88,7 +88,11 @@ sample_node() {
         [[ -n "$logs_tmpfs" ]] || t66_die 'D1 ram_logs state missing'
         read -r used avail < <(df -B1 --output=pcent,avail "$logs_tmpfs" | awk 'NR==2{gsub(/%/,"",$1);print $1,$2}')
         printf 'TMPFS_DF\t%s\t%s\t%s\n' "$logs_tmpfs" "$used" "$avail"
-        if (( used >= 95 || avail < 1024*1024*1024 )); then
+        # The parent tmpfs is frozen at 36 GiB and contains one fully
+        # allocated 32 GiB backing file.  Keep at least 2 GiB of quota
+        # headroom and fail before 95% usage; the inner ext4 logs filesystem
+        # retains its independent used<70% / avail>=8GiB data-capacity gate.
+        if (( used >= 95 || avail < 2*1024*1024*1024 )); then
           printf 'MEMORY_SAFETY_ABORT d1_tmpfs=%s used_pct=%s avail=%s\n' "$logs_tmpfs" "$used" "$avail" > "$OUT/MEMORY_SAFETY_ABORT"
         fi
       fi
@@ -160,7 +164,8 @@ sample_osd() {
       python3 -m json.tool "$file" >/dev/null
       printf '%s\t%s\t%s\n' "$epoch" "$osd" "$file" >> "$OUT/osd-heartbeat.tsv"
     done
-    sleep 5
+    local elapsed=$(( $(date +%s) - epoch ))
+    (( elapsed < 5 )) && sleep $((5 - elapsed))
   done
 }
 

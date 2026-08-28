@@ -97,7 +97,7 @@ plan() {
   printf 'sudo install -d -m 0700 -o %s -g %s %q\n' "$TARGET_UID" "$TARGET_GID" "$PD_MNT"
   if [[ "$ARM" == D1 ]]; then
     printf 'sudo install -d -m 0700 -o %s -g %s %q\n' "$TARGET_UID" "$TARGET_GID" "$LOGS_TMPFS"
-    printf 'sudo mount -t tmpfs -o size=34G,mode=0700,nodev,nosuid,noexec %q %q\n' "$LOGS_TMPFS_SOURCE" "$LOGS_TMPFS"
+    printf 'sudo mount -t tmpfs -o size=36G,mode=0700,nodev,nosuid,noexec %q %q\n' "$LOGS_TMPFS_SOURCE" "$LOGS_TMPFS"
     printf 'sudo install -d -m 0700 -o %s -g %s %q\n' "$TARGET_UID" "$TARGET_GID" "$LOGS_TMPFS"
     printf 'fallocate -l 34359738368 -- %q\n' "$LOGS_BACKING"
     printf 'stat/du allocation gate role=logs logical=34359738368 allocated>=logical-16MiB\n'
@@ -140,7 +140,7 @@ activate() {
   printf 'pd\t%s\t%s\n' "t66-pd-${RUN_ID}-${INSTANCE,,}" "$PD_MNT" >> "$STATE"
   if [[ "$ARM" == D1 ]]; then
     sudo install -d -m 0700 -o "$TARGET_UID" -g "$TARGET_GID" "$LOGS_TMPFS"
-    sudo mount -t tmpfs -o size=34G,mode=0700,nodev,nosuid,noexec "$LOGS_TMPFS_SOURCE" "$LOGS_TMPFS"
+    sudo mount -t tmpfs -o size=36G,mode=0700,nodev,nosuid,noexec "$LOGS_TMPFS_SOURCE" "$LOGS_TMPFS"
     sudo install -d -m 0700 -o "$TARGET_UID" -g "$TARGET_GID" "$LOGS_TMPFS"
     printf 'ram_logs\t%s\t%s\t%s\n' "$LOGS_TMPFS_SOURCE" "$LOGS_TMPFS" "${BYTES[1]}" >> "$STATE"
     fallocate -l "${BYTES[1]}" -- "$LOGS_BACKING"

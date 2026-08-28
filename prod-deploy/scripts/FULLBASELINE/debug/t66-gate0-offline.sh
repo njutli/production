@@ -11,6 +11,7 @@ SHELL_FILES=(
   t66-storage-create-one.sh t66-storage-activate-arm.sh
   t66-storage-deactivate-arm.sh t66-storage-destroy-one.sh
   t66-node-cluster.sh t66-cluster-orchestrator.sh
+  t66-formal-arm-lifecycle.sh t66-formal-matrix.sh
   t66-gen-jobfiles.sh t66-seed-volume.sh t66-restore-volume.sh
   t66-gc-return.sh t66-reset-gates.sh t66-sampler.sh t66-run-arm.sh
   t66-finalize.sh
@@ -168,6 +169,9 @@ t66_memory_pre_ok $((128*1024**2)); expect_nonzero t66_memory_pre_ok $((128*1024
 t66_memory_runtime_ok $((64*1024**2)); expect_nonzero t66_memory_runtime_ok $((64*1024**2-1))
 t66_b_logs_margin_ok $((28*1024**3)) $((13*1024**3)); expect_nonzero t66_b_logs_margin_ok $((28*1024**3)) $((14*1024**3))
 t66_baseline_within_256m 1000000000 $((1000000000+256*1024**2)); expect_nonzero t66_baseline_within_256m 1000000000 $((1000000000+256*1024**2+1))
+grep -Fq 'size=36G,mode=0700,nodev,nosuid,noexec' "$SCRIPT_DIR/t66-storage-activate-arm.sh"
+grep -Fq 'used >= 95 || avail < 2*1024*1024*1024' "$SCRIPT_DIR/t66-sampler.sh"
+! grep -Fq 'used >= 98' "$SCRIPT_DIR/t66-sampler.sh"
 
 # Sparse backing must fail; genuinely allocated fixture must pass.
 truncate -s $((64*1024**2)) "$TMP/sparse.img"
@@ -333,6 +337,14 @@ grep -Fq 'SAMPLER_EXIT_AFTER_FIO' "$SCRIPT_DIR/t66-sampler.sh"
 grep -Fq 'sleep 30' "$SCRIPT_DIR/t66-run-arm.sh"
 grep -Fq 'WATCHDOG_DEADLINE=$((SECONDS+900))' "$SCRIPT_DIR/t66-run-arm.sh"
 grep -Fq 'T66_CLUSTER_ACTION_AUTH' "$SCRIPT_DIR/t66-node-cluster.sh"
+grep -Fq 'Any failure: append evidence, mark RUN_INVALID, preserve exact state' "$SCRIPT_DIR/t66-formal-arm-lifecycle.sh"
+grep -Fq 'FORMAL_MATRIX_STOP failed_instance=' "$SCRIPT_DIR/t66-formal-matrix.sh"
+grep -Fq 'FIRST_PAIR_CONTRACT_PASS.tsv' "$SCRIPT_DIR/t66-formal-matrix.sh"
+grep -Fq 'FORMAL_MATRIX_AUTHORIZED.tsv' "$SCRIPT_DIR/t66-formal-matrix.sh"
+if grep -EnH -- 'rm[[:space:]]+-r|losetup[[:space:]]+-D|umount[[:space:]]+-(l|f)|fusermount[[:space:]]+-u[zf]|pgrep[^|]*(\||.*xargs).*kill' \
+  "$SCRIPT_DIR/t66-formal-arm-lifecycle.sh" "$SCRIPT_DIR/t66-formal-matrix.sh"; then
+  echo 'formal coordinator contains broad cleanup/retry vocabulary' >&2; exit 1
+fi
 grep -Fq 'fallocate -l' "$SCRIPT_DIR/t66-storage-create-one.sh"
 grep -Fq -- '-E nodiscard,lazy_itable_init=0,lazy_journal_init=0' "$SCRIPT_DIR/t66-storage-activate-arm.sh"
 grep -Fq 't66_assert_allocated_file' "$SCRIPT_DIR/t66-storage-activate-arm.sh"
@@ -363,6 +375,26 @@ printf 'fixture\n' > "$AUTOROOT/evidence.txt"
 bash "$SCRIPT_DIR/t66-autonomy.sh" record "$AUTORUN" gate0 GLOBAL WARN fixture "$AUTOROOT/evidence.txt" none continue >/dev/null
 [[ $(wc -l < "$AUTOROOT/control/incidents.tsv") -eq 3 ]]
 bash "$SCRIPT_DIR/t66-autonomy.sh" status "$AUTORUN" | grep -Fq 'incident_rows=2'
+grep -Fq 'formal-ready)' "$SCRIPT_DIR/t66-autonomy.sh"
+approval="$AUTOROOT/control/maintenance-window-approved.txt"
+printf 'fixture approval\n' > "$approval"
+expect_42 bash "$SCRIPT_DIR/t66-autonomy.sh" formal-ready "$AUTORUN" "$approval"
+for required in \
+  "$AUTOROOT/seeds/formal/SEED_BUNDLE_PASS" \
+  "$AUTOROOT/instances/RESTORE-PREFLIGHT-B1c/CLONE_PASS" \
+  "$AUTOROOT/instances/RESTORE-PREFLIGHT-D1/CLONE_PASS" \
+  "$AUTOROOT/instances/GC-PREFLIGHT/GC_INSPECT_PASS" \
+  "$AUTOROOT/instances/ARM-CANARY-B1c/arm-analysis.json" \
+  "$AUTOROOT/instances/ARM-CANARY-D1/arm-analysis.json"; do
+  mkdir -p "${required%/*}"; printf 'fixture\n' > "$required"
+done
+bash "$SCRIPT_DIR/t66-autonomy.sh" formal-ready "$AUTORUN" "$approval" | grep -Fq 'FORMAL_MATRIX_READY_PASS'
+grep -Fq $'sequence\tR01,R02,R03,R04,R05,R06,R07,R08' "$AUTOROOT/control/FORMAL_MATRIX_AUTHORIZED.tsv"
+expect_42 bash "$SCRIPT_DIR/t66-autonomy.sh" formal-ready "$AUTORUN" "$approval"
+bash "$SCRIPT_DIR/t66-formal-arm-lifecycle.sh" plan "$AUTORUN" R01 > "$TMP/formal-arm-plan.txt"
+grep -Fq 'MODE=FORMAL_ARM_LIFECYCLE_PLAN_ONLY' "$TMP/formal-arm-plan.txt"
+bash "$SCRIPT_DIR/t66-formal-matrix.sh" plan "$AUTORUN" > "$TMP/formal-matrix-plan.txt"
+grep -Fq 'sequence=R01 R02 R03 R04 R05 R06 R07 R08' "$TMP/formal-matrix-plan.txt"
 if grep -EnH -- '(^|[[:space:]])(ssh|scp|sudo|systemctl|mount|losetup|mkfs|ceph|fio)([[:space:]]|$)' "$SCRIPT_DIR/t66-autonomy.sh" | grep -Ev '^[^:]+:[0-9]+:#'; then
   echo 'autonomy control plane contains environment action' >&2; exit 1
 fi

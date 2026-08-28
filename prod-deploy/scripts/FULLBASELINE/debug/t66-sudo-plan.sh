@@ -35,7 +35,7 @@ while read -r node; do
     else
       logs_tmpfs="$root/d1-${INSTANCE,,}-logs-backing"
       printf 'sudo install -d -m 0700 -o %s -g %s %q\n' "$UID_FROZEN" "$GID_FROZEN" "$logs_tmpfs"
-      printf 'sudo mount -t tmpfs -o size=34G,mode=0700,nodev,nosuid,noexec t66-logs-%s-%s %q\n' "$RUN_ID" "${INSTANCE,,}" "$logs_tmpfs"
+      printf 'sudo mount -t tmpfs -o size=36G,mode=0700,nodev,nosuid,noexec t66-logs-%s-%s %q\n' "$RUN_ID" "${INSTANCE,,}" "$logs_tmpfs"
       printf 'sudo install -d -m 0700 -o %s -g %s %q\n' "$UID_FROZEN" "$GID_FROZEN" "$logs_tmpfs"
       printf 'fallocate -l 34359738368 -- %q\n' "$logs_tmpfs/t66-d1-logs.img"
       roles=(kv logs); files=("$backing/kv.img" "$logs_tmpfs/t66-d1-logs.img"); mnts=(d1-kv d1-logs)
