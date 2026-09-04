@@ -22,11 +22,19 @@ MNT=${MNT:-/mnt/juicefs}
 TEST_DIR=${TEST_DIR:-${MNT}/test_dir}
 META=${META:-tikv://10.20.1.150:2379,10.20.1.151:2379,10.20.1.152:2379/juicefs-prod}
 V4=${V4:-/tmp/FULLBASELINE_V4.sh}
+V4_BASE=${V4_BASE:-/tmp/FULLBASELINE_V4.sh}
 MSGR_CONF=${MSGR_CONF:-/tmp/t141-msgr8.conf}
 SYS_CEPH_CONF=${SYS_CEPH_CONF:-/etc/ceph/ceph.conf}
+U141D_SCRUB_PAUSED=${U141D_SCRUB_PAUSED:-0}
 
 # frozen expectations (task book §2.1 / §2.2)
-EXP_V4_MD5=4198ea2676ba56744a3cd5eba17a5eab
+EXP_V4_MD5_BASE=4198ea2676ba56744a3cd5eba17a5eab
+EXP_V4_MD5_U141D=b79402c3ef1691dbf20eafd344f91c27
+if [[ $U141D_SCRUB_PAUSED == 1 ]]; then
+  EXP_V4_MD5=$EXP_V4_MD5_U141D
+else
+  EXP_V4_MD5=$EXP_V4_MD5_BASE
+fi
 EXP_MSGR_MD5=86351c58848c7e4caaa1bbeccb211730
 EXP_SYSCEPH_MD5=5b6be34179a64e0a5f9c6d3a9690041f
 EXP_V13_MD5=de93563f11a5ff3bd94dd25a4e0283b1
@@ -181,6 +189,16 @@ $SYS_CEPH_CONF $EXP_SYSCEPH_MD5
 /tmp/juicefs-03-8 $EXP_V13_MD5
 /tmp/juicefs-1.4.1-patched $EXP_V14_MD5
 EOF
+  if [[ $U141D_SCRUB_PAUSED == 1 ]]; then
+    f=$V4_BASE; exp=$EXP_V4_MD5_BASE
+    if [[ -e $f ]]; then
+      got=$(md5sum "$f" 2>/dev/null | awk '{print $1}')
+    else
+      got=MISSING
+    fi
+    printf '%s\t%s\t%s\n' "$f" "$got" \
+      "$([[ $got == "$exp" ]] && echo OK || echo MISMATCH)" >> "$out"
+  fi
   local s
   for s in /tmp/t53-bin-new /tmp/t141p-bin /tmp/t141-bin /tmp/t53-bin-old; do
     printf '%s\t%s\t%s\n' "$s/juicefs" \
@@ -195,36 +213,125 @@ EOF
 
 # ------------------------------------------------------------------ ceph
 
+validate_ceph_snapshot() {
+  local mode=$1 health_json=$2 osd_dump_json=$3 pgs_brief=$4
+  [[ $mode == 0 || $mode == 1 ]] || die "invalid U141D_SCRUB_PAUSED=$mode (expected 0 or 1)"
+  python3 - "$mode" "$health_json" "$osd_dump_json" "$pgs_brief" <<'PY'
+import collections
+import json
+import re
+import sys
+
+mode, health_path, osd_path, pg_path = sys.argv[1:]
+paused = mode == "1"
+errors = []
+
+with open(health_path, encoding="utf-8") as f:
+    health = json.load(f)
+with open(osd_path, encoding="utf-8") as f:
+    osd_dump = json.load(f)
+
+status = str(health.get("status", "MISSING"))
+checks = health.get("checks", {})
+if not isinstance(checks, dict):
+    raise SystemExit("health checks is not an object")
+check_keys = sorted(str(k) for k in checks)
+
+raw_flags = osd_dump.get("flags", [])
+if isinstance(raw_flags, str):
+    flags = [x.strip() for x in raw_flags.split(",") if x.strip()]
+elif isinstance(raw_flags, list):
+    flags = [str(x).strip() for x in raw_flags if str(x).strip()]
+else:
+    raise SystemExit("unsupported OSD flags type: %s" % type(raw_flags).__name__)
+flags = sorted(set(x.replace("nodeep_scrub", "nodeep-scrub") for x in flags))
+
+osds = osd_dump.get("osds")
+if not isinstance(osds, list) or not osds:
+    errors.append("OSD dump has no osds array")
+    osds = []
+up = sum(1 for x in osds if x.get("up") == 1)
+inside = sum(1 for x in osds if x.get("in") == 1)
+if osds and (up != len(osds) or inside != len(osds)):
+    errors.append("OSDs not all up/in: total=%d up=%d in=%d" % (len(osds), up, inside))
+
+states = collections.Counter()
+primaries = collections.Counter()
+abnormal = []
+with open(pg_path, encoding="utf-8", errors="replace") as f:
+    for raw in f:
+        fields = raw.split()
+        if len(fields) < 2 or not re.fullmatch(r"[0-9]+\.[0-9a-fA-F]+", fields[0]):
+            continue
+        pgid, state = fields[0], fields[1]
+        states[state] += 1
+        if state != "active+clean":
+            abnormal.append((pgid, state))
+        if fields[-1].isdigit():
+            primaries[int(fields[-1])] += 1
+
+pg_count = sum(states.values())
+scrubbing = sum(
+    n for state, n in states.items()
+    if "scrubbing" in state.split("+") or "deep" in state.split("+")
+)
+if pg_count <= 0:
+    errors.append("no PG rows parsed")
+if abnormal:
+    errors.append("PGs not exact active+clean: count=%d" % len(abnormal))
+if scrubbing:
+    errors.append("active scrub/deep-scrub PGs=%d" % scrubbing)
+
+if paused:
+    missing = [x for x in ("noscrub", "nodeep-scrub") if x not in flags]
+    if missing:
+        errors.append("paused mode missing OSD flag(s): %s" % ",".join(missing))
+    if not ((status == "HEALTH_OK" and not check_keys) or
+            (status == "HEALTH_WARN" and check_keys == ["OSDMAP_FLAGS"])):
+        errors.append("paused health must be HEALTH_OK/no-checks or HEALTH_WARN/OSDMAP_FLAGS-only")
+else:
+    if status != "HEALTH_OK" or check_keys:
+        errors.append("strict health must be HEALTH_OK with no checks")
+
+print("health: %s" % status)
+print("health_check_keys=%s" % (",".join(check_keys) or "none"))
+print("osd_flags=%s" % (",".join(flags) or "none"))
+print("osd_count=%d up=%d in=%d" % (len(osds), up, inside))
+print("pg_count=%d nonclean=%d scrubbing=%d" % (pg_count, len(abnormal), scrubbing))
+print("pg_states=%s" % (",".join("%s:%d" % x for x in sorted(states.items())) or "none"))
+print("primary=[%s]" % " ".join("%d:%d" % x for x in sorted(primaries.items())))
+for pgid, state in abnormal:
+    print("abnormal_pg=%s state=%s" % (pgid, state))
+if errors:
+    for error in errors:
+        print("CEPH_SNAPSHOT_INVALID: " + error, file=sys.stderr)
+    raise SystemExit(1)
+PY
+}
+
 cmd_ceph() {
   local out=$1
-  {
-    echo "# $(date -Is) epoch=$(date +%s)"
-    echo "health: $(sudo ceph health 2>/dev/null || echo ERROR)"
-    echo "osd_stat: $(sudo ceph osd stat 2>/dev/null || echo ERROR)"
-    sudo ceph pg dump pgs_brief 2>/dev/null | python3 -c '
-import sys, collections
-prim = collections.Counter(); nonclean = 0; total = 0
-for line in sys.stdin:
-    f = line.split()
-    if len(f) < 5 or "." not in f[0]:
-        continue
-    total += 1
-    if f[1] != "active+clean":
-        nonclean += 1
-    try:
-        prim[int(f[-2] if f[-2].isdigit() else f[-1])] += 1
-    except ValueError:
-        pass
-print("pg_count=%d nonclean=%d" % (total, nonclean))
-print("primary=[%s]" % " ".join("%d:%d" % (k, prim[k]) for k in sorted(prim)))
-' 2>/dev/null || echo "pg parse failed"
-  } > "$out"
-  local h
-  h=$(awk -F': ' '/^health:/{print $2}' "$out")
-  # D31: accept both HEALTH_OK and "HEALTH OK"
-  [[ $h == HEALTH_OK || $h == "HEALTH OK" ]] || die "S17 ceph health=$h"
-  grep -q 'nonclean=0' "$out" || die "S17 PG not all active+clean"
-  echo "CEPH_PASS health=$h"
+  local health_json="${out}.health.json"
+  local osd_dump_json="${out}.osd-dump.json"
+  local pgs_brief="${out}.pgs-brief.txt"
+  local parser_stderr="${out}.validate.stderr"
+  [[ $U141D_SCRUB_PAUSED == 0 || $U141D_SCRUB_PAUSED == 1 ]] \
+    || die "invalid U141D_SCRUB_PAUSED=$U141D_SCRUB_PAUSED"
+  sudo ceph health detail --format json > "$health_json" 2>/dev/null \
+    || die "S17 cannot collect health JSON"
+  sudo ceph osd dump --format json > "$osd_dump_json" 2>/dev/null \
+    || die "S17 cannot collect OSD dump JSON"
+  sudo ceph pg dump pgs_brief > "$pgs_brief" 2>/dev/null \
+    || die "S17 cannot collect pgs_brief"
+  printf '# %s epoch=%s scrub_paused=%s\n' \
+    "$(date -Is)" "$(date +%s)" "$U141D_SCRUB_PAUSED" > "$out"
+  if ! validate_ceph_snapshot "$U141D_SCRUB_PAUSED" \
+       "$health_json" "$osd_dump_json" "$pgs_brief" >> "$out" 2> "$parser_stderr"; then
+    cat "$parser_stderr" >&2
+    die "S17 Ceph snapshot gate failed; raw sidecars preserved for exact attribution"
+  fi
+  rm -f "$parser_stderr"
+  echo "CEPH_PASS mode=$([[ $U141D_SCRUB_PAUSED == 1 ]] && echo scrub-paused || echo strict)"
 }
 
 # ------------------------------------------------------------------ resolve
@@ -306,6 +413,51 @@ self_test() {
   set -e
   ck "missing max_read fails (S12)" "[[ $rc -ne 0 ]]"
   rm -f "$fp" "${fp}.2"
+
+  echo "=== exact Ceph snapshot gate (S17) ==="
+  local health osd pg parsed
+  health=$(mktemp); osd=$(mktemp); pg=$(mktemp); parsed=$(mktemp)
+  printf '{"status":"HEALTH_OK","checks":{}}\n' > "$health"
+  printf '{"flags":"sortbitwise","osds":[{"osd":0,"up":1,"in":1},{"osd":1,"up":1,"in":1}]}\n' > "$osd"
+  printf 'PG_STAT STATE UP UP_PRIMARY ACTING ACTING_PRIMARY\n3.0 active+clean [0,1] 0 [0,1] 0\n' > "$pg"
+  set +e
+  ( validate_ceph_snapshot 0 "$health" "$osd" "$pg" ) > "$parsed" 2>&1
+  rc=$?
+  set -e
+  ck "strict HEALTH_OK fixture passes" "[[ $rc -eq 0 ]] && grep -q 'pg_count=1 nonclean=0 scrubbing=0' '$parsed'"
+
+  printf '{"status":"HEALTH_WARN","checks":{"OSDMAP_FLAGS":{"summary":{"message":"flags set"}}}}\n' > "$health"
+  printf '{"flags":"sortbitwise,noscrub,nodeep_scrub","osds":[{"osd":0,"up":1,"in":1},{"osd":1,"up":1,"in":1}]}\n' > "$osd"
+  set +e
+  ( validate_ceph_snapshot 1 "$health" "$osd" "$pg" ) > "$parsed" 2>&1
+  rc=$?
+  set -e
+  ck "paused OSDMAP_FLAGS-only fixture passes" "[[ $rc -eq 0 ]] && grep -q 'health_check_keys=OSDMAP_FLAGS' '$parsed'"
+
+  printf '{"status":"HEALTH_WARN","checks":{"OSDMAP_FLAGS":{},"OSD_DOWN":{}}}\n' > "$health"
+  set +e
+  ( validate_ceph_snapshot 1 "$health" "$osd" "$pg" ) > "$parsed" 2>&1
+  rc=$?
+  set -e
+  ck "paused mode rejects an additional health check" "[[ $rc -ne 0 ]]"
+
+  printf '{"status":"HEALTH_WARN","checks":{"OSDMAP_FLAGS":{}}}\n' > "$health"
+  printf '{"flags":"sortbitwise,noscrub","osds":[{"osd":0,"up":1,"in":1},{"osd":1,"up":1,"in":1}]}\n' > "$osd"
+  set +e
+  ( validate_ceph_snapshot 1 "$health" "$osd" "$pg" ) > "$parsed" 2>&1
+  rc=$?
+  set -e
+  ck "paused mode requires both scrub flags" "[[ $rc -ne 0 ]]"
+
+  printf '{"flags":"sortbitwise,noscrub,nodeep-scrub","osds":[{"osd":0,"up":1,"in":1},{"osd":1,"up":1,"in":1}]}\n' > "$osd"
+  printf 'PG_STAT STATE UP UP_PRIMARY ACTING ACTING_PRIMARY\n3.a active+clean+scrubbing [0,1] 0 [0,1] 0\n' > "$pg"
+  set +e
+  ( validate_ceph_snapshot 1 "$health" "$osd" "$pg" ) > "$parsed" 2>&1
+  rc=$?
+  set -e
+  ck "active scrub is rejected with PG identity preserved" \
+    "[[ $rc -ne 0 ]] && grep -q 'abnormal_pg=3.a state=active+clean+scrubbing' '$parsed'"
+  rm -f "$health" "$osd" "$pg" "$parsed"
 
   echo
   if [[ ${#fails[@]} -gt 0 ]]; then

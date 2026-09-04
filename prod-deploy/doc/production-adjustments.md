@@ -62,7 +62,14 @@ nvme1n1 已分配给 TiKV，无剩余物理 NVMe 做 DB/WAL。采用 **tmpfs 内
 157 的 nvme1n1(894G) 可做 cache-dir（非 OSD 盘，满足"不与 OSD 共盘"要求）。
 - 冷态基线：`--cache-size 0`
 - 暖态增强：`--cache-dir /mnt/jfs-cache --cache-size 102400`（按需开）
-- writeback：突发写负载时开（staging 空间由 `--free-space-ratio` 控制）
+- writeback：客户端有充足独立持久空间、文件由单客户端独占且写负载为低占空比突发时，设置
+  `JUICEFS_ENABLE_WRITEBACK=true`启用；无空间客户端保持关闭
+- 04-tmp2e的W16前90秒约`2770.80 MiB/s`，相对当前无缓存代表值约`+13.5%`，证明前段突发
+  吸收价值；全180秒均值回落到`2436.50 MiB/s`，说明它不提高后端长期服务率
+- W16在900秒后仍残留`2 blocks/524288 B`，因此16 GiB不是生产推荐容量；容量按
+  `（突发前台速率－后端排空速率）×最长突发时间＋安全余量`估算
+- 必须监控staging blocks/bytes/最老等待时间、剩余空间、ENOSPC和上传错误；跨客户端交接或要求
+  Ceph远端持久化前，须等待staging归零，禁止人工删除`rawstaging`
 
 ### §七 验收口径 — **双口径**
 

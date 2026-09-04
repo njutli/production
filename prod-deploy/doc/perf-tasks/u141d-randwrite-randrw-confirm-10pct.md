@@ -1,222 +1,362 @@
-# U141d 任务书：randwrite + randrw 单夜确认（M_eng = 10%）
+# U141d 任务书：JuiceFS 1.4.1 最终写路径补证
 
-## 日期：2026-08-29
+## 日期：2026-08-30
 
-> 面向：GLM 执行；opencode 离线独立复算与签收。
-> **本任务取代 U141c 的 3–5 夜方案**（`u141c-methodology-revision-replace-decision.md` 转入暂缓）。
-> 承接：`doc/perf-report/u141b-replace-decision-status-20260829.md`、`doc/perf-tasks/u141b-findings-log.md`（F-01…F-17）。
+> 面向：GLM 执行；GPT 离线独立复算与签收。
 >
-> 方法论：`skills/EVIDENCE-INTEGRITY-SKILL.md`、`skills/TESTING-GUIDE.md` §1.3/§2.2/§3、
-> `skills/test-commands-reference.md` §8.3/§9、`skills/SYSTEM-SAFETY-SKILL.md`、`skills/LONG-RUNNING-TEST-SKILL.md`。
-> 未在本文件复述的执行细节，一律按 U141b 任务书同名章节执行（脚本、硬门、红线均不变）。
-
-```text
-U141b  32 轮跑完、硬门全过、退步 0/7，但判据要求 3% 而每轮噪声 1.0–3.4% ⇒ REPLACE_NOT_PROVEN
-  ↓    诊断：卡点不是稳定性门，是从未被论证的 3% 阈值
-U141d  把阈值按业务定为 10%，只测两个风险项，8 轮 1 夜  ← 你在这里
-  ├─ 两项 CI 下界 ≥ −10% → REPLACE_APPROVED（连同 U141b 的读侧描述性证据一起收口）
-  ├─ 任一项 effect < −10% 且 CI 上界 < −10% → REPLACE_REJECTED
-  └─ 任一非性能硬门失败 → EVIDENCE_INVALID，保留现场，⛔ 禁止补样
-```
-
-一句话：只回答"升级会不会带来**明显**退步"，阈值 10%，测 `randwrite` 与 `randrw` 两个历史风险项，8 轮，一夜出结论。
+> 候选范围固定为：
+>
+> - **V13**：patched JuiceFS 1.3.1，`/tmp/juicefs-03-8`，MD5 `de93563f11a5ff3bd94dd25a4e0283b1`；
+> - **V14**：JuiceFS 1.4.1 + B-catchup，`/tmp/juicefs-1.4.1-patched`，MD5 `24fae0852051c80ca571cb2f20275d46`。
+>
+> 原生未打 B-catchup 的 1.4.1 已因 randwrite 约 551 MiB/s 被排除，不属于本任务候选。
+>
+> 承接：`u141b-juicefs-141-replace-131-decision.md`、
+> `u141b-replace-decision-status-20260829.md`、`u141b-findings-log.md` 与 Opus 原 U141d。
+> 本文件保留原文件名以避免引用失效，但已将范围扩展为全部剩余写路径证据。
 
 ---
 
-## 一、⚑ 预注册（⛔ 取数前冻结，取数后一律不得改）
+## 一、任务目的与已有证据
 
-| 项 | 值 | 依据 |
+U141b 最终取得 **24 个有效正式轮**：P1/P2/P3 各 8 轮；P4 `mseqwrite` 未执行。
+已有证据足以保留以下结论，不再重复全量七项基线：
+
+| 项 | U141b 结论 | 本任务处置 |
 |---|---|---|
-| **`M_eng`** | **10%**（两项相同） | 业务口径：只需排除"明显退步"。⚑ **本值在取数前冻结**，⛔ 不得事后调整 |
-| **点估计量** | 正式窗 `[15,175)` 逐秒全 job 求和序列的 **算术平均 mean** | mean × 窗长 = 实际传输字节数，是有效带宽的定义。U141b F-13：randwrite 秒级双峰（CV 36–45%），median 落稀疏谷、ε 达 17.28%，mean 仅 2.09% |
-| **判定统计量** | `BW_r = β0 + β1·r + β2·r² + βarm·1[V14]`（OLS），判 `βarm` 单侧 95% CI | 设计使 `arm ⊥ {1,r,r²}`（§二），去趋势不吸收 arm 效应；不确定度用全部残差自由度，不再由 2 个相邻对决定 |
-| **趋势阶数** | 二次，⛔ 禁数据驱动选阶 | 选阶即引入 D36 同类漏洞 |
-| **测试项** | `randrw`、`randwrite` | 两者是历史崩塌与退步风险项（原版 v1.4.1 randwrite 崩到 551；randrw 是 U141b 唯一负向项） |
-| **轮数** | 8（每臂 4） | 功效：`s` 实测 randrw 2.43% / randwrite 1.02% ⇒ n=8 的 CI 半宽 3.67% / 1.54%，**远小于 10%**，余量 ≥2.7× |
+| seqread / mseqread / randread | 版本效应接近 0，无材料性退化迹象 | 不重测 |
+| seqwrite | 版本效应接近 0 | 不重测 |
+| randwrite | 均值趋势模型约 −1.27%，配对结果并非每轮都低 | 阶段 A 复测确认 |
+| randrw | 均值趋势模型约 −3.52%，4 个跨臂对中 3 个为负；最贴近生产规格 IO 模型 | **阶段 A 第一优先级** |
+| mseqwrite | U141b 未执行；U141 又被对象数棘轮污染 | 阶段 B 独立补测 |
 
-判定表：
+本任务只回答三件事：
 
-| 条件 | 判定 |
+1. V14 的 `randrw` 是否存在可复现的负向版本效应，准确幅度和区间是多少；
+2. V14 的 `randwrite` 是否与 V13 同量级，且不再出现原生 1.4.1 的性能塌陷；
+3. 在每轮恢复相同对象起点后，V14 的 `mseqwrite` 相对 V13 表现如何。
+
+**本任务不在取数前写死 `REPLACE_APPROVED`。** 测试输出实际效应与置信区间；是否接受小幅下降，
+待数据出来后结合 `randrw` 的生产重要性决定。
+
+---
+
+## 二、预注册统计口径（取数前冻结）
+
+### 2.1 主估计量
+
+- 每个 item、每轮只使用 fio 实际 timed-I/O 起点对齐后的正式窗 `[15,175)`；
+- 对 per-job BW 日志做区间重叠加权到自然秒；只保留 job 齐全的秒；
+- 主估计量固定为正式窗逐秒聚合带宽的**算术平均值**；median、CV 只作敏感性；
+- `randrw` 的 READ 与 WRITE **分开分析，禁止相加**，两向都是正式端点；
+- `randwrite`、`mseqwrite` 分析 WRITE 方向。
+
+逐轮版本模型固定为：
+
+```text
+BW_r = β0 + β1·(r−4.5) + β2·(r−4.5)² + βarm·1[V14]
+effect_pct = βarm / mean(BW of V13 rounds) × 100%
+```
+
+报告 `effect_pct`、双侧 95% CI、单侧 95% 下界、逐轮值与四个跨臂对。
+二次模型是主口径；线性模型和不去趋势的臂均值差只作敏感性，禁止择优切换。
+
+### 2.2 数值解释，不预判替代
+
+| 数值 | 含义 |
 |---|---|
-| `halfw < 10%` 且 `CI_low ≥ −10%` | **NON_INFERIOR** |
-| `halfw < 10%` 且 `effect < −10%` 且 `effect + halfw < −10%` | **MATERIAL_REGRESSION** |
-| `halfw ≥ 10%` | `RESOLUTION_INSUFFICIENT`（按功效表 n=8 时不应发生；若发生须解释 `s` 为何翻倍） |
-| 其余 | `INCONCLUSIVE` |
+| **5%** | 关注线：若区间整体落在 −5% 以内，可描述为“小幅、受控”；这不是自动批准 |
+| **10%** | 明显退化红线；若单侧 95% 上界仍低于 −10%，记 `MATERIAL_REGRESSION` |
+| CI 跨 0 | 未检测到稳定版本方向，描述为 `NO_DETECTABLE_DIFFERENCE` |
+| CI 全部低于 0、但未越 −10% | 记录 `SMALL_REGRESSION_MEASURED` 及准确幅度，交由最终评审 |
 
-⚑ median 与 20% trimmed mean **必须同时算出落盘**作已登记敏感性，⛔ 不得用于改写判定。
-⚑ 任何偏差数字必须写明**基准估计量**（F-17 教训）。
-⚑ **报告须显式声明**：`M_eng=10%` 是在本任务取数前冻结的；U141b 的数据 ⛔ 不得拼进本任务效应量。
+精度门只防止“高噪声等于通过”：阶段 A/B 任一端点双侧 95% CI 半宽 > **5 个百分点**，
+记 `RESOLUTION_INSUFFICIENT`。不在同一 RUN 内临时补轮；先分析状态原因，再决定是否另行取数。
 
 ---
 
-## 二、矩阵（沿用 U141b 的 8 轮设计，已验证二阶平衡）
+## 三、阶段设计
+
+### 3.1 固定正式矩阵（两阶段相同）
 
 ```text
-R01=V13  R02=V14  R03=V14  R04=V13   |   R05=V14  R06=V13  R07=V13  R08=V14
-        ── ABBA block 1 ──                    ── BAAB block 2 ──
+R01=V13  R02=V14  R03=V14  R04=V13  R05=V14  R06=V13  R07=V13  R08=V14
 ```
 
-V13 占位 `{1,4,6,7}`、V14 `{2,3,5,8}`。平衡性自证（必须在报告复算）：
-`mean(r)` 两臂均 **4.5**（一阶精确）；`mean((r−4.5)²)` 两臂均 **5.25**（二阶精确）。
+V13/V14 占位均值均为 4.5，二阶矩均为 5.25，可同时抵消一阶和二阶轮序漂移。
+正式矩阵固定 8 轮，每臂 4 轮；禁止补点、换顺序或删除性能差的轮。
 
-**单一 phase，两个 item 同轮执行**：`ITEMS="randrw randwrite"`（两臂的分组与项内顺序完全相同）。
+### 3.2 阶段 A：`randrw + randwrite`
 
-⚑ **预热轮**（丢弃但留证，针对 F-14 的跨轮 settle）：矩阵前跑 4 轮，臂序 `V13 V14 V14 V13`（对称）。
-LABEL 用 `U141D-P1-W<nn>-<ARM>`。收敛判据：最后 3 个预热轮 randwrite 的
-`|BW_i/BW_{i-1} − 1|` 连续 2 次 **< 2.0%**；不达标最多再成对追加 2 轮（`V14 V13`），仍不达标 ⇒ STOP 回传。
-依据：U141b randwrite 前三轮 `2844→2685→2629`（−5.6%/−2.1%），第 4 轮起进入 ±2% 带内。
+- `ITEMS="randrw randwrite"`，顺序两臂完全相同，`randrw` 始终先执行；
+- 正式矩阵前固定运行 4 个预热轮：`V13 V14 V14 V13`；
+- 预热数据完整保留但不进入效应量；
+- 预热只用于消化 U141b 已观察到的跨轮 settle，**不设置 CV/2% 收敛门，也不动态追加预热**；
+- 预热与正式 R01 必须连续执行，中间不得暂停等待审核；
+- 排空点固定为 W01 前、R01 前、R05 前；`randwrite` 是覆盖写，`randrw` 产生的垃圾对象由固定排空控制。
 
-**排空点**（`juicefs gc --compact --delete`，前后对象数与原文输出必须落盘）：
-矩阵 `R01` 前、`R05` 前（block 边界，两臂对称）各一次。
-依据：U141b P2 实测 randrw 每轮增 66K–222K 对象；起点 1.98M、门 3.11M ⇒ 4 轮最坏 2.87M，安全。
-randwrite 为纯覆写（U141b P3 实测 `post−pre ≤ 1`），不贡献棘轮。
+阶段 A 共 12 个 V4 label，预计约 5.7 小时。完成后停止并回传，GPT 独立复算。
 
----
+### 3.3 阶段 B：`mseqwrite`
 
-## 三、墙钟预算（按 U141b 实测标定，⛔ 不再用估值）
+仅当阶段 A 没有确认超过 10% 的材料性退化，且用户授权后执行：
 
-| 段 | 轮数 | 每轮实测依据 | 小计 |
-|---|---:|---|---:|
-| 前置 + P0 兼容性门 | — | — | ~0.5 h |
-| 预热 | 4 | 25.5 min（U141b P2 两 item 实测 24.2–28.9） | ~1.7 h |
-| 矩阵 | 8 | 25.5 min | ~3.4 h |
-| 排空 ×2 | — | 55 s（U141b 实测） | ~2 min |
-| **合计** | | | **≈ 5.7 h（单夜）** |
+- 两个非正式 canary：`V13 V14`，用于确认两臂均能完成 mseqwrite 全路径；
+- 随后执行固定 8 轮正式矩阵；
+- canary 和每个正式轮**之前**均执行精确排空：只删除
+  `/mnt/juicefs/test_dir/mseqwrite/mseqwrite.*.0`，然后 `juicefs gc --delete`；
+- preflight 排空完成后的对象数记为 `seed_objects`；每轮开跑前必须回到
+  `seed_objects ± 8192`，否则 `EVIDENCE_INVALID` 并停止；
+- 阶段 B 放在全部测试最后，避免其新写入对象污染阶段 A；
+- 最后一轮后再次排空并核对回到 seed 范围。
 
-⚑ **S01 时长门（按 F-06/F-07 修订）**：`check_timing` 必须**秒级比较**，⛔ 禁整数除法
-（U141b 因 `1258/60=20` 掩盖了 20.97 min 的真实越界）。`PHASE_EXPECT_MAX` 置 **32 min**
-（= 25.5 × 1.25）。**任一轮 > 1.6 × 25.5 = 41 min ⇒ 立即中止整个 phase**，记 `EVIDENCE_INVALID`，回传等重排。
-⛔ 不得"继续但压缩后续轮"、⛔ 不得"停下等指示再续跑"——两者都产生非均匀轮间隔。
+对象起点门是本阶段不可简化的核心门：U141 正是因为 mseqwrite 每轮新增 0.9–1.3M 对象、
+版本臂与存储状态共线而失效。
 
 ---
 
-## 四、保留的硬门（只留这些；其余项改为"记录不设门"）
+## 四、精简后的有效性门
 
-### 4.1 非性能证据门（失败 → `EVIDENCE_INVALID`，STOP，⛔ 禁止补样）
+### 4.1 开跑前硬门
 
-| Gate | 检查 | 条件 |
-|---|---|---|
-| **S09b** | 切臂自证 | 启动 V4 **之前** `command -v juicefs` 必须解析到本臂 shim，且其 md5 = 本臂值 |
-| **S10** | `exe_md5` | 该轮**所有** `juicefs.*mount` 进程 `/proc/<pid>/exe` md5 = 本臂 md5 |
-| **S11** | `CEPH_CONF` | 每个 mount 进程 environ 含 `CEPH_CONF=/tmp/t141-msgr8.conf` |
-| **S12** | `max_read` | `mount` 输出含 `max_read=262144`（⚑ 见 §五 前置条件，F-08 曾因此废掉一轮） |
-| **S13** | fio 有效性 | `rounds.tsv` 该轮 status = `VALID`；无 `INVALID.txt` |
-| **S14** | per-job BW 日志 | randrw 128 个、randwrite 128 个 `*_bw.*.log`，零缺失 |
-| **S14b** | 正式窗样本数 | 每 item 每轮 `n = 160`（W1–W4 各 40） |
-| **S15** | 对象数门 | 轮前 pre ≤ **3,110,000**；超过 → 立即 `drain`，排空后仍超 → STOP。⛔ 无 SOFT-PASS |
-| **S17** | Ceph | 全程 `HEALTH_OK`、`nonclean=0` |
-| **S18** | 冻结项 | 系统 ceph.conf `5b6be341…`、msgr conf `86351c58…`、V4 脚本 `4198ea26…` 三个 md5 不变 |
-| **S19** | 卸载 | 优雅卸载成功且 `mount \| grep -c juice` 为 0 |
-| **S21** | 轮间隔 | 除两个计划 `drain` 外相邻轮 `END = BEGIN` 为 0 |
-| **S22** | 预热收敛 | 按 §二达标 |
+1. U141d 专用 `/tmp/FULLBASELINE_V4_U141D.sh` MD5 必须为
+   `b79402c3ef1691dbf20eafd344f91c27`，U141b 复用件、V13/V14 与 msgr 配置 MD5 全匹配；
+   原冻结 `/tmp/FULLBASELINE_V4.sh` 仍须保持 MD5 `4198ea2676ba56744a3cd5eba17a5eab`，不得覆盖；
+2. 无 foreign fio、无 t64/t65/t66 测试挂载或 loop、无临时 PD/TiKV 端口；
+3. 157 根分区可用空间不少于 20 GiB；
+4. 本任务按 §4.4 使用 phase 级 `noscrub + nodeep-scrub` 控制基线；仅允许由这两个 flag
+   产生且 health-check key 唯一为 `OSDMAP_FLAGS` 的 `HEALTH_WARN`，OSD 必须全部 up/in、
+   PG 必须逐个精确为 `active+clean` 且无正在运行的 scrub/deep-scrub；任何其他 WARN 立即停止；
+5. `read_test.*.0`、`rw_test.*.0`、`storage_test.*.0` 各 128 个且均为 1 GiB；
+6. P0：V14 挂载→V13挂载→V14挂载全部成功；V14 Setting 允许只多默认空 `Tiers`；
+7. 建立 `seed_objects` 并冻结矩阵、统计口径和全部脚本哈希。
+8. `u141d-analyze.py` 不仅要 SHA256 一致，还必须是可由 driver 直接执行的 regular file；
+   init、Phase B 入口和 closure 前均检查 executable bit，禁止以“可被 `python3 file` 读取”替代
+   真实 direct-exec 合同。
 
-### 4.2 改为「记录不设门」（相对 U141b 的简化）
+不再执行 60 秒写入 settle probe，不以系统负载、CV、W4/W1 或缓存命中率作为开跑门。
 
-文件资产 384 项逐轮清单、PG primary map、`c_amp`、cache hit、`W4/W1`、`ns/B` 判档器读数、
-`jfs-stats` 差分 —— **照常采集落盘**，但 ⛔ 不作为放行条件。
-理由：U141b 32 轮实测这些项**全部恒定/无异常**，继续设门只增加中止风险而不增加信息
-（指导 §二.12：一道总是通过或总是失败的门不携带信息）。
-⚑ 但 `S16` 的**弱化版**保留：R01 前与末轮后各采一次 384 文件清单，比对数量与大小；
-中间轮不比对。资产是绝对不可损坏项。
+### 4.2 每轮硬门
 
-### 4.3 性能端点（⛔ 永不触发样本删除）
+- 切臂前 `command -v juicefs` 与目标 MD5 一致；
+- 调用 V4 前挂载点和对应 JuiceFS worker 必须都为 0；优雅卸载会等待二者同时消失，
+  从入口上避免触发冻结 V4 内部的 TERM/KILL 兜底。卸载后最多等待 **180 秒**，逐秒写入
+  `unmount-quiescence.tsv`（context/arm/method/elapsed/mountpoint/PID/state）；只有
+  `mountpoint=0 && matching worker PID=0` 才能进入下一轮。超过 180 秒立即停止并保留现场，
+  禁止忽略 worker、kill worker 或进入 V4 TERM/KILL 兜底；退出耗时作为版本运维兼容性指标报告；
+- 所有 mount 进程 `exe_md5`、`CEPH_CONF`、`max_read=262144` 一致；
+- V4 rc=0，`rounds.tsv` 必须对本轮冻结 item **逐项恰好一行且 status=VALID**：
+  Phase A 每个 label 恰好两行（randrw、randwrite），Phase B 每个 label 恰好一行（mseqwrite）；
+  缺项、重复项或未知项均失败；
+- `UNCLEAN_UMOUNT.txt` 不得新增，`jfs-instance-<LABEL>.txt` 不得出现 `umount_mode=term/kill`；
+- 目标 item 目录必须全部存在，日志数严格为 randrw/randwrite 128、mseqwrite 16；
+- 每个正式端点 `[15,175)` 必须有 160 个完整秒；
+- Ceph 保持健康；单轮总墙钟（包含 post-round 优雅卸载至 worker 完全退出）不得超过 41 分钟；
+- 每轮入口、pre、post 和 closure 均须再次核验本 phase 独立 scrub lease 仍为 `paused`；
+  collector 必须保存完整 health JSON、OSD dump JSON 和逐 PG `pgs_brief` 原文，禁止仅凭
+  `nonclean=0` 丢弃 PG 身份或吞掉其他 health check；
+- 阶段 B 额外执行对象起点门。
 
-⚑ **S20**：带宽绝对值、秒级 CV、`W4/W1`、CI 半宽 **再差都是结果，不是删样本的理由**。
+性能值、CV、W4/W1、带宽高低永远不是删样理由。非性能硬门失败时停止，保留挂载和现场；
+禁止卸载后再宣告该轮无效。
+
+### 4.3 仅记录、不设门
+
+PG primary map、cache hit、`c_amp`、`jfs-stats`、W1–W4、对象增量、主机负载照常落盘，
+用于解释结果；不因它们偏离历史值而自动废弃数据。
+
+### 4.4 Ceph scrub 条件性控制合同
+
+本任务预注册环境标记：`SCRUB_PAUSED_FOR_CONTROLLED_BENCHMARK`。它只用于排除 Ceph 后台
+一致性巡检对版本比较的随机干扰，不是性能旋钮，也不是生产交付配置。
+
+1. **作用域固定为 phase**：Phase A 使用 `<RUN_ID>-phase-a` lease，覆盖
+   `init → phase-a → close phase-a`；随后立即恢复。Phase B 经授权后使用独立的
+   `<RUN_ID>-phase-b` lease，正常全流程覆盖 `phase-b → close final`；若使用 §5.1 的恢复入口，
+   则覆盖 `init-b-only → phase-b-only → close phase-b-only`，随后立即恢复。禁止轮间开关。
+2. **只准独立状态驱动脚本操作**：设置前冻结 FSID、原始 OSD flags、health、OSD up/in 和逐PG状态；
+   只允许新增 `noscrub,nodeep-scrub`，只恢复该 lease 自己拥有的两项变化。禁止裸
+   `ceph osd set/unset`、无状态恢复、无条件 unset 或只依赖性能驱动的 `EXIT trap`。
+3. **设置并不等于已有 scrub 已退出**：两个 flag 生效后仍须等待所有 PG 精确回到
+   `active+clean` 才能开始；Ceph 手工触发的 scrub 不受这两个调度 flag 保证约束，因此测试期
+   禁止人工 scrub，采集器仍须每轮检查无 `scrubbing/deep`。
+4. **恢复优先**：phase 成功、失败、SSH 中断或测试脚本故障后，第一安全动作都是按 state
+   执行 `plan-restore → restore → verify-restored`；性能现场可保留，但不得为了采证延迟恢复。
+   恢复失败视为集群级安全事件。恢复后若补做 scrub，须等 health、OSD、PG 重新稳定才可开下一 phase。
+5. **审计不可缺**：RUN 内冻结 pause 状态副本，独立 state 文件保留 set/unset epoch、rc、FSID、
+   原 flags 与最终状态；报告必须明确说明该数据是在暂停 scrub 的受控基线下取得，不能外推为
+   scrub 开启时的生产长期性能。
 
 ---
 
-## 五、前置条件与执行（其余照 U141b）
+## 五、执行脚本与命令
+
+仓库脚本：
+
+```text
+scripts/FULLBASELINE/debug/u141d-driver.sh
+scripts/FULLBASELINE/debug/u141d-analyze.py
+scripts/FULLBASELINE/debug/u141d-gate0-offline.sh
+scripts/FULLBASELINE/debug/u141d-scrub-control.sh
+scripts/FULLBASELINE/debug/u141b-collect.sh
+scripts/FULLBASELINE/FULLBASELINE_V4_U141D.sh
+```
+
+`FULLBASELINE_V4_U141D.sh` 是原冻结 V4 的任务专用派生版：fio 参数、item 顺序、对象门和证据逻辑
+不变，只增加显式 `CEPH_SCRUB_CONTROLLED=1` 时对 `OSDMAP_FLAGS` 唯一告警、两个 scrub flags 与
+OSD up/in 的严格 JSON 校验；默认原 V4 文件及其历史 MD5 不作任何修改。
+
+Gate 0 另调用 `u141d-mock-integration.sh` 在纯本地假环境走完
+`init → phase A → closure → phase B → final closure`，并独立走完
+`init-b-only → phase-b-only → phase-b-only closure`；该脚本只用于离线自测，不同步到执行环境。
+
+复用且行为不变：
+
+```text
+scripts/FULLBASELINE/debug/u141b-analyze.py
+```
+
+离线 Gate 0（GPT 本地完成，不接触环境）：
 
 ```bash
-export PATH="${SHIM}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-export CEPH_CONF=/tmp/t141-msgr8.conf
-export JUICEFS_MOUNT_OPTS="--max-uploads 150 --cache-size 0 --max-fuse-io 256K"   # ⚑ F-08：V4 默认不含 256K，缺它撞 S12
-
-ITEMS="randrw randwrite" OBJ_GATE=1 \
-  bash /tmp/FULLBASELINE_V4.sh "U141D-P1-R${nn}-${ARM}" 180 1 --remount \
-  > ${RUN_ROOT}/v4-U141D-P1-R${nn}-${ARM}.stdout.log 2>&1
-echo "rc=$?" >> ${RUN_ROOT}/v4-U141D-P1-R${nn}-${ARM}.stdout.log
+bash scripts/FULLBASELINE/debug/u141d-gate0-offline.sh \
+  /tmp/u141b-gate0/fixture-v141p
 ```
 
-- `SHIM` = `/tmp/t53-bin-new`（V13，md5 `de93563f11a5ff3bd94dd25a4e0283b1`）
-  或 `/tmp/t141p-bin`（V14，md5 `24fae0852051c80ca571cb2f20275d46`）。
-  切臂**只允许**改 `PATH`；⛔ 禁 `cp`/`ln -sf` 覆盖 `/usr/local/bin/juicefs`（那是错版本 `bdd182cf…`）。
-- `OBJ_GATE=1` 强制（否则 V4 `:1352` 触发 `set -e`，rc=1）。
-- `--remount` 必须（这就是切臂的实现方式）。`RUNTIME`/`REPEAT` 只认位置参数 `$2`/`$3`。
-- 轮后顺序不可颠倒：① 挂载指纹（**卸载之前**）② 对象数 post ③ 拷回产物 ④ 优雅卸载。
-- ⚑ 每次重试必须**换 LABEL**（`rounds.tsv` 按 label 累计，同 label 重试会稀释坏读数）。
+GLM 在 157 上先只读检查并生成 pause 计划；未确认计划前禁止执行 `pause`：
 
-**阶段 I 前置**（照 U141b，只做这些）：环境快照 `pre`；mount/fio/t6x/端口残留全 0
-（判 fio 必须用 `pgrep -c -f '(^|/)fio( |$)'`，⛔ 禁 `pgrep -c fio` —— 会命中内核线程 `vfio-irqfd-clea`）；
-`HEALTH_OK` + 6/6 OSD + `nonclean=0`；冻结指纹 manifest；对象数三次采样 spread=0；
-**根分区可用 ≥ 20 G**（⚑ F-11：U141b 因预存 94.3% 占用、可用 4.7 G 导致 R05 直接 abort，
-开跑前必须清 `/tmp` 旧测试数据）；写类静置检查 meta 提交率 ≥ 8000/s。
+```bash
+RUN_ROOT=/tmp/production/opencode-u141d-<RUN_ID>
+RUN_ID=${RUN_ROOT##*/opencode-u141d-}
+SCRUB=/tmp/u141d-scrub-control.sh
 
-**P0 兼容性门**：V14 挂 → 卸 → V13 挂 → 卸 → V14 挂，三次全成功；落三份 `p0-status-*.json`
-（⚑ 先 `sed -n '/^{/,$p'` 剥掉 juicefs 的 2 行日志前缀再落盘，否则不是合法 JSON —— D33）。
-Setting 段做键集合 diff，期望：**V14 是 V13 超集，仅多 `Tiers`（空默认 tier 0），15 个共有字段逐字节相同**；
-⛔ 不得表述为「identical」（F-02）。任一次挂载失败 ⇒ `ROLLBACK_BLOCKED` ⇒ 强制 `REPLACE_REJECTED`。
+bash "$SCRUB" inspect "${RUN_ID}-phase-a"
+bash "$SCRUB" plan-pause "${RUN_ID}-phase-a"
+```
+
+计划与 FSID 经 GPT 核对、用户授权后，按计划输出的**精确参数**执行 `pause`，然后连续执行：
+
+```bash
+bash "$SCRUB" pause "${RUN_ID}-phase-a" <APPROVED_FSID> I_ACK_GLOBAL_CEPH_SCRUB_PAUSE
+bash "$SCRUB" verify-paused "${RUN_ID}-phase-a"
+
+bash /tmp/u141d-driver.sh init "$RUN_ROOT"
+bash /tmp/u141d-driver.sh phase-a "$RUN_ROOT"     # init 后直接连续执行，阶段内不暂停
+bash /tmp/u141d-driver.sh close "$RUN_ROOT" phase-a
+bash "$SCRUB" plan-restore "${RUN_ID}-phase-a"
+bash "$SCRUB" restore "${RUN_ID}-phase-a"
+bash "$SCRUB" verify-restored "${RUN_ID}-phase-a"
+```
+
+无论上述哪一步失败，都停止性能流程并优先执行 phase-a 的 state-driven restore；不得清理失败现场。
+回传阶段 A 与 restore 审计后等待 GPT 审核。获授权才为 phase-b 重复
+`inspect → plan-pause → pause → verify-paused`，然后执行：
+
+```bash
+bash /tmp/u141d-driver.sh phase-b "$RUN_ROOT"
+bash /tmp/u141d-driver.sh close "$RUN_ROOT" final
+bash "$SCRUB" plan-restore "${RUN_ID}-phase-b"
+bash "$SCRUB" restore "${RUN_ID}-phase-b"
+bash "$SCRUB" verify-restored "${RUN_ID}-phase-b"
+```
+
+GLM只报告硬门、偏离和原始结果位置，不自行选择样本或宣布版本替代结论。
+
+### 5.1 RUN `20260830-122350` 的 Phase-B-only 恢复入口
+
+Phase A 已完成并由 GPT 独立复算，可信证据冻结在：
+
+```text
+/tmp/u141d-run5-phase-a-evidence-20260830.tar.gz
+SHA256=150f988c70b61ef65fe5608b740e1370b8cbc86472c08b08db411a64acac1e2b
+source RUN=20260830-122350
+status=VALID_WITH_PROTOCOL_DEVIATION_NO_OBSERVED_STATE_EFFECT
+```
+
+原 RUN 的 Phase B 在 R05 post gate 因 node2 缺失本地 NTP 配置而命中 `MON_CLOCK_SKEW`，矩阵不完整，
+正式分类为 `EVIDENCE_INVALID_INCOMPLETE_MATRIX`。现已补齐 node2 的 timesyncd 上游、连续验证 Ceph
+monitor skew 恢复，并将 R05 数据精确排空到 seed。旧 RUN 的 B-C01--R05 仍全部禁止纳入效应量，
+不得 resume、补 R06--R08 或复用旧 label。
+
+为避免无意义地重跑 5.7 小时的有效 Phase A，新 driver 提供显式恢复状态机：
+
+```bash
+NEW_RUN_ROOT=/tmp/production/opencode-u141d-<NEW_RUN_ID>
+NEW_RUN_ID=${NEW_RUN_ROOT##*/opencode-u141d-}
+
+bash "$SCRUB" inspect "${NEW_RUN_ID}-phase-b"
+bash "$SCRUB" plan-pause "${NEW_RUN_ID}-phase-b"
+# GPT 核对计划后，使用精确 FSID 和 ACK 执行 pause + verify-paused。
+
+bash /tmp/u141d-driver.sh init-b-only "$NEW_RUN_ROOT"
+bash /tmp/u141d-driver.sh phase-b-only "$NEW_RUN_ROOT"
+bash /tmp/u141d-driver.sh close "$NEW_RUN_ROOT" phase-b-only
+
+bash "$SCRUB" plan-restore "${NEW_RUN_ID}-phase-b"
+bash "$SCRUB" restore "${NEW_RUN_ID}-phase-b"
+bash "$SCRUB" verify-restored "${NEW_RUN_ID}-phase-b"
+```
+
+合同如下：
+
+1. `init-b-only` 必须核对上述归档的固定路径、固定 SHA256、安全成员和 Phase A 完成/closure/analysis
+   成员，并把绑定写入新 RUN 的 `PHASE_A_SOURCE.tsv` 与 provenance；调用方不能替换可信根。
+2. 新 RUN 只创建 `INIT_B_ONLY_COMPLETE`、`PHASE_B_COMPLETE` 和 `PHASE_B_ONLY_COMPLETE`；
+   **不得伪造或复制 `PHASE_A_COMPLETE`**，避免把外部证据冒充本 RUN 内执行结果。
+3. 新 RUN 重新执行资产门、bootstrap drain、seed 三采样和 P0，然后从 B-C01 开始完整执行
+   `V13,V14` canary 及 8 轮正式矩阵；禁止复用旧 RUN 的任何 Phase B 样本。
+4. `close phase-b-only` 只分析并冻结新 RUN 的 Phase B，同时保留外部 Phase A 归档绑定；最终替代判断
+   由 GPT 将可信 Phase A 归档与新 Phase B closure 离线合并，不由 driver 自动宣布。
+5. 新 RUN 的整个 init/Phase B/closure 共用一个新的 phase-b scrub lease；任何失败均先 state-driven restore，
+   不得为节省时间复用旧 lease 或旧 RUN_ROOT。
 
 ---
 
-## 六、交付物与回传
+## 六、安全红线
 
-`RUN_ROOT=/tmp/production/opencode-u141d-<RUN_ID>`，归档 `+ .sha256` 并 scp 回 `/home/lilingfeng/tmp/production/`。
+1. 禁止 `pkill`、`killall`、`fuser -k`、模式 kill、kill mount PID；
+2. 禁止 lazy/force unmount、`losetup -D`、递归强删和变量展开后的宽路径删除；
+3. 禁止改生产服务、Ceph 配置、CRUSH/PG/pool、系统 ceph.conf、生产 TiKV 数据；唯一例外是
+   经单独授权后由 `u141d-scrub-control.sh` 在 phase 作用域内设置并恢复精确的
+   `noscrub,nodeep-scrub`，不得设置其他 OSD flag；
+4. 禁止覆盖 `/usr/local/bin/juicefs`；切臂只允许切换 PATH shim；
+5. 禁止 `juicefs destroy`；本任务复用既有卷和既有 384 文件资产；
+6. 唯一允许删除的数据是精确的 `test_dir/mseqwrite/mseqwrite.*.0`；
+7. 代码问题必须停止当前 phase，记录 incident，修复后重新 Gate 0，并从该 phase 第一个非正式轮开始；
+8. 同一 RUN、同一 label 禁止重试覆盖；失败现场没有完成归属核验前不得清理。
 
-必交：`MATRIX_AUTHORIZED.tsv`、**`PREREG.tsv`**（§一逐项写死）、`timing.tsv`（秒级）、
-`incidents.tsv`（append-only，动作前后各一条）、`objects.tsv`、`rounds-u141d.tsv`、
-`fingerprint/`（manifest + 每轮 mount-post + arm-resolve）、`assets/`（首末各一份）、
-`v4/` 全部 12 个 LABEL 目录（4 预热 + 8 矩阵）完整内容含全部 `*_bw.*.log`、
-P0 三份 json + `juicefs config` 只读回显、两次 drain 的前后对象数与 `gc` 原文、
-`closure/`（冻结核对 + 二进制副本 + `SHA256SUMS` 全 PASS）、环境快照 `pre`/`post`。
+---
 
-**回传节奏（2 个检查点，相对 U141b 的 5–6 个大幅压缩）**：
+## 七、回传和最终收口
 
-| 批次 | 内容 | 停下等审核？ |
+只保留两个环境检查点：
+
+| 回传 | 内容 | 后续 |
 |---|---|---|
-| 批 0 | 阶段 I + P0 + `PREREG.tsv` + 预热 4 轮（含收敛判据结果） | **是** |
-| 批 1 | 矩阵 8 轮 + 归档 + `closure/` | **是**，出最终判定 |
+| 阶段 A | init、P0、4预热+8正式轮、closure、完整原始归档 | GPT复算 randrw READ/WRITE 与 randwrite |
+| 阶段 B | 2 canary+8正式轮、逐轮 seed 回归、最终排空、closure | GPT复算 mseqwrite并形成总报告 |
 
-⚑ **交付边界**：GLM 只交原始数据 + 逐门 PASS/FAIL 清单 + `incidents.tsv`。
-⛔ 不写效应量、不写"非劣/等价/退步"、不算 CV/中位数/CI、不挑轮次。统计全部由 opencode 独立复算。
-**phase 内部不要停**（含预热轮）：中途停下会引入时间偏置，破坏轮级交错的意义。
+最终报告必须同时引用：
 
----
+- U141b 的四个无需重测项；
+- U141d 阶段 A 的 `randrw` 双向与 `randwrite`；
+- U141d 阶段 B 的 `mseqwrite`；
+- P0 回滚证据；
+- 原生 1.4.1 randwrite 崩塌与 B-catchup 必要性。
 
-## 七、红线（就地复述，⛔ 无例外）
-
-1. 硬门失败：**停止 phase、保留现场**（不卸载、不删目录、不清 sampler），`incidents.tsv` 前后各一条。
-   ⛔ 禁换 RUN_ID 重来、禁同 RUN 热改脚本、禁补样替换、禁把 U141b 或无效轮的点值拼进本任务效应量、
-   禁门失败后改挑有利判据、⛔ 禁事后调整 `M_eng`。
-2. ⛔ 禁 `pkill`/`killall`/`fuser -k`/模式 kill；禁 `fusermount -uz`、`umount -l`、`losetup -D`、`rm -rf`；
-   禁 kill mount PID。这四条在 03-19/03-20A/03-20B/首次 03-22c 都被违反过。
-3. ⛔ 禁 reboot/shutdown/systemctl 改生产服务；禁写 `/dev/nvme*`、`/mnt/jfs-tikv`、`/opt`、`/etc`、`/var/lib/ceph`。
-4. ⛔ 禁 `ceph osd pool delete/create`、禁改 CRUSH/PG/pool 参数、禁 `ceph config set`、
-   禁 OSD restart 作轮间清理、禁 `juicefs destroy`（本任务复用生产卷）。
-5. 允许的 sudo 写操作**全集**：三节点 `echo 3 | sudo tee /proc/sys/vm/drop_caches`（V4 内部）、
-   `sudo ceph tell osd.N compact`（V4 `compact_cooldown` 内部）。其余只有只读 sudo。
-6. 脚本实现层 bug 可修，但必须：停止 phase、`incidents.tsv` 说明 diff 与原因、重新生成指纹、
-   **从第一个预热轮重跑**。⛔ 不得在已开始的 phase 中静默换脚本。
-7. `pool_sample` 必须用 `ceph df --format=json` + python3 解析。⛔ 禁 `rados df` 列切分。
-8. 每写项后 compact cooldown 必须轮询至 `compact_running=0` **且 `compact_queue_len=0`**；每 fio 前 drop_caches。
-9. 长跑期间每 10–30 min 检查：mount PID、`v4-*.stdout.log` 尾部、Ceph health、objects、`MemAvailable`、无 foreign fio。
-
-### 最终红线一句话
-
-本任务可以丢掉的是本 RUN 的 COW 垃圾对象；**绝不能碰**的是
-`read_test.*`/`rw_test.*`/`storage_test.*` 这 384 个文件资产、生产 PD/TiKV/Ceph 的任何配置或服务、
-系统 `ceph.conf`、`/tmp/FULLBASELINE_V4.sh`，以及任何无法由指纹文件精确证明归属的 PID 或挂载。
+输出可以是“无可测差异”“确认小幅下降”“材料性退化”或“分辨率不足”；
+是否最终批准 patched 1.4.1 替代 patched 1.3.1，由完整数据出来后再决定。
 
 ---
 
-## 八、收口与遗留
+## 八、变更记录
 
-- 两项 `NON_INFERIOR` ⇒ 连同 U141b 的读侧证据（seqread/mseqread/randread 效应量 ≤ +0.33%，
-  见现状报告 §4）与 P0 回滚证据一起出 **`REPLACE_APPROVED`** 报告。
-- ⚑ **唯一遗留缺口 = `mseqwrite`**（U141b/U141d 均未测）。旁证：U141 旧 ABBA 的 4 cell/臂
-  给出 A 均值 4574 / B 均值 4654（B 略高，无崩塌），但轮间散布约 ±10%，**只能作旁证不作判定**。
-  报告须显式登记该缺口；若需闭合，单独 1 夜（`mseqwrite` 每轮排空，8 轮）。
-- 收口后一次性落地 U141b 的脚本欠账：**D33**（json 日志前缀）、**D34**（整除掩盖越界）、
-  **D35**（子脚本失败不回写 incident）、**D36**（估计量未锁定）+ F-01（PG 按池过滤）
-  + F-07（`PHASE_EXPECT` 重标定）+ F-08（mount opts 前置检查）。
-- U141c（3–5 夜、7 项 @3%）转入**暂缓**；仅当业务明确需要 3% 分辨力时才重启。
+| 日期 | 变更 |
+|---|---|
+| 2026-08-30 | 离线串联检查发现原冻结 V4 在 fio 前硬编码只接受 `HEALTH_OK`，会把 scrub flags 引起的预期 `HEALTH_WARN` 直接拒绝。为避免篡改历史基准，保留原 V4 MD5 `4198...` 不动，新增 U141d 专用派生版 MD5 `b794...`；它只在驱动显式传入 `CEPH_SCRUB_CONTROLLED=1` 时接受 `OSDMAP_FLAGS` 唯一告警，并再次严格核对两个 flags 与 OSD up/in。 |
+| 2026-08-30 | RUN `20260830-092829` 在 W02-V14 的 fio 正式窗全部结束约 6.5 分钟后，post gate 命中 PG 3.d 的 11 秒普通 scrub；正式性能窗经 epoch 复核未重叠，但矩阵仅完成 W01/W02，仍记 `EVIDENCE_INVALID_ENV_SCRUB`，禁止复用。过去24小时只读日志确认 pool 3 至少12次普通 scrub与1次 deep-scrub，阶段级命中不是可忽略的小概率。用户授权将 `noscrub+nodeep-scrub` 固化为调优/版本比较的条件性测试基线；新增独立 state-driven 控制器、严格 `OSDMAP_FLAGS` 唯一豁免、完整 Ceph 原始 sidecar、逐轮 lease 守卫及恢复优先合同。该设置不作为生产交付配置。 |
+| 2026-08-30 | RUN `20260829-203206` 在 W01 暴露多 item `rounds.tsv` 合同缺陷：旧驱动错误要求每个 label 恰好一行，而 Phase A 按设计应有 randrw/randwrite 各一行。修订为“冻结 item 逐项恰好一行”，并增加缺项、重复项离线故障注入。旧 RUN 永久记 `EVIDENCE_INVALID_SCRIPT_DEFECT`，不得续跑或复用其性能点；修复后须重新 Gate 0 并使用新 RUN_ID 从 init 开始。 |
+| 2026-08-30 | RUN `20260830-001537` 在 W02-V14 完成 V4 与全部样本门后，`fusermount -u` 已成功但 V14 worker 未在旧版固定 30 秒内退出，驱动在 post-round 收口失败；worker 后来自行退出。旧门既不能证明永久残留，也不能允许下一轮与残留 worker 并发。修订为最多 180 秒有界等待、逐秒保存 mount/PID/state、仅在 mountpoint 与 worker 同时归零后继续，并把等待计入 41 分钟总墙钟；超过上限仍 fail closed 且禁止 kill。同步修复 `die()`，FATAL ledger 写入失败必须显式报错；Gate 0 新增“延迟退出成功”和“超过上限失败且 FATAL 落账”故障注入。该 RUN 永久记 `EVIDENCE_INVALID_SCRIPT_DEFECT`，W01/W02只可作工程观察，禁止 resume/拼接；修复后新 RUN_ID 从 init 开始。 |
+| 2026-08-30 | RUN `20260830-064128` 在 W01-V13 的 V4、样本门、对象门、Ceph 门和 `fusermount -u` 全部成功后，以 rc=1 静默退出且未产生首条卸载 telemetry/FATAL。根因由离线最小复现确认：`jfs_pids_for_mnt` 以条件表达式作为循环体末命令，在最后扫描项不匹配时函数返回 1；`pids=$(jfs_pids_for_mnt)` 继承该状态并被 `set -e` 直接终止。修订为“零匹配 PID 是显式成功”的枚举合同，并新增真实非匹配扫描项下的 errexit 故障注入与 Gate 0 静态门。该 RUN 永久记 `EVIDENCE_INVALID_SCRIPT_DEFECT`，其 W01 只作工程观察，禁止续跑或纳入版本比较；修复后仍须以新 RUN_ID 从 init 开始。 |
+| 2026-08-31 | RUN `20260830-122350` 的 Phase A 已完整闭合并由 GPT 独立复算；Phase B 在 R05 post gate 因 node2 缺少本地 NTP 上游触发 `MON_CLOCK_SKEW`，旧 B 矩阵永久记 `EVIDENCE_INVALID_INCOMPLETE_MATRIX`。修复 timesyncd 后三节点持续 HEALTH_OK，R05 精确排空回 seed。新增绑定固定 Phase A 归档 SHA256 的 `init-b-only/phase-b-only/close phase-b-only` 状态机：使用新 RUN_ID 从 C01 完整重跑 Phase B，不伪造 Phase A marker、不拼接旧 B 样本，同时修正未来全流程 `A-PRE-R05` 的一位 `seq` 索引比较。 |
+| 2026-08-31 | Phase-B-only 首次部署 preflight 发现 `/tmp/u141d-analyze.py` 被以 0644 安装，而 driver 对 round/matrix analyzer 使用 direct exec；原 Gate 0 仅用 `python3` 读取文件，未覆盖实际调用合同。尚未 pause、创建 RUN 或运行 fio，因此没有性能证据受影响。补充 analyzer executable bit 的 Gate 0 与 driver 多阶段硬门，修复后重新离线 Gate 0；旧候选 driver 不进入正式 RUN provenance。 |

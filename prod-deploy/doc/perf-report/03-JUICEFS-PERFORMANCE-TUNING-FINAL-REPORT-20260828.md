@@ -6,12 +6,13 @@
 |---|---|
 | 阶段 | 03：JuiceFS参数调优、稳定性归因与架构可达性分析 |
 | 报告日期 | 2026-08-28 |
+| 后续修订 | 2026-08-31：04阶段U1完成，交付基座锁定为patched v1.4.1 |
 | 阶段状态 | **已完成** |
 | 目标 | 单客户端不限速100GbE口径，有效带宽达到网卡单向带宽一半，即`6250 MiB/s` |
 | 最终判定 | **目标未达成；在线/低风险调优空间已收口；不可达原因已进入架构层** |
-| 正式交付配置 | JuiceFS v1.3.1补丁版 + 256K FUSE + 客户端私有`ms_async_op_threads=8` |
+| 正式交付配置 | **JuiceFS v1.4.1 + B-catchup补丁** + 256K FUSE + 客户端私有`ms_async_op_threads=8` |
 | 写侧最终归因 | 03-22c正式RUN `20260828-083811`，`EVIDENCE_VALID` |
-| **交付基座版本锁定** | **进行中**：v1.4.1替换判定移交04阶段前置项（U141b），见§5.5与§11 |
+| **交付基座版本锁定** | **已完成**：04阶段U1签`REPLACE_APPROVED`；见§5.6.4与U141d最终报告 |
 
 ### VERDICT（机器可读，引用请以本表为准）
 
@@ -22,7 +23,7 @@ DELIVERY_RANDWRITE       = 2707 MiB/s (43.3%, 128-inode 交付口径)
 READ_SIDE_BEST           = 5544 MiB/s (88.7%)；单挂载渐近上限≈6280；PG均衡理论值≈6267
 TIKV_MEDIA_EFFECT        = +0.26% (全部本地存储 RAM vs NVMe，同拓扑)
 LOGS_ISOLATION_EFFECT    = +5.05% 配对中位（4/4正向）；该值为真实第二NVMe的【上界】
-BASELINE_VERSION_LOCK    = PENDING (U141b，04阶段前置项)
+BASELINE_VERSION_LOCK    = PATCHED_V141_APPROVED (MD5 24fae0852051c80ca571cb2f20275d46)
 V141_ORIGINAL_RANDWRITE  = 551 MiB/s（必须携带B-catchup补丁）
 ```
 
@@ -44,7 +45,7 @@ V141_ORIGINAL_RANDWRITE  = 551 MiB/s（必须携带B-catchup补丁）
 - **固化`ms_async_op_threads=8`**：高并发randread相对默认3线程的保守同批收益至少`+37.4%`，交付基线相对03-10为`+44.7%`；跨挂载CV由`20.01%`降至`0.79%`。该配置只通过客户端私有`CEPH_CONF`注入，不修改集群级Ceph配置。
 - **确认WAL/Raft与KV物理路径分离有稳定性收益**：正式4组配对带宽全部提高，中位`+5.05%`；CV中位改善`2.36 pp`，`W4/W1`中位提高`0.0694`。但RAM logs不是可持久化生产方案，真实生产落地需三台TiKV节点各有一块独立持久设备。
 - **量化TiKV存储介质的作用，并给出分离收益的上界**：同拓扑下把TiKV全部本地存储从NVMe换成RAM仅差`+0.26%`，介质效应量级为`0%--3%`；因此`+5.05%`是真实第二块NVMe的带宽**上界**，采购理由只能是稳定性（§5.5）。
-- **确认v1.4.1必须携带随机写补丁**：v1.4.1原版randwrite为`551/552/551 MiB/s`（跨`2.6`倍池对象数三轮恒值），加B-catchup补丁后恢复到`2679--2754`。该缺陷未被上游修复（§5.6.1）。交付基座是否由v1.3.1补丁版换成v1.4.1补丁版的正式判定移交04阶段前置项U141b（§5.6.3）。
+- **确认v1.4.1必须携带随机写补丁并完成版本锁定**：v1.4.1原版randwrite为`551/552/551 MiB/s`（跨`2.6`倍池对象数三轮恒值），加B-catchup补丁后恢复到正常平台。04阶段U141d最终补证得到randrw读/写`−0.52%/−0.51%`、randwrite`−2.08%`、mseqwrite`+2.96%`，四端点均排除超过5%退化；因此exact patched v1.4.1获准替代v1.3.1，stock v1.4.1仍排除（§5.6.4）。
 
 所有原口径测试项均未稳定达到`6250 MiB/s`。这不代表阶段失败或仍需继续扫参数，而是阶段产出了可交付的不可达结论：
 
@@ -96,9 +97,9 @@ V141_ORIGINAL_RANDWRITE  = 551 MiB/s（必须携带B-catchup补丁）
 
 ```text
 JuiceFS binary:
-  /tmp/juicefs-03-8
-  version: 1.3.1+2025-12-02.e0032b2a
-  md5: de93563f11a5ff3bd94dd25a4e0283b1
+  /tmp/juicefs-1.4.1-patched
+  version: 1.4.1 + B-catchup
+  md5: 24fae0852051c80ca571cb2f20275d46
 
 mount options:
   --max-fuse-io 256K
@@ -124,13 +125,16 @@ ms_async_op_threads >= OSD数据连接数 × 1.33
 - 增加线程的客户端CPU成本约`1.24--1.42`核，生产客户端需保留余量；
 - `mseqread`的基线命中率约`92.8%--93.3%`，主要测到buffer，不得把其全部提升归因于存储路径；
 - WAL/Raft RAM分离没有进入交付配置；它是因果探针，不是持久化方案；
-- 当前补丁未进入上游主线，生产交付必须保存源码commit、构建参数、二进制校验和及回滚版本。
+- B-catchup补丁未进入stock v1.4.1，生产交付必须保存源码commit、补丁顺序、构建参数、二进制校验和及回滚版本；若重新构建而非部署上述同MD5制品，须先完成可重现构建闭环与P0兼容性smoke。
 
 ---
 
 ## 四、交付配置七项基线与目标状态
 
-下表来自03-17f交付配置的3次独立挂载中位数；写侧基线由03-17g同日二进制归因解锁。它代表当前生产候选配置，不与改变inode数、临时TiKV或RAM介质的架构探针混用。
+下表来自03-17f V13交付配置的3次独立挂载中位数；写侧基线由03-17g同日二进制归因解锁。
+04阶段U1是在同条件版本A/B中批准V14不发生材料性退化，并没有重新定义03阶段绝对基线，故表中
+数值继续作为交付参考锚；新部署V14不得把U141d单轮/臂均值与本表混拼。它不与改变inode数、
+临时TiKV或RAM介质的架构探针混用。
 
 | 测试项 | 方向 | 交付中位 MiB/s | 目标达成率 | 状态与边界 |
 |---|---|---:|---:|---|
@@ -209,9 +213,10 @@ JuiceFS v1.3.1中，异步`prepareID`与`writeChunk`竞争同一`fileWriter`锁�
 
 同时暴露一个尚未拆分的更大因子：历史H中心约`2880`→fresh临时集群`3607.63/3756.51`，组合差`+25%--30%`，**比已测出的介质效应大一个数量级，且从未被单独测量**。它同时包含fresh RocksDB namespace、元数据规模/region数、临时集群起点与nested loop。处置见[TODO C01/C01b](../perf-tasks/TODO-cluster-changing-experiments-after-stage03.md)。
 
-### 5.6 JuiceFS v1.4.1版本替换评估（前期，判定未闭合）
+### 5.6 JuiceFS v1.4.1版本替换评估（03阶段前期 + 04阶段最终闭合）
 
-03阶段末对v1.4.1能否替代交付基座做了前期评估，得到一项**可正式引用的版本使用结论**和一项**尚未闭合的替换判定**。
+03阶段末对v1.4.1能否替代交付基座做了前期评估；当时只闭合了补丁必要性，正式替换判定随后由
+04阶段U141b/U141d完成，最终结果见§5.6.4。
 
 #### 5.6.1 v1.4.1原版存在同一随机写缺陷，必须携带补丁（可正式引用）
 
@@ -242,6 +247,16 @@ JuiceFS v1.3.1中，异步`prepareID`与`writeChunk`竞争同一`fileWriter`锁�
 | V141R / V141P（两个全量对） | 序贯非交叉：原版全在`22:10--01:05`、补丁版全在`07:25--10:03`，臂与时段完全共线。补丁仅改`pkg/vfs/writer.go`（纯写路径），故三个读项是零假设对照，真值必为0，实测却为`−5.25% / −2.26% / +1.03%`（跨度`6.27 pp`），而轮内CV仅`1.1%` ⇒ 该设计对`|Δ|<5.2%`无分辨力，而替换判定要分辨的正是`3%--6%`量级 | `EVIDENCE_INVALID` |
 
 ⇒ 正式判定移交**04阶段前置项U141b**（`doc/perf-tasks/u141b-juicefs-141-replace-131-decision.md`）：轮级交错ABBA-BAAB把臂间时间间隔从小时级压到十分钟级，矩阵内保留同臂相邻对直接测噪声底`ε`，判定边界`M=max(3%, 2ε)`由数据推出。U141b通过后本报告§3.1的交付基座需相应修订。
+
+#### 5.6.4 04阶段U141d最终判定（2026-08-31修订）
+
+U141d用预注册二阶轮序趋势模型完成生产最相关写路径补证：randrw读/写效应分别为
+`−0.52%/−0.51%`，randwrite为`−2.08%`，mseqwrite为`+2.96%`；四端点的单侧95%下界
+均高于`−5%`。P0的`V14→V13→V14`挂载回滚通过，V14只增加空默认`Tiers`字段。
+
+最终签 `REPLACE_APPROVED`：exact patched v1.4.1（MD5 `24fae085...`）替代patched v1.3.1；
+该结论不覆盖stock v1.4.1，也不表示v1.4.1确认更快。完整统计、边界和证据见
+[U141d最终报告](u141d-juicefs-v141-replace-v131-final-20260831.md)。
 
 ---
 
@@ -406,7 +421,7 @@ seqwrite受单流写提交链约束，mseqwrite虽达到`4676 MiB/s`但仍缺约
 | 验证WAL/Raft隔离收益 | **完成** | 带宽约5%（且为上界），稳定性4/4改善 |
 | **量化TiKV存储介质对随机写的作用** | **完成** | 介质效应`0%--3%`，不是主因；见§5.5 |
 | **v1.4.1随机写缺陷与补丁必要性** | **完成** | 原版`551 MiB/s`，必须携带B-catchup补丁；见§5.6.1 |
-| **v1.4.1能否替换交付基座** | **未完成，移交04** | U141b为04阶段前置项；前两次评估均`EVIDENCE_INVALID`，见§5.6.3 |
+| **v1.4.1能否替换交付基座** | **完成** | 04阶段U141d签`REPLACE_APPROVED`；exact patched v1.4.1锁定，见§5.6.4 |
 | 达到6250 MiB/s | **未完成** | 七项原口径均未稳定达标 |
 | 解释目标不可达原因 | **完成** | 已按单流、高并发读、随机写和混合读写形成架构结论 |
 | 给出后续改造方向 | **完成** | 物理分盘、事务架构、TiKV扩容、PG/pool/OSD变更；04阶段计划书另立 |
@@ -415,7 +430,9 @@ seqwrite受单流写提交链约束，mseqwrite虽达到`4676 MiB/s`但仍缺约
 
 该状态表示：03阶段工作完成，但性能目标没有通过现有在线/低风险调优达到。条件C、真实第二NVMe、TiKV扩容、PG/pool重构和元数据代码改造均是新阶段或独立架构项目，不属于03阶段欠账。
 
-⚑ **一项例外必须写明**：`BASELINE_VERSION_LOCK = PENDING`。交付基座“v1.3.1补丁版”已由03阶段锁定并可直接使用；U141b只回答“能否换成v1.4.1补丁版”，属**04阶段前置项**而非03阶段欠账。若U141b判定为`REPLACE_APPROVED`，本报告§3.1与§4需修订，并在修订记录中标注。
+⚑ **后续修订必须写明**：03阶段收口时 `BASELINE_VERSION_LOCK` 尚为 pending；04阶段U1已于
+2026-08-31签`REPLACE_APPROVED`并按约定修订本报告§3.1/§4。性能批准只覆盖归档中的exact patched
+v1.4.1；重新构建仍须闭合可重现制品身份。
 
 ---
 
@@ -436,6 +453,7 @@ seqwrite受单流写提交链约束，mseqwrite虽达到`4676 MiB/s`但仍缺约
 | v1.4.1原版崩塌与补丁必要性 | [juicefs-v1.4.1-vs-patched-v1.3.1-baseline-20260824.md](juicefs-v1.4.1-vs-patched-v1.3.1-baseline-20260824.md)（⚑ 该报告对照列有误，仅§randwrite原版逐轮值可引用） |
 | v1.4.1替换判定失效分析 | [u141-abba-non-inferiority-20260824.md](u141-abba-non-inferiority-20260824.md)（`EVIDENCE_INVALID`，对象数棘轮） |
 | v1.4.1替换正式判定任务书 | [u141b-juicefs-141-replace-131-decision.md](../perf-tasks/u141b-juicefs-141-replace-131-decision.md)（04阶段前置项） |
+| v1.4.1替换最终判定 | [u141d-juicefs-v141-replace-v131-final-20260831.md](u141d-juicefs-v141-replace-v131-final-20260831.md)（`REPLACE_APPROVED`） |
 | 证据完整性与统计口径机械件 | [EVIDENCE-INTEGRITY-SKILL.md](../../skills/EVIDENCE-INTEGRITY-SKILL.md) + [known-defect-classes.tsv](../../skills/fixtures/known-defect-classes.tsv) |
 | 任务书必带清单 | [TASK-BOOK-AUTHORING-GUIDE.md](../perf-tasks/TASK-BOOK-AUTHORING-GUIDE.md) §二.13--18 |
 | 04阶段计划 | [04-metadata-architecture-and-layout-plan.md](../perf-analysis/04-metadata-architecture-and-layout-plan.md) |
