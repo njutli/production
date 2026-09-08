@@ -535,12 +535,334 @@
 |---|---|---|---|
 | readahead | RA8/16/32镜像 | RA32相对RA8两配对`+9.74%/+13.80%` | 第一对未达10%，保持RA8 |
 | async读 | off/on ABBA | 两配对均约`0%`，且on增加RSS/线程与对象读放大 | 保持off |
-| BlockSize读 | fresh B256/B4 ABBA | B4相对B256`-34.13%/-33.47%`；GET/GiB降16倍但单GET时延约升4.8倍 | `BLOCK4_READ_SCREEN_NO_SIGNAL`，保持256 KiB |
+| BlockSize读 | fresh B256/B4 ABBA | B4相对B256`-34.13%/-33.47%`；GET/GiB降16倍但在途量约`11.5→2.3` | 当时仅能签`B4+RA8`较慢；04-tmp3c已证明主要是RA并发混杂 |
 | BlockSize写 | B256首格 | fio/close-complete=`3163.45/3150.57 MiB/s`；重挂后精确路径不可见、UsedSpace仍约10 GiB | `EVIDENCE_INVALID_PERSISTENCE_GATE`；停止其余写格，数值不签收 |
 
 | 项 | 结果 |
 |---|---|
 | 竞品目标 | 20 MiB读未达到`5149.84 MiB/s`；写侧无可接受目标值 |
-| 生产决策 | 不修改RA、async或format BlockSize；不把本专项值覆盖七项基线 |
+| 生产决策 | 本RUN不修改RA、async或format BlockSize；后续04-tmp3c已将B4/RA32登记为L2候选，仍不覆盖七项基线 |
 | 环境闭环 | 两临时卷按精确UUID销毁；pool回到创建前1 object/64 KiB范围；当前卷UUID、挂载和32 GiB资产指纹不变；Ceph `HEALTH_OK` |
 | 持久证据 | `/mnt/c/SunRise/test/04-tmp3b/20260904-132417/`；Step2 manifest 403/403通过，SHA256=`a92c04732375bec588a751d480c91a9b6ae094bcd065456b330fa3b80a37ec2f` |
+
+## 二十三、04-tmp3c BlockSize×readahead 对象并发解耦（2026-09-04）
+
+> 正式报告：`doc/perf-report/04-tmp3c-blocksize-readahead-concurrency-decoupling-20260904.md`；
+> 正式 RUN_ID `20260904-165911`。本项为 L1 因果筛查，不替换七项 256 KiB 交付基线。
+
+| 对照 | 结果 | 机制 | 裁决 |
+|---|---:|---|---|
+| B4/RA32 对相邻 B4/RA8（C03/C02） | `+73.60%` | 在途 GET `2.34→4.54` | 超过预注册 10% 门 |
+| B4/RA32 对相邻 B4/RA8（C04/C05） | `+77.55%` | 在途 GET `2.33→4.59` | 超过预注册 10% 门 |
+| B256/RA8 双锚（C06/C01） | `-1.56%` | GET 时延、在途量基本一致 | 环境漂移不足以解释效应 |
+| B4/RA32 对 B256/RA8 平均 | `+12.50%` | 大对象+匹配窗口恢复对象并发 | 登记 L2 候选 |
+
+| 项 | 结果 |
+|---|---|
+| VERDICT | `READAHEAD_OBJECT_CONCURRENCY_CAUSAL_SIGNAL` |
+| 归因订正 | 04-tmp3b 的 B4/RA8 下降主要来自 RA8 只容纳约 2 个 4 MiB GET，不能归因于大 BlockSize 本身 |
+| 竞品目标 | 最佳 `2921.87 MiB/s`，为 `5149.84 MiB/s` 的 `56.74%`，仍未达标 |
+| 生产决策 | B4/RA32 仅为 L2 候选；完成对象层屋顶、随机/写和七项回归前，不修改 256 KiB 交付配置 |
+| 有效性 | 6/6 fio、秒级采样、12 个健康门、EROFS 与当前卷指纹均通过；GPT/Luna 独立复算一致 |
+| 环境闭环 | 两临时卷按 META+UUID 精确销毁；无挂载/进程残留；当前卷正常，Ceph `HEALTH_OK` |
+| 持久证据 | `/mnt/c/SunRise/test/04-tmp3c/20260904-165911/`；322 项 manifest 全通过，SHA256=`01f4bc30c6ce7d56cead77ff8d97dabede4f49d471687a52fce071ed06ddc93e` |
+
+## 二十四、04-tmp3d Ceph对象大小×并发服务曲线（2026-09-04）
+
+> 正式报告：`doc/perf-report/04-tmp3d-ceph-object-size-concurrency-service-curve-20260904.md`；
+> RUN_ID `20260904-173955`。本项绕过JuiceFS/TiKV/FUSE，只回答Ceph对象层余量，不替换七项基线。
+
+| 对象大小 | QD1 | QD2 | QD4 | QD8 | QD16 | QD32 | QD1回环 | 单位 |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| 256 KiB | 307.70 | 647.93 | 1327.10 | 2484.85 | 3834.28 | 4623.60 | 384.58 | MiB/s，末15秒均值 |
+| 4 MiB | 828.53 | 1787.73 | 3373.60 | **5403.20** | **6659.20** | 6434.40 | 973.60 | MiB/s，末15秒均值 |
+
+| 项 | 结果 |
+|---|---|
+| VERDICT | `OBJECT_BACKEND_HEADROOM_CONFIRMED` |
+| 目标 | 4 MiB/QD8越过竞品`5149.84 MiB/s`；QD16越过项目`6250 MiB/s` |
+| 与JuiceFS差额 | 4 MiB QD8/QD16比04-tmp3c最佳`2921.87 MiB/s`高`84.92%/127.91%` |
+| 机制 | 对象后端可达目标；当前大块顺序读剩余约束在JuiceFS Reader/FUSE/请求生成与并发维持路径，触发04-tmp3e |
+| 边界 | QD1回环上升`24.99%/17.51%`，低QD曲线含固定对象集热化；不影响对象层越线的可达性结论 |
+| 环境闭环 | 唯一namespace精确删除`131072+8192`个数据对象及两run marker并归零；Ceph `HEALTH_OK`、97 PG active+clean |
+| 持久证据 | `/mnt/c/SunRise/test/04-tmp3d/20260904-173955/`；最终manifest 460项全通过，SHA256=`fa81207dfc3648a6aa071e3bb27c96c48ab05d353218c80f0cf5a330b2cd7b45` |
+
+## 二十五、04-tmp3e JuiceFS Reader/FUSE请求生成边界（2026-09-04）
+
+> 正式报告：`doc/perf-report/04-tmp3e-juicefs-reader-fuse-request-generation-boundary-20260904.md`；
+> RUN_ID `20260904-184259`。本项为B4/20 MiB读路径L1诊断，不替换七项256 KiB交付基线。
+
+| Cell | 入口/参数 | mean MiB/s | CV | GET在途量 | 裁决 |
+|---|---|---:|---:|---:|---|
+| A02 | libaio QD1 / B4 RA32 | 1975.30 | 4.01% | 4.32 | 异步曲线起点 |
+| A03 | libaio QD2 / B4 RA32 | 3021.45 | 3.24% | 8.50 | 同向扩展 |
+| A04 | libaio QD4 / B4 RA32 | 4432.65 | 2.87% | 14.53 | 同向扩展 |
+| A05 | libaio QD8 / B4 RA32 | **5277.79** | 1.63% | 15.07 | 越过竞品5149.84 MiB/s |
+| B01/B04 | psync QD1 / RA32 | 2872.37 / 2743.41 | 3.59% / 3.69% | 4.44 / 3.98 | 生产语义锚 |
+| B02/B03 | psync QD1 / RA64 | 2865.85 / 2953.02 | 6.39% / 6.37% | 4.36 / 4.66 | 相邻效应0%/+8.82%，未过门 |
+
+| 项 | 结果 |
+|---|---|
+| Phase A | `APPLICATION_QD_SCALABLE`；libaio QD1→8带宽`+167.19%`，GET在途`4.32→15.07`；首尾psync锚漂移`-1.02%` |
+| Phase B | `RESOLUTION_INSUFFICIENT`；RA64双配对未达到10%且不一致，不登记为生产旋钮 |
+| 架构归因 | 对象余量能被应用异步并发利用；20 MiB同步单流的主要限制在应用/FUSE/Reader请求生成并发，不在Ceph对象服务能力 |
+| 下一候选 | QD4/8时FUSE waiting中位`44.5/51`、最大均约51，接近`max_background=50`；属于代码/应用级方向，不在本RUN扩测 |
+| 环境闭环 | 临时B4卷按META+UUID精确销毁；业务卷四项指纹不变；Ceph `HEALTH_OK`、6/6 OSD、97 PG active+clean；全程无sudo |
+| 持久证据 | `/mnt/c/SunRise/test/04-tmp3e/20260904-184259/final-raw/`；376项manifest全通过，SHA256=`bca1d68d86f1b4115768a20efea90f310cd9fbaf871954436aa30ccad11cadca` |
+
+## 二十六、04-tmp2f writeback排空根因与容量曲线（2026-09-04）
+
+> 正式报告：`doc/perf-report/04-tmp2f-writeback-drain-attribution-and-capacity-curve-20260904.md`；
+> RUN_ID `20260904-195053`。本项形成单次工程容量曲线，不替换无缓存七项基线。
+
+| 档位 | 实际可用GiB | 正式窗前台MiB/s | 严格排空 | 含排空有效MiB/s | 错误 | 裁决 |
+|---|---:|---:|---:|---:|---|---|
+| W20 | 19.502 | 2921.63 | 82s | 2001.50 | ENOSPC/hardlink/其他上传错误均0 | `OBSERVED_SAFE_POINT` |
+| W32 | 31.185 | 2494.01 | 100s | 1566.01 | 同上 | `OBSERVED_SAFE_POINT` |
+| W64 | 62.429 | 2405.62 | 355s | 828.21 | 同上 | `OBSERVED_SAFE_POINT` |
+| W128 | 124.917 | 2373.28 | 900s仍有约40.5GB | NA | 同上 | `LIFECYCLE_FAIL` |
+
+| 项 | 结果 |
+|---|---|
+| 文件级根因 | W16两条hardlink ENOSPC与两个rawstaging残留逐文件匹配；失败分支直传但未登记残留，原daemon不做周期性全目录重扫，恢复挂载才重新发现 |
+| 容量含义 | cache增大减少直接回退，却把前段吸收转为更长排空尾部；容量不是越大越安全 |
+| 生产边界 | writeback保留为独占文件、低占空比、空间受监控场景的条件增强；建议从32GiB做业务canary，128GiB不满足本负载900秒门 |
+| 数据完整性 | W128 timeout后同cache恢复，文件0/63/127抽读通过；四档每档对象均回到seed±8192 |
+| 环境闭环 | scrub flags精确恢复；无任务mount/process/loop/backing；业务卷指纹不变；Ceph `HEALTH_OK`、6/6 OSD、97 PG active+clean |
+| 持久证据 | `/mnt/c/SunRise/test/04-tmp2f/20260904-195053/final/`；970项manifest通过，SHA256=`5654f4306a76f855ae5be42c02abe6ec16665044ba8f7ef0d3305c657345d80b` |
+
+## 二十七、04-6b端到端容量账与残余调优收口（2026-09-05）
+
+> 正式报告：`doc/perf-report/04-6b-end-to-end-capacity-and-residual-tuning-closure-20260905.md`；
+> RUN_ID `20260905-070441`。本项为L1筛选，首次发现候选后按合同停止，不直接修改生产配置。
+
+| 参数/工作负载 | 配对1 | 配对2 | 几何配对效应 | 裁决 |
+|---|---:|---:|---:|---|
+| R8 / seqread | `+2.53%` | `+5.25%` | `+3.88%` | 无一致5%信号，停止 |
+| R8 / mseqread | `+4.48%` | `+4.08%` | `+4.28%` | 无一致5%信号，停止 |
+| F1（max-fuse-io 1M）/ seqwrite | `+7.13%` | `+14.81%` | `+10.90%` | 写机制门PASS，`SCREEN_CONTINUE_OPEN_05` |
+| F1（max-fuse-io 1M）/ mseqwrite | `+6.28%` | `−1.41%` | `+2.36%` | 方向不一致，停止 |
+
+| 项 | 结果 |
+|---|---|
+| seqwrite机制 | FUSE平均写请求`256KiB→1MiB`；两配对PUT/OSD op_w完成率提高`7.18%/14.25%`，OSD平均写延迟仅`1.012×/1.020×` |
+| 阶段裁决 | `STAGE04_CLOSE_OPEN_STAGE05`；取消04-6b的U300与randrw状态回环，05补F1正式效应及mseqwrite/randwrite/randrw非劣门 |
+| 有效性与恢复 | Phase A/B各8/8 cell通过；累计每OSD compact恰好4次；17个任务文件精确清理，对象锚回归；scrub、业务卷及Ceph状态恢复 |
+| 持久证据 | `/mnt/c/SunRise/test/04-6b/20260905-070441/`；Phase B索引1032项，SHA见`remote-phase-b/sha256sum.txt`；机制补算见`derived/phase-b-mechanism-repair/` |
+
+## 二十八、04-tmp3f竞品大块同步单流读最终收口（2026-09-05）
+
+> 正式报告：`doc/perf-report/04-tmp3f-competitor-large-block-final-closure-20260905.md`；
+> RUN_ID `20260905-125702`。本项复用B256卷既有只读资产，不替换七项256 KiB交付基线。
+
+| 配置/效应 | 配对1 | 配对2 | 平均或裁决 |
+|---|---:|---:|---|
+| fio bs `256K→20M`（A臂） | `+52.26%` | `+52.08%` | 一致L1信号 |
+| RA `8M→32M` | `+14.63%` | `+12.38%` | 一致L1信号 |
+| `max-fuse-io 256K→1M` | `+14.22%` | `+11.17%` | 一致L1信号 |
+| A/B/C 20M平均 | — | — | `2264.58 / 2570.39 / 2897.12 MiB/s` |
+| 最佳C02 | — | — | `2963.95 MiB/s`，为竞品线`57.55%` |
+
+| 项 | 结果 |
+|---|---|
+| 机制 | GET平均大小仍约256KiB；三个参数依次提高应用/FUSE效率与在途GET，组合约`5.74→13.72`，但未利用对象层全部余量 |
+| 对标 | 直接RADOS 4MiB/QD8=`5403.20 MiB/s`、JuiceFS libaio QD8=`5277.79 MiB/s`均可越竞品线；同步单流剩余限制在请求生成/在途并发 |
+| 决策 | RA32与FUSE1M登记为20MiB顺序读L1候选，统一转05做七项非劣回归；不再扩测RA/bs相邻值，当前生产基线不变 |
+| 有效性与恢复 | 10/10 fio与机制门通过；最大锚漂移`4.51%`；无写入、format、layout或sudo；业务卷、资产与Ceph最终指纹一致 |
+| 持久证据 | `/mnt/c/SunRise/test/04-tmp3f/20260905-125702/`；归档SHA256=`64632678262adf0f86fc13056a7d11bcef9e68d47fbdf950153ed9e15e68d5be`；manifest `339/339 PASS` |
+
+## 二十九、04-tmp2g writeback固定写量前台容量订正（2026-09-05）
+
+> 正式报告：`doc/perf-report/04-tmp2g-writeback-foreground-bandwidth-capacity-curve-20260905.md`；
+> RUN_ID `20260905-160001`。每格固定写128 GiB，不替换无缓存七项基线。
+
+| Cell | fio active-I/O MiB/s | 相对W20双锚 | 启动—返回MiB/s | 非active-I/O开销 | 严格排空 |
+|---|---:|---:|---:|---:|---:|
+| W20A | 2733.94 | 锚A | 2656.79 | 0.92s | 33s |
+| W32 | 3311.08 | +25.33% | 2742.65 | 7.47s | 75s |
+| W64 | 3849.15 | +45.69% | 2169.85 | 25.65s | 264s |
+| W128 | 3881.53 | +46.92% | 3698.21 | 1.19s | 239s |
+| W20B | 2550.03 | 锚B | 2486.33 | 0.93s | 89s |
+
+| 项 | 结果 |
+|---|---|
+| 容量信号 | 标准fio active-I/O带宽单调提升，64→128GiB仅`+0.84%`，约64GiB后趋于平台 |
+| 墙钟边界 | W64出现真实25.65s命令内非active-I/O开销，故预注册启动—返回曲线为`RESOLUTION_INSUFFICIENT` |
+| 与04-tmp2f关系 | 固定128GiB突发下五档均排空；不撤销持续180秒大脏写量下W128 900秒超时结论 |
+| 生产意义 | writeback继续作为独占文件、低占空比且有持久本地空间时的条件增强；容量按突发净积压和排空窗规划 |
+| 环境/证据 | 无任务mount/loop/process/backing；scrub恢复；Ceph `HEALTH_OK`；1202项manifest全通过 |
+
+## 三十、04-tmp2h randrw共享缓存预算筛选（2026-09-06）
+
+> 正式报告：`doc/perf-report/04-tmp2h-randrw-shared-cache-budget-allocation-20260906.md`；
+> RUN_ID `20260906-090701`。本项最终证据状态为INVALID，以下带宽只作工程描述，不替换交付基线。
+
+| 总空间档 | R mean / 相对A0 | W mean / 相对A0 | P25 / P50 / P75 mean相对A0 | 生命周期 |
+|---|---:|---:|---:|---|
+| 32 GiB | `1622.72 / +1.30%` | `1656.11 / +3.38%` | `-41.61% / -43.48% / -43.35%` | 全部PASS |
+| 64 GiB | `1686.50 / +5.95%` | `1645.37 / +3.37%` | `-35.01% / -39.51% / -49.10%` | 全部PASS |
+| 96 GiB | `1717.68 / +9.03%` | `1655.91 / +5.11%` | `-32.73% / -52.69% / -68.85%` | 全部PASS |
+| 128 GiB | `1738.72 / +8.88%` | `1660.37 / +3.98%` | `-7.68% / -22.45% / -41.64%` | 全部PASS |
+| 256 GiB | `1719.05 / +8.73%` | `1654.08 / +4.62%` | `-18.18% / -33.55% / -33.13%` | 全部PASS |
+
+| 项 | 结果 |
+|---|---|
+| 矩阵与锚 | 28/28 cell完成；A0 mean_direction=`1607.01/1586.70/1569.70 MiB/s`，首尾漂移约`2.38%` |
+| 证据失败 | runtime sampler同步递归扫描rawstaging，R/P cell最低仅24样本/180秒、最大间隔约31.4秒，违反预注册每秒覆盖门 |
+| 严格裁决 | `RUN_VALIDITY_STATE=EVIDENCE_INVALID`，`CACHE_VERDICT=NO_DECISION`；不得登记正式共享配额 |
+| 工程信号 | 全部P25/P50/P75均明显低于同RUN A0；W端点计入排空后无耐久写收益，没有值得立即重跑的生产候选 |
+| 环境收口 | 无RUN fio/mount/loop/backing；scrub flags恢复；Ceph `HEALTH_OK` |
+| 持久证据 | `/mnt/c/SunRise/test/04-tmp2h/20260906-090701/`；gzip包可读性通过，SHA256=`01f28290b56578e24a5848a4ef30235f8f715ef3e564cc33a078256e9423946c` |
+
+## 三十一、04-tmp3g竞品16MiB异步写QD曲线（2026-09-06）
+
+> 正式报告：`doc/perf-report/04-tmp3g-competitor-large-block-async-write-closure-20260906.md`；
+> RUN_ID `20260906-165126`。本项为无缓存写路径L1能力收口，不替换七项基线。
+
+| Cell | 引擎/QD | 正式窗MiB/s | fio summary MiB/s | CV |
+|---|---|---:|---:|---:|
+| S01 | psync/QD1 | 2679.26 | 2672.38 | 5.26% |
+| C08A | libaio/QD8 | 957.90 | 986.99 | 17.70% |
+| C01 | libaio/QD1 | 1349.73 | 1439.15 | 15.96% |
+| C02 | libaio/QD2 | 1154.20 | 1243.83 | 14.25% |
+| C04 | libaio/QD4 | 1100.98 | 1167.93 | 17.75% |
+| C08B | libaio/QD8 | 997.27 | 1025.07 | 17.18% |
+| S02 | psync/QD1 | 2478.13 | 2482.89 | 4.10% |
+
+| 项 | 结果 |
+|---|---|
+| 裁决 | `WRITE_ASYNC_TARGET_NOT_MET`；QD8两次仅为竞品`3051.76 MiB/s`线的`31.39%/32.68%` |
+| 稳定性 | 同步锚漂移`7.51%`、QD8重复漂移`4.11%`，均通过8%门；七格环境、排空和重挂门通过 |
+| 机制 | async_dio/libaio在QD1即比同步平均低`47.66%`，QD升高只增加排队和完成延迟；异步读收益不能外推到写 |
+| 环境闭环 | 七个RUN资产精确删除、一次授权GC、对象锚回归；scrub恢复，Ceph `HEALTH_OK`、6/6 OSD、97 PG clean |
+| 持久证据 | `/mnt/c/SunRise/test/04-tmp3g/20260906-165126/`；最终归档SHA256=`874fb99a83580a311cd88d60984e8b58dc621eac3d289a9e7ebe4a040c8233fd` |
+
+## 三十二、04-tmp3h竞品四命令客户端缓存容量（2026-09-06）
+
+> 正式报告：`doc/perf-report/04-tmp3h-competitor-four-command-client-cache-capacity-20260906.md`；
+> RUN_ID `20260906-172359`。本项为有客户端NVMe缓存时的条件性能力筛选，不替换无缓存七项基线。
+
+| 档位 | fio读正式MiB/s | 读命中率 | fio写正式MiB/s | fio写含排空MiB/s | 裁决 |
+|---|---:|---:|---:|---:|---|
+| T32 | 2802.85 | 100% | 2711.32 | 2479.34 | 容量不足 |
+| T64 | 2768.85 | 100% | **2866.38** | 2624.75 | 容量不足 |
+| T96 | 2743.77 | 100% | 2675.33 | 2442.57 | 容量不足 |
+| T128 | 2776.71 | 100% | 2863.04 | **2626.78** | 容量不足 |
+
+| 项 | 结果 |
+|---|---|
+| 裁决 | `NO_VERIFIED_CACHE_BUDGET_LE_128G`；各档fio读均未过`5149.84 MiB/s`，故不执行REV、不扩256GiB |
+| 读侧边界 | 最佳`2802.85 MiB/s`，仅为竞品线`54.43%`；100%命中后扩容无趋势收益，容量不是限制 |
+| 写侧边界 | 最佳`2866.38 MiB/s`，为竞品线`93.93%`；各档10秒严格排空，约64GiB后无容量收益 |
+| cp口径 | 本地端点与cache backing同属`/dev/nvme1n1`，数值只作工程观察，不参与竞品裁决 |
+| 环境闭环 | 最终GC后对象回到O0=`1978609`；scrub恢复，无RUN mount/process/loop/backing；Ceph `HEALTH_OK`、6/6 OSD、97 PG clean |
+| 持久证据 | `/mnt/c/SunRise/test/04-tmp3h/20260906-172359/`；最终归档SHA256=`6aaa4b6f8373e6a61c2e4cc66e9b839e317127b9cb58fbb060b4dfd74cf80b10`；manifest `450/450 PASS` |
+
+## 三十三、04-tmp2i randrw缓存采样干扰消除与共享策略收尾（2026-09-06）
+
+> 正式报告：`doc/perf-report/04-tmp2i-randrw-cache-sampler-interference-closure-20260906.md`；
+> 正式RUN_ID `20260906-201646`。本项只裁决randrw读缓存与writeback共享空间策略，不替换七项无缓存基线。
+
+| Cell | READ MiB/s | WRITE MiB/s | mean MiB/s | 相对插值A0 | 生命周期 |
+|---|---:|---:|---:|---:|---|
+| A0-pre | 1706.07 | 1706.64 | 1706.35 | 锚 | PASS |
+| T128-P25 | 1394.26 | 1393.71 | 1393.98 | `-16.88%` | 57s排空，PASS |
+| T128-R | 1850.50 | 1851.14 | 1850.82 | `+12.32%` | PASS |
+| T128-W | 1706.38 | 1707.12 | 1706.75 | `+5.45%` | 10s排空，PASS |
+| A0-post | 1589.27 | 1589.27 | 1589.27 | 锚 | PASS |
+
+| 项 | 结果 |
+|---|---|
+| 有效性 | `RUN_VALIDITY_STATE=VALID`；A0最大漂移`6.88%`，低于8%拒绝线；5/5 cell通过 |
+| 采样修复 | 五格各181--182个原始样本，正式窗160个，最大间隔`1.027s`；旧RUN最长约31.4s的递归扫描干扰已消除 |
+| 旧/新归因 | 新P25比04-tmp2h旧描述值低`5.44%`，`POST_REPAIR_DIFFERENCE_NOT_MATERIAL`；采样器缺陷不解释混合点负收益 |
+| 裁决 | `NO_MATERIAL_MIXED_CACHE_CANDIDATE`；P25初筛失败后按合同取消P50/P75并关闭共享配额线 |
+| 生产边界 | 不配置通用读写共享比例；纯读缓存沿用04-tmp2d，条件writeback沿用04-tmp2f/2g |
+| 环境/证据 | 无RUN fio/mount/loop/backing；scrub恢复；Ceph `HEALTH_OK`、97 PG clean；持久证据见`/mnt/c/SunRise/test/04-tmp2i/20260906-201646/` |
+
+## 三十四、04-tmp3i热缓存RA32同步单流读最终收口（2026-09-06）
+
+> 正式报告：`doc/perf-report/04-tmp3i-cached-sync-read-ra32-final-closure-20260906.md`；
+> RUN_ID `20260906-222839`。本项只关闭热缓存20MiB同步单流读的RA/容量方向，不替换七项无缓存基线。
+
+| Cell | 路径/RA | fio summary MiB/s | 正式窗MiB/s | CV | 命中率 | Ceph RX/fio |
+|---|---|---:|---:|---:|---:|---:|
+| LOCAL1 | 同loop/ext4 | 6664.56 | **6846.36** | 2.17% | — | — |
+| A1 | JuiceFS RA8 | 3577.55 | 3568.03 | 4.69% | 100% | 0.003507% |
+| B1 | JuiceFS RA32 | 3579.04 | 3556.86 | 5.07% | 100% | 0.003571% |
+| B2 | JuiceFS RA32 | 3654.61 | 3670.35 | 7.04% | 100% | 0.002999% |
+| A2 | JuiceFS RA8 | 3345.67 | 3322.42 | 4.38% | 100% | 0.003746% |
+
+| 项 | 结果 |
+|---|---|
+| 有效性 | `VALID`；A/B漂移`7.13%/3.14%`，均通过8%门；正式窗全部40/40秒覆盖 |
+| 效应 | RA32正式均值`3613.61 MiB/s`，相对RA8 `+4.89%`，仍比竞品`5149.84 MiB/s`低`29.83%` |
+| 机制 | 100% cache hit且Ceph RX约0.003%，排除容量不足和后端回源；同loop本地`6846.36 MiB/s`，剩余屋顶在JuiceFS缓存/FUSE/同步请求组合路径 |
+| 裁决 | `BEST_KNOWN_CACHED_SYNC_READ_TARGET_NOT_MET`；关闭继续扩大缓存或RA的同步单流收尾线 |
+| 环境闭环 | 本RUN JuiceFS mount、cache mount、loop20、64GiB backing均精确清理；Ceph最终`HEALTH_OK`、6/6 OSD、97 PG clean |
+| 持久证据 | `/mnt/c/SunRise/test/04-tmp3i/20260906-222839/`；最终归档SHA256=`b6d8dcc079e6f8d07a972fe1f9c474822161d8dd090fc91ae5683e4ec84b2769` |
+
+## 三十五、04-tmp3j直接RADOS写服务曲线补证（2026-09-07）
+
+> 正式报告：`doc/perf-report/04-tmp3j-direct-rados-write-service-curve-20260907.md`；
+> RUN_ID `20260907-093208`。本项绕过JuiceFS/FUSE/TiKV，只证明Ceph对象后端写余量，不替换竞品
+> 同命令结果或七项基线。
+
+| Cell | QD | 256 KiB对象末40秒MiB/s | CV | 相对竞品写线`3051.76 MiB/s` |
+|---|---:|---:|---:|---:|
+| W01 | 32 | `3270.74` | `2.48%` | `+7.18%` |
+| W02 | 64 | `3659.83` | `1.84%` | `+19.93%` |
+| W03 | 128 | **`3948.86`** | `4.24%` | **`+29.40%`** |
+| W04 | 32回环 | `3344.05` | `2.34%` | `+9.58%` |
+
+| 项 | 结果 |
+|---|---|
+| 裁决 | `DIRECT_RADOS_WRITE_HEADROOM_CONFIRMED`；Ceph对象层并发聚合写能力越过竞品披露线 |
+| 曲线边界 | QD32→64 `+11.90%`、QD64→128 `+7.90%`，尚未闭合最终平台；QD128仅达项目6250线`63.18%` |
+| 稳定性 | QD32回环漂移`+2.24%`；4/4 cell rc=0、stderr为空，14个健康快照全部`HEALTH_OK` |
+| 归因 | RADOS多对象并发与竞品单文件同步语义不同；只排除“Ceph总写带宽不足”，不代表JuiceFS已越线 |
+| 环境闭环 | 逐cell按唯一run-name清理；settled对象数均回到`1978611`，最终namespace为空、6/6 OSD、97/97 PG clean |
+| 持久证据 | `/mnt/c/SunRise/test/04-tmp3j/20260907-093208/`；远端白名单149/149通过；含Gate和清理审计的本地最终manifest 156项，SHA256=`51c0df06ec1090916ec92c8711a77f88b3d0c9ce35b584bdf7b8f56c0085c196` |
+
+## 三十六、04-tmp2j randrw纯读缓存容量曲线有效重测（2026-09-07）
+
+> 正式报告：`doc/perf-report/04-tmp2j-randrw-read-cache-capacity-curve-retest-20260907.md`；
+> RUN_ID `20260907-155057`。本项只闭合纯读缓存容量曲线，不替换七项无缓存基线，也不重开共享
+> 读写缓存配额线。
+
+| Cache | 热集占比 | READ MiB/s | WRITE MiB/s | mean MiB/s | 相对插值A0 | 命中率 |
+|---|---:|---:|---:|---:|---:|---:|
+| C32 | 25% | 1737.33 | 1737.25 | 1737.29 | `+5.62%` | 11.08% |
+| C64 | 50% | 1678.96 | 1678.14 | 1678.55 | `+3.95%` | 22.63% |
+| C96 | 75% | 1743.09 | 1742.83 | 1742.96 | `+9.82%` | 31.55% |
+| C128 | 100% | 1810.10 | 1810.12 | 1810.11 | `+11.07%` | 38.16% |
+| C256 | 200% | 1830.40 | 1829.45 | 1829.92 | `+14.84%` | 47.41% |
+
+| 项 | 结果 |
+|---|---|
+| 有效性 | `VALID/CURVE_COMPLETE`；8/8 cell通过，A0最大漂移`5.03%`，每格正式窗160/160样本、最大间隔`1.031s` |
+| 平台裁决 | 96GiB相对最佳256GiB只低约`4.37%`，更大容量无超过`M=5.03%`的新增收益；登记96GiB最小平台L1 canary |
+| 时间形态 | C64/C96/C128/C256的READ W4/W1为`-16.16%/-22.51%/-29.06%/-29.40%`；收益是完整窗口均值，不能外推预热纯缓存峰值 |
+| 机制 | 命中率`11.08%→47.41%`时157数据网RX约`1842→1150 MiB/s`，同时客户端NVMe缓存写约`389→865 MiB/s` |
+| 环境闭环 | 无本RUN fio/process/mount/cache目录；scrub恢复；Ceph `HEALTH_OK`、6/6 OSD、97/97 PG clean |
+| 持久证据 | `/mnt/c/SunRise/test/04-tmp2j/20260907-155057/final/`；raw gzip SHA256=`3e94336c98e57783a328e7ecc9cb35252446d264d6070befbe3ce5c1a9c80f8f`；本地独立复算通过 |
+
+## 三十七、04-7 randrw缓存同步停顿与`async_dio`筛选（2026-09-08）
+
+> 正式报告：`doc/perf-report/04-7-randrw-cache-stall-attribution-and-async-dio-screen-20260908.md`；
+> RUN_ID `20260908-095000`。本项只筛选P25下的`async_dio`，不重开共享缓存容量线。
+
+| Cell | `async_dio` | READ MiB/s | WRITE MiB/s | mean MiB/s | R/W同步无记录秒 | 排空s |
+|---|---:|---:|---:|---:|---:|---:|
+| A1 | 0 | 1481.48 | 1481.61 | 1481.54 | 47/47 | 102 |
+| B1 | 1 | 1311.74 | 1311.93 | 1311.84 | 11/12 | 10 |
+| B2 | 1 | 1269.35 | 1269.71 | 1269.53 | 0/0 | 10 |
+| A2 | 0 | 1459.80 | 1459.64 | 1459.72 | 39/39 | 84 |
+
+| 项 | 结果 |
+|---|---|
+| 有效性 | `VALID`；A/B重复最大漂移`epsilon=3.23%`，材料线`M=10%`；四格及生命周期全部PASS |
+| 效应 | B1/A1与B2/A2方向均值分别`-11.45%/-13.03%`，mean total latency分别`+12.83%/+14.85%` |
+| 停顿归因 | 同步无记录负担下降`75.53%/100%`且排空缩至10s，支持同步DIO提交/缓存协调参与长停顿，但改善未转化为吞吐收益 |
+| 裁决 | `STOP_NEGATIVE`；不启用`async_dio`，不追加L2、容量或QD矩阵；纯读缓存与条件writeback既有结论不变 |
+| 环境/证据 | RUN资产精确销毁，scrub恢复；Ceph `HEALTH_OK`、6/6 OSD、97/97 PG clean；持久归档SHA256=`bd3a01fd075823b4417b75e27a16eb5b5654e0dfbc24ff2477f03ff08ad3fc87` |

@@ -490,14 +490,49 @@ mseqwrite 8→16时完成服务率为两侧低档均值的`0.94565×`、fio P50�
 randrw低并发回环漂移约`8.2%`且存在TiKV/RocksDB状态债务。因此阶段仍签
 `STAGE04_CONTINUE_DIAGNOSIS`：未发现新可交付旋钮，且不能把单个写平台闭合扩大为全部项目数学架构上限。
 
+04-6b RUN `20260905-070441`继续按“首次候选即停”完成Phase A+B：R8对seqread/mseqread的效应
+`+3.88%/+4.28%`均未过一致5%门；`max-fuse-io 256K→1M`对seqwrite两配对为
+`+7.13%/+14.81%`，PUT和OSD op_w完成率同向提高且OSD平均延迟只增加约1%--2%，签
+`SCREEN_CONTINUE_OPEN_05`。同参数对mseqwrite一正一负，不构成候选。由此04阶段裁决改为
+`STAGE04_CLOSE_OPEN_STAGE05`，04-6b的U300与randrw状态回环按合同取消；F1仍须在05补正式效应及
+mseqwrite/randwrite/randrw非劣门后才能进入生产配置。
+
+04-tmp3f RUN `20260905-125702`用既有B256只读资产完成10格同步单流镜像收口：fio
+`bs=20M`、RA32及`max-fuse-io=1M`的双配对均形成L1信号，三项组合平均`2897.12 MiB/s`、最佳
+`2963.95 MiB/s`，仍只达到竞品公开线的`57.55%`。结合04-tmp3d/e，Ceph对象层和应用异步QD均
+可越线，而同步入口仍受请求生成/在途并发限制；04-tmp3系列停止扩展，候选统一转05做七项非劣回归。
+
 04-2/04-3a/04-3b只补fresh/规模/region归因；04-tmp2d已完成交付配置读缓存曲线；04-tmp2e用
-修正容量的W16确认持续满压下排空硬失败并关闭环境，该事实否决W16容量档，但项目已将writeback
+修正容量的W16确认持续满压下排空硬失败。04-tmp2g又用固定128GiB写量确认active-I/O带宽随
+cache容量增至约64GiB提高约46%并趋于平台，五档环境均已关闭。W16事实否决该容量档，但项目已将writeback
 纳入“客户端空间充足、独占文件、低占空比且受监控”的条件性生产增强。04-tmp3竞品口径已完成：
 20 MiB direct读的R臂相对A提升`65.27%`，16 MiB写的F臂有`10.60%` L1信号，但四项披露目标均未达。
-04-tmp3b进一步完成路径对齐：RA32未过双配对选择门、`async_dio`无收益；fresh 4 MiB BlockSize
-虽然把GET次数降为1/16，却因单GET时延升高使20 MiB单流读下降约34%，因此保持RA8、async off和
-256 KiB。写侧首个B256 cell在重挂可见性硬门失败，工程带宽不进入结论；两个临时卷已销毁，当前卷
-指纹不变。这些专项均不阻塞Z线收尾。
+04-tmp3b的B4/RA8对照后来确认混入了readahead对象并发坍缩，写侧则是恢复状态机误判，旧强结论均
+已撤回。04-tmp3c证明B4/RA32相对相邻RA8提升`73.60%/77.55%`；04-tmp3d证明对象层4MiB QD8/16
+达到`5403/6659 MiB/s`；04-tmp3e证明应用libaio QD8可达`5278 MiB/s`，RA64无一致收益。最终由
+04-tmp3f闭合同步参数边界；这些专项均已关闭环境，不阻塞Z线或05验证。
+
+04-tmp2h RUN `20260906-090701`完成3个A0锚和25个共享预算cell，fio及生命周期28/28通过；
+纯读/纯写端点仅有约`1.3%--9.0%/3.4%--5.1%`描述性信号，所有P25/P50/P75混合点相对同RUN
+A0下降`7.68%--68.85%`。但同步rawstaging目录扫描拖慢runtime sampler，R/P cell违反预注册
+每秒覆盖硬门，故严格签`EVIDENCE_INVALID/NO_DECISION`。本项不登记共享配额候选，也不为该负向
+筛选随后由04-tmp2i做最小订正；读缓存和writeback的条件性交付边界仍分别以04-tmp2d与04-tmp2g为准。
+
+04-tmp2i RUN `20260906-201646`去掉正式窗递归扫描后完成5/5 cell，CORE采样最大间隔约`1.03s`，
+A0漂移`6.88%`。T128-P25相对插值A0仍下降`16.88%`，相对04-tmp2h旧描述值变化仅`-5.44%`；
+纯R提高`12.32%`，纯W提高`5.45%`。因此采样器缺陷不能解释共享策略退化，签
+`NO_MATERIAL_MIXED_CACHE_CANDIDATE`，P50/P75按早停合同取消，读写共享配额调优线关闭。
+
+04-tmp2j RUN `20260907-155057`随后用同一低干扰采样器闭合纯读缓存五档曲线。8/8 cell通过，
+A0漂移`5.03%`；32/64/96/128/256 GiB相对插值A0的randrw双方向均值效应分别为
+`+5.62%/+3.95%/+9.82%/+11.07%/+14.84%`，命中率由`11.08%`升至`47.41%`。按预注册
+平台规则，96 GiB是128 GiB热集的最小平台档，登记为有本地NVMe时的L1生产canary候选；它不直接
+替换无缓存基线，也不改变共享读写缓存配额已经关闭的结论。
+
+04-7 RUN `20260908-095000`用P25 `A1-B1-B2-A2`最小矩阵筛选`async_dio`。两个B/A配对使
+randrw方向均值下降`11.45%/13.03%`、mean total latency增加`12.83%/14.85%`；虽然同步无记录
+负担下降`75.53%/100%`，但这是以材料吞吐退化换取更连续的运行形态，故签`STOP_NEGATIVE`。
+同步DIO路径参与停顿的机制信号保留，`async_dio`生产候选关闭，不追加L2或相邻参数轮次。
 
 ---
 
@@ -513,14 +548,24 @@ randrw低并发回环漂移约`8.2%`且存在TiKV/RocksDB状态债务。因此�
 | TMP-CACHE2C | `04-tmp2c-randread-cache-residency-curve.md` | 否 | 已使用只读性能独占窗口 | TMP-CACHE2 | **已完成并关闭：修正inode容量合同后，近全驻留读缓存约35.3k MiB/s（34.5 GiB/s）；正式曲线受drops硬门限制，不交付固定档位** |
 | TMP-CACHE2D | `04-tmp2d-production-aligned-read-cache-curve.md` | 否 | 已使用只读性能独占窗口 | TMP-CACHE2C | **已完成并关闭：14/14有效；75%缓存收益`+173%/+233%`，全驻留mseqread/randread约35--37 GiB/s；进入独立生产canary候选** |
 | TMP-CACHE2E | `04-tmp2e-writeback-capacity-curve.md` | 否 | 已使用写性能独占窗口 | TMP-CACHE2D | **已完成并关闭：W16在900秒后仍残留2 blocks/524288 B，故不采用W16；前段突发吸收支持有充足本地空间时条件性启用writeback** |
+| TMP-CACHE2G | `04-tmp2g-writeback-foreground-bandwidth-capacity-curve.md` | 否 | 已使用写性能独占窗口 | TMP-CACHE2E | **已完成并关闭：固定128GiB写量下active-I/O在W32/W64/W128相对W20锚提升25.33%/45.69%/46.92%，约64GiB后平台；墙钟曲线分辨率不足** |
+| TMP-CACHE2H | `04-tmp2h-randrw-shared-cache-budget-allocation.md` | 否 | 已使用性能独占窗口 | TMP-CACHE2D、TMP-CACHE2G | **28/28 cell与生命周期完成，但R/P runtime采样覆盖硬门失败；全部混合P点显著退步，签`EVIDENCE_INVALID/NO_DECISION`并关闭，不改生产配置** |
+| TMP-CACHE2I | `04-tmp2i-randrw-cache-sampler-interference-closure.md` | 否 | 已使用性能独占窗口 | TMP-CACHE2H | **5/5 cell有效；P25仍下降16.88%，旧/新描述差异不材料；签`NO_MATERIAL_MIXED_CACHE_CANDIDATE`并关闭共享配额线** |
+| TMP-CACHE2J | `04-tmp2j-randrw-read-cache-capacity-curve-retest.md` | 否 | 已使用性能独占窗口 | TMP-CACHE2I | **RUN `20260907-155057`完成8/8格并签`VALID/CURVE_COMPLETE`；A0漂移5.03%，96GiB为128GiB热集最小平台L1 canary候选；环境闭合，不重开混合缓存线** |
+| CACHE-STALL | `04-7-randrw-cache-stall-attribution-and-async-dio-screen.md` | 否 | 已使用性能独占窗口 | TMP-CACHE2I | **RUN `20260908-095000`四格有效并签`STOP_NEGATIVE`；`async_dio`减少同步无记录区间但带宽下降11.45%/13.03%；环境闭合，候选关闭** |
 | TMP-H3C | `04-tmp3-competitor-large-block-sequential-benchmark.md` | 否 | 已使用读写性能独占窗口 | U1、Z0 | **已完成并关闭：R读臂`+65.27%`为强L1信号，F写臂`+10.60%`具确认资格，`buffer-size=1024`无增量；4/4披露目标未达，不自动L2** |
-| TMP-H3C-BIGSEQ2 | `04-tmp3b-competitor-large-block-io-path-alignment.md` | 否 | 已使用读写性能独占窗口 | TMP-H3C | **已完成并关闭：RA32未过门、async无收益；B4单流读相对B256下降约34%；写侧持久性硬门失败而停止，无生产配置变化** |
+| TMP-H3C-BIGSEQ2 | `04-tmp3b-competitor-large-block-io-path-alignment.md` | 否 | 已使用读写性能独占窗口 | TMP-H3C | **已完成并关闭、归因已订正：B4/RA8混入对象并发变化，写侧为恢复状态机误判；旧强结论撤回** |
+| TMP-H3C-C | `04-tmp3c-blocksize-readahead-concurrency-decoupling.md` | 否 | 已完成 | TMP-H3C-BIGSEQ2 | **B4/RA32较相邻RA8提升`73.60%/77.55%`，订正B4归因；登记L2候选** |
+| TMP-H3C-D | `04-tmp3d-ceph-object-size-concurrency-service-curve.md` | 否 | 已完成 | TMP-H3C-C | **对象层4MiB QD8/16=`5403/6659 MiB/s`，后端余量确认** |
+| TMP-H3C-E | `04-tmp3e-juicefs-reader-fuse-request-generation-boundary.md` | 否 | 已完成 | TMP-H3C-D | **libaio QD8=`5277.79 MiB/s`，异步入口可利用后端余量；RA64停止** |
 | A1 | `04-2-hcl-native-vs-nested-attribution.md` | 否 | **已完成**（H0→停生产TiKV→C/L→恢复→H1） | U1 | **已完成并关闭：C/L分辨力不足；H锚点严重漂移；无生产配置变更** |
 | A2a | `04-3a-metadata-state-scale-sweep.md` | 否 | 当前不安排 | 生产规模退化或架构投资需求 | **已挂起；不准备脚本；不阻塞04收尾** |
 | A2b | `04-3b-fixed-scale-region-causality.md` | 否 | 当前不安排 | A2a材料信号+region独立操纵+架构投资需求 | **已建挂起任务书；前置条件不成立** |
 | M1 | `04-4-metadata-transaction-options.md` | 否（纸面） | 否 | A2a/A2b决定最终优先级 | **已完成：`M1_SINGLE_OPTION_ONLY`；O1 batch为唯一候选，T2 conditional** |
 | M2 | `04-5-metadata-transaction-batching-prototype.md` | 否 | 否 | — | **已废弃；不执行；仅保留历史设计** |
 | **Z0** | `04-6-stage04-final-capacity-and-tuning-exit-decision.md` | 否 | 已完成 | U1、R1及既有03曲线 | **RUN `20260903-214003`完成：mseqwrite服务平台已闭合；无新可交付旋钮，mseqread/randrw仍使阶段签`STAGE04_CONTINUE_DIAGNOSIS`** |
+| **Z0b** | `04-6b-end-to-end-capacity-and-residual-tuning-closure.md` | 否 | 已完成 | Z0及既有持久raw | **RUN `20260905-070441`完成：R8停止；F1对seqwrite形成`+10.90%`且机制同向的L1候选，签`STAGE04_CLOSE_OPEN_STAGE05`** |
+| TMP-H3C-FINAL | `04-tmp3f-competitor-large-block-final-closure.md` | 否 | 已完成 | TMP-H3C、Z0b | **RUN `20260905-125702`完成：bs20M、RA32、FUSE1M均有L1信号；组合最佳`2963.95 MiB/s`仍未达竞品线，关闭04-tmp3系列并转05回归** |
 
 ### 10.1 建议顺序
 
@@ -528,10 +573,12 @@ randrw低并发回环漂移约`8.2%`且存在TiKV/RocksDB状态债务。因此�
 第 1 步  U1              已完成：exact patched V14锁定；stock V14继续排除
 第 2 步  R1              已完成并关闭：正向工程信号、目标未达，不再补测
 第 3 步  TMP-CACHE1      已完成并关闭：强热集信号仅作工程观察，不升级L2
-第 4 步  Z0 / 04-6       已完成：9-cell与恢复PASS；mseqwrite平台闭合，mseqread部分扩展/randrw漂移仍需定点诊断
+第 4 步  Z0 / 04-6       已完成：9-cell与恢复PASS；mseqwrite平台闭合，留下mseqread/randrw缺口
+第 5 步  Z0b / 04-6b     已完成：R8无信号；F1-seqwrite出现材料候选，停止后续phase并转05
+阶段外    TMP-H3C-FINAL   已完成：同步大块读三项L1信号闭合，未达竞品线；不再追加相邻参数轮
 阶段外    A2a/A2b         仅在生产规模退化或扩容/拆分立项时复活；不再为历史组合差单独排窗
 阶段外    TMP-CACHE2/2C/2D/2E  读缓存曲线已完成；writeback的W16失败并关闭实验，条件性生产配置保留
-阶段外    TMP-H3C/3B      已完成并关闭；路径对齐未产生新候选，不阻塞Z0
+阶段外    TMP-H3C/3B/3C/3D/3E/3F  已完成并关闭；机制链闭合，候选转05，不阻塞Z0
 ```
 
 ⚑ **U1 与 R1 不得并行占用集群**；A1已使用独占维护窗口并关闭；A2a/A2b当前挂起。未来若复活，是否
@@ -594,3 +641,10 @@ randrw低并发回环漂移约`8.2%`且存在TiKV/RocksDB状态债务。因此�
 | 2026-09-04 | 04-6 RUN `20260903-214003`完成并从frozen raw离线补齐机制证据：mseqwrite 8→16约`-5.5%`、P50约`4.2×`，六块OSD盘P50均100%，更正为`SERVICE_PLATEAU_IDENTIFIED`；mseqread仍`PARTIAL_SCALING`，randrw回环漂移约`8.2%`并伴随TiKV/RocksDB compaction debt；未发现新可交付旋钮，阶段仍裁决`STAGE04_CONTINUE_DIAGNOSIS` |
 | 2026-09-04 | 04-tmp3 RUN `20260904-095827`完成12/12 L1 cell：20 MiB direct读R臂`2614.08 MiB/s`、相对A `+65.27%`，16 MiB写F臂相对A `+10.60%`且两个配对方向一致，`buffer-size=1024`无增量；四个竞品披露目标均未达，持久化与环境生命周期已关闭，不自动升级L2 |
 | 2026-09-04 | 04-tmp3b RUN `20260904-132417`完成并关闭：RA32配对`+9.74%/+13.80%`未过双门，async约0%；fresh B4读相对B256为`-34.13%/-33.47%`，故保持RA8/async off/256K。首个B256写在clean unmount后重挂不可见，按持久性硬门停止并排除写效应；两个临时卷精确销毁，当前卷与Ceph环境回归通过 |
+| 2026-09-05 | 04-6b RUN `20260905-070441`完成Phase A+B并关闭环境：R8对seqread/mseqread均无一致5%信号；F1对seqwrite两配对`+7.13%/+14.81%`且PUT/OSD完成率同向，签`SCREEN_CONTINUE_OPEN_05`；mseqwrite无一致信号。按首次候选即停取消U300/randrw回环，阶段改签`STAGE04_CLOSE_OPEN_STAGE05` |
+| 2026-09-05 | 04-tmp3f RUN `20260905-125702`完成10格只读同步单流最终收口：bs20M、RA32、FUSE1M均形成一致L1信号，组合平均`2897.12`、最佳`2963.95 MiB/s`，但仍只达竞品线`57.55%`；证据与环境闭合，停止04-tmp3系列，候选转05七项回归 |
+| 2026-09-05 | 04-tmp2g RUN `20260905-160001`完成固定128GiB写量五格订正：fio active-I/O随W20→W32→W64→W128由约`2642→3311→3849→3882 MiB/s`，约64GiB后平台；W64含25.65秒非active-I/O前台开销使启动—返回墙钟曲线不单调。五格均严格排空，环境与1202项证据闭合 |
+| 2026-09-06 | 04-tmp2h RUN `20260906-090701`完成28/28 cell与生命周期；三个A0锚首尾漂移约2.38%，全部共享P点相对A0下降7.68%--68.85%。最终发现runtime sampler同步扫描rawstaging导致R/P覆盖硬门失败，签`EVIDENCE_INVALID/NO_DECISION`；环境关闭、证据持久化，不登记候选且不立即重跑 |
+| 2026-09-06 | 04-tmp2i RUN `20260906-201646`以五格最小矩阵完成采样器订正：最大采样间隔约1.03秒，P25相对插值A0仍下降16.88%，纯R提高12.32%、纯W提高5.45%；旧/新P25差异不材料，签`NO_MATERIAL_MIXED_CACHE_CANDIDATE`并关闭共享配额线 |
+| 2026-09-07 | 04-tmp2j RUN `20260907-155057`完成纯读缓存五档有效重测：A0漂移`5.03%`，效应`+5.62%/+3.95%/+9.82%/+11.07%/+14.84%`，命中率`11.08%→47.41%`；按合同登记96GiB最小平台L1 canary，环境与证据闭合 |
+| 2026-09-08 | 04-7 RUN `20260908-095000`完成P25 A-B-B-A筛选：`async_dio`将同步无记录负担降低`75.53%/100%`，但两配对方向均值带宽下降`11.45%/13.03%`且总延迟上升；签`STOP_NEGATIVE`并关闭候选，环境与证据闭合 |

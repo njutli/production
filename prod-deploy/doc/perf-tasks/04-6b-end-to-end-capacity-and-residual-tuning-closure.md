@@ -6,7 +6,7 @@
 >
 > 面向：GLM执行；GPT复算与裁决
 >
-> 状态：`TASKBOOK_READY / SCRIPTS_NOT_READY / ENVIRONMENT_NOT_AUTHORIZED`
+> 状态：`COMPLETED / STAGE04_CLOSE_OPEN_STAGE05 / ENVIRONMENT_CLOSED`；有效RUN `20260905-070441`
 >
 > 承接：04-6、U141d、04-tmp3、04-1b正式报告。
 
@@ -30,7 +30,7 @@ REMOTE_RESULT_ROOT=/tmp/production/opencode-04-6b-<RUN_ID>
 EVIDENCE_RETENTION=SCREEN
 REMOTE_CLEANUP=AFTER_REVIEW
 LOCAL_COMPACTION=AFTER_STAGE_CLOSE
-ENVIRONMENT_ASSET_CLEANUP=恢复本RUN持有的scrub flags；graceful卸载任务mount；按manifest逐文件删除任务专属mseqwrite资产并回到O0；既有seqwrite/randrw/只读资产按路径、inode、大小保护；关闭共享GC/compact状态
+ENVIRONMENT_ASSET_CLEANUP=恢复本RUN持有的scrub flags；graceful卸载任务mount；按manifest逐文件删除任务专属seqwrite/mseqwrite资产并回到O0；既有randrw/只读资产按路径、inode、大小保护；关闭共享GC/compact状态
 ```
 
 一句话：**把“盘很忙、暂时想不到参数”升级为逐层容量账，同时只筛选尚未真正排除的三个低风险
@@ -96,15 +96,17 @@ ENVIRONMENT_ASSET_CLEANUP=恢复本RUN持有的scrub flags；graceful卸载任�
 | 任务挂载 | 只用`/tmp/jfs-t046b-<RUN_ID>-<CELL>`，核META/UUID/exe/PID/starttime |
 | 页缓存 | 157及150--152均禁止全局`drop_caches`；各臂对称 |
 
-读测试复用既有seqread/mseqread资产；seqwrite和randrw复用既有测试专用文件。Phase I冻结路径、inode、
-大小和文件集合；只读资产再冻结mtime与抽样hash。写负载允许内容/mtime变化，但不得删除、重命名、
-改变大小或触碰非测试文件；须先证明没有foreign opener。
+读测试复用既有seqread/mseqread资产，randrw复用既有测试专用文件。Phase I冻结路径、inode、大小和
+文件集合；只读资产再冻结mtime与抽样hash。写负载允许内容/mtime变化，但不得删除、重命名、改变大小
+或触碰非测试文件；须先证明没有foreign opener。2026-09-05 inventory确认既有
+`test_dir/seqwrite/seqwrite.0.0`不存在，因此seqwrite改用同RUN任务专属
+`test_dir/04-6b-<RUN_ID>/seqwrite/seqwrite.0.0`（1×32GiB），不改动既有资产，并由manifest精确管理。
 
 mseqwrite一律使用卷内全新的任务专属相对路径
 `test_dir/04-6b-<RUN_ID>/mseqwrite/`，不得复用、混入或部分复用既有文件。seed前冻结对象锚`O0`，再按
-manifest一次性创建16×4GiB文件；seed不进性能结果，恢复稳定后冻结含资产锚`O1`。Phase B/C每个性能
+manifest一次性创建1×32GiB seqwrite和16×4GiB mseqwrite文件；seed不进性能结果，恢复稳定后冻结含资产锚`O1`。Phase B/C每个性能
 cell开始前对象数须回到`O1±8192`且PG全active+clean；实际目录必须写入每条B/C命令和manifest。
-Phase C结束或B候选早停时，按manifest逐个删除16个文件及精确空目录，经GC与自然idle回到`O0±8192`。
+Phase C结束或B候选早停时，按manifest逐个删除17个文件及精确空目录，经GC与自然idle回到`O0±8192`。
 禁止glob、递归删除和用其他文件补齐数量。
 
 ---
@@ -507,3 +509,4 @@ doc/perf-report/04-6b-end-to-end-capacity-and-residual-tuning-closure-<DATE>.md
 | 日期 | 修订 |
 |---|---|
 | 2026-09-04 | 初版：纠正以100% util和mseqwrite低RUN冒充硬上限的问题；建立七项容量账，最小筛选R8/F1/U300，并补randrw状态回环。按精简原则只做L0+L1，材料候选另开05。 |
+| 2026-09-05 | Phase A确认R8对seqread/mseqread均无一致5%信号；Phase B确认`max-fuse-io=1M`对seqwrite两配对`+7.13%/+14.81%`且写机制同向，按首次候选即停合同取消Phase C/D并转05。既有seqwrite资产不存在，执行时改为manifest管理的任务专属1×32GiB文件；环境已关闭。 |

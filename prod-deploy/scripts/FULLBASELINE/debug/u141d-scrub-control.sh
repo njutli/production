@@ -19,6 +19,17 @@ QUIET_TIMEOUT=${U141D_SCRUB_QUIET_TIMEOUT:-180}
 QUIET_POLL=${U141D_SCRUB_QUIET_POLL:-5}
 ACK=I_ACK_GLOBAL_CEPH_SCRUB_PAUSE
 OWNED_FLAGS=(noscrub nodeep-scrub)
+CEPH_CONF_ARGS=()
+CEPH_AUTH_ARGS=()
+if [[ -n ${U141D_CEPH_CONF:-} ]]; then
+  [[ $U141D_CEPH_CONF == /* && $U141D_CEPH_CONF != / && $U141D_CEPH_CONF != *..* &&
+     -f $U141D_CEPH_CONF && ! -L $U141D_CEPH_CONF ]] \
+    || { printf 'U141D_SCRUB_CONTROL_FAIL: invalid U141D_CEPH_CONF\n' >&2; exit 1; }
+  CEPH_CONF_ARGS=(-c "$U141D_CEPH_CONF")
+  [[ -f /etc/ceph/ceph.client.admin.keyring && ! -L /etc/ceph/ceph.client.admin.keyring ]] \
+    || { printf 'U141D_SCRUB_CONTROL_FAIL: explicit admin keyring unavailable\n' >&2; exit 1; }
+  CEPH_AUTH_ARGS=(--keyring /etc/ceph/ceph.client.admin.keyring -n client.admin)
+fi
 
 die() { printf 'U141D_SCRUB_CONTROL_FAIL: %s\n' "$*" >&2; exit 1; }
 log() { printf '[%s] %s\n' "$(date -Is)" "$*" >&2; }
@@ -34,11 +45,11 @@ state_path() {
 }
 
 ceph_read() {
-  timeout 20 ceph "$@"
+  timeout 20 ceph "${CEPH_CONF_ARGS[@]}" "${CEPH_AUTH_ARGS[@]}" "$@"
 }
 
 ceph_write() {
-  timeout 20 sudo ceph "$@"
+  timeout 20 sudo ceph "${CEPH_CONF_ARGS[@]}" "${CEPH_AUTH_ARGS[@]}" "$@"
 }
 
 normalize_flags_json() {
