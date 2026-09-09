@@ -3,11 +3,11 @@
 ## 快照信息
 
 ```text
-SNAPSHOT_DATE=2026-09-08
+SNAPSHOT_DATE=2026-09-09
 SCOPE=04阶段主线任务书、条件任务书和临时专项任务书
 STATUS_SOURCE_PRIORITY=最新执行证据 > 任务书当前状态 > 04阶段计划书执行台账
-CURRENT_ACTIVE_TASK=无；04-7在线A-B-B-A已完成并签STOP_NEGATIVE
-NEXT_PREPARATION=04阶段不再扩测async_dio；已登记候选统一转05回归
+CURRENT_ACTIVE_TASK=无；04-8正式验证已完成并签STOP_REGRESSION
+NEXT_PREPARATION=max-fuse-io=1M不进入通用基线；仅保留seqwrite专用挂载灰度候选
 ```
 
 本文只记录任务书当前进度、依赖和下一动作，不替代各任务书的实验合同，也不授予环境执行权限。
@@ -59,6 +59,7 @@ NEXT_PREPARATION=04阶段不再扩测async_dio；已登记候选统一转05回�
 | 竞品缓存：RA32同步单流读最终收口 | `04-tmp3i-cached-sync-read-ra32-final-closure.md` | ✅ **RUN `20260906-222839`完成；VALID；环境闭合** | 正式RUN约`12 min`，另含离线准备和证据复核 | RA32两次=`3556.86/3670.35 MiB/s`，100%命中且Ceph RX约`0.003%`；同loop本地=`6846.36 MiB/s` | 无 | `BEST_KNOWN_CACHED_SYNC_READ_TARGET_NOT_MET`；RA32仅比RA8高`4.89%`，缓存容量/RA同步收尾线关闭 |
 | 条件缓存补证：randrw纯读缓存容量曲线 | `04-tmp2j-randrw-read-cache-capacity-curve-retest.md` | ✅ **RUN `20260907-155057`完成；VALID；环境闭合** | 正式矩阵约`80 min`，另含离线准备与证据持久化 | 五档效应`+5.62%/+3.95%/+9.82%/+11.07%/+14.84%`；A0漂移`5.03%` | 无；96 GiB按预注册规则为最小平台档 | `READ_CACHE_96G_L1_CANARY_CANDIDATE`；不重开writeback/混合配额线 |
 | 条件归因：randrw缓存同步停顿/async_dio | `04-7-randrw-cache-stall-attribution-and-async-dio-screen.md` | ✅ **RUN `20260908-095000`完成；VALID；环境闭合** | 在线约`45 min`，另含离线准备与证据复核 | B/A两配对方向均值`-11.45%/-13.03%`；同步无记录负担下降`75.53%/100%`，但总延迟上升`12.83%/14.85%` | 无 | `STOP_NEGATIVE`；确认同步DIO路径参与停顿，但`async_dio`以吞吐退化换平滑，不进入生产 |
+| 正式回归：`max-fuse-io=1M` | `04-8-max-fuse-io-1m-formal-validation.md` | ✅ **RUN `20260909-115749`完成；VALID；环境闭合** | Phase A约`2 h`，Phase B约`2 h`，另含证据与精确清理 | seqwrite四配对全正，几何效应`+14.31%`；其余六项完成A-B-B-A兼容性门 | 无 | `STOP_REGRESSION`：mseqread `INCONCLUSIVE`，randwrite一配对`-21.82%`触发回归；通用基线保持256K，仅保留seqwrite专用挂载灰度候选 |
 
 ### ⏸ 已挂起（2项）
 
@@ -161,6 +162,7 @@ ENGINEERING_DECISION=KEEP_DEFAULT_READAHEAD; MATERIAL_5PCT_BENEFIT_EXCLUDED
 | `04-tmp2i-randrw-cache-sampler-interference-closure.md` | ✅ `COMPLETED / VALID / NO_MATERIAL_MIXED_CACHE_CANDIDATE / ENVIRONMENT_CLOSED` | 实际约`2.5 h` | 去掉采样器配置相关干扰，以T128最少5格判断共享缓存是否值得升级 | 5/5 cell通过；P25 `-16.88%`、R `+12.32%`、W `+5.45%`；A0漂移`6.88%` | 共享配额线关闭；P50/P75按合同取消，不扩大矩阵 |
 | `04-tmp2j-randrw-read-cache-capacity-curve-retest.md` | ✅ `COMPLETED / VALID / CURVE_COMPLETE / ENVIRONMENT_CLOSED` | 正式矩阵约`80 min` | 用低干扰采样器重测randrw纯读缓存32/64/96/128/256GiB有效曲线 | 五档效应`+5.62%/+3.95%/+9.82%/+11.07%/+14.84%`；A0漂移`5.03%` | 96GiB为128GiB热集的最小平台L1 canary候选；无缓存基线不变 |
 | `04-7-randrw-cache-stall-attribution-and-async-dio-screen.md` | ✅ `COMPLETED / VALID / STOP_NEGATIVE / ENVIRONMENT_CLOSED` | 在线约`45 min` | 在P25合同下只改`async_dio`执行A-B-B-A，判断同步停顿能否转化为生产收益 | 同步无记录显著减少，但两配对带宽下降`11.45%/13.03%`、总延迟增加`12.83%/14.85%` | 候选关闭；不启用`async_dio`，不追加L2或容量/QD矩阵 |
+| `04-8-max-fuse-io-1m-formal-validation.md` | ✅ `COMPLETED / VALID / STOP_REGRESSION / ENVIRONMENT_CLOSED` | 正式执行约`4 h`，另含准备、证据复核和清理 | 正式确认seqwrite收益并以六项A-B-B-A检查通用兼容性 | seqwrite`+14.31%`；mseqread一配对`-6.35%`，randwrite一配对`-21.82%` | 通用基线保持256K；1M只保留为seqwrite专用挂载灰度候选 |
 | `04-tmp3g-competitor-large-block-async-write-closure.md` | ✅ `COMPLETED / VALID / ENVIRONMENT_CLOSED` | 剩余`0` | 补齐16MiB单job `libaio` QD1/2/4/8写曲线及同步锚 | 两次QD8仅`957.90/997.27 MiB/s`，同步双锚平均`2578.69 MiB/s` | `WRITE_ASYNC_TARGET_NOT_MET`；关闭异步写QD方向，不影响异步读既有结论 |
 | `04-tmp3h-competitor-four-command-client-cache-capacity.md` | ✅ `COMPLETED / NEGATIVE_FIO_BOUND / ENVIRONMENT_CLOSED` | 剩余`0` | 原四条竞品命令不变，测32/64/96/128GiB缓存预算下全部越线的最小已验证档 | 四档fio读均100%命中但仅`2744--2803 MiB/s`，写最佳`2866 MiB/s` | `NO_VERIFIED_CACHE_BUDGET_LE_128G`；cp同盘结果只作工程观察 |
 | `04-tmp3i-cached-sync-read-ra32-final-closure.md` | ✅ `COMPLETED / VALID / ENVIRONMENT_CLOSED` | 剩余`0` | 在T64下用RA8/RA32 ABBA补齐热缓存同步单流最佳已知参数，并测同loop本地直读 | RA32平均`3613.61 MiB/s`、比RA8高`4.89%`；本地直读`6846.36 MiB/s` | `BEST_KNOWN_CACHED_SYNC_READ_TARGET_NOT_MET`；目标差`29.83%`，同步单流缓存参数搜索关闭 |

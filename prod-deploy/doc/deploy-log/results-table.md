@@ -866,3 +866,25 @@
 | 停顿归因 | 同步无记录负担下降`75.53%/100%`且排空缩至10s，支持同步DIO提交/缓存协调参与长停顿，但改善未转化为吞吐收益 |
 | 裁决 | `STOP_NEGATIVE`；不启用`async_dio`，不追加L2、容量或QD矩阵；纯读缓存与条件writeback既有结论不变 |
 | 环境/证据 | RUN资产精确销毁，scrub恢复；Ceph `HEALTH_OK`、6/6 OSD、97/97 PG clean；持久归档SHA256=`bd3a01fd075823b4417b75e27a16eb5b5654e0dfbc24ff2477f03ff08ad3fc87` |
+
+## 三十八、04-8 `max-fuse-io=1M`正式效应与兼容性回归（2026-09-09）
+
+> 正式报告：`doc/perf-report/04-8-max-fuse-io-1m-formal-validation-20260909.md`；
+> RUN_ID `20260909-115749`。本项决定FUSE1M能否替换通用256K基线。
+
+| 阶段/项目 | 配对效应 | 裁决 |
+|---|---:|---|
+| Phase A seqwrite | `+14.32%/+14.42%/+13.24%/+15.26%`；几何`+14.31%` | `SEQWRITE_GAIN_CONFIRMED` |
+| Phase B seqread | `-0.50%/-0.52%` | `NON_INFERIOR` |
+| Phase B mseqread | `-6.35%/-2.15%` | `INCONCLUSIVE` |
+| Phase B randread | `-1.71%/-1.05%` | `NON_INFERIOR` |
+| Phase B mseqwrite | `+1.07%/+0.44%` | `NON_INFERIOR` |
+| Phase B randwrite | `-21.82%/-2.36%` | `REGRESSION` |
+| Phase B randrw read/write | `-0.11%/+5.19%`；`-0.15%/+5.16%` | `NON_INFERIOR` |
+
+| 项 | 结果 |
+|---|---|
+| 机制 | FUSE平均写请求约`256KiB→1MiB`，PUT/OSD完成率约`+14.5%`；汇总OSD平均写延迟约`+8.0%` |
+| 总裁决 | `VALID / STOP_REGRESSION`；通用生产挂载继续256K，1M只保留4MiB单流seqwrite专用挂载灰度候选 |
+| 环境闭环 | 精确清理96GiB私有资产；对象`1978609→1978610`，TiKV pending=0；scrub恢复，Ceph `HEALTH_OK`、97 PG clean |
+| 持久证据 | `/mnt/c/SunRise/test/04-8/20260909-115749/`；Phase B raw包SHA256=`f43db3855fd70173dfe6cc8daba3a39235fc87e1fd8aaff4d80bd3b6abc23624` |

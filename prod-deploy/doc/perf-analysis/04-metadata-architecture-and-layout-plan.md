@@ -534,6 +534,12 @@ randrw方向均值下降`11.45%/13.03%`、mean total latency增加`12.83%/14.85%
 负担下降`75.53%/100%`，但这是以材料吞吐退化换取更连续的运行形态，故签`STOP_NEGATIVE`。
 同步DIO路径参与停顿的机制信号保留，`async_dio`生产候选关闭，不追加L2或相邻参数轮次。
 
+04-8 RUN `20260909-115749`完成F1的正式效应与兼容性回归。Phase A八个独立mount确认seqwrite
+四配对全正，几何效应`+14.31%`、95% CI `[+13.00%,+15.63%]`，且FUSE请求扩大与
+PUT/OSD服务率同向；但Phase B中mseqread为`INCONCLUSIVE`（`-6.35%/-2.15%`），randwrite
+触发`REGRESSION`（`-21.82%/-2.36%`）。因此撤销“FUSE1M进入通用05基线”的待决状态：
+默认挂载继续使用256K，1M仅保留为4MiB单流seqwrite专用挂载的条件灰度候选，不再追加通用回归轮次。
+
 ---
 
 ## 十、执行台账与排期
@@ -553,6 +559,7 @@ randrw方向均值下降`11.45%/13.03%`、mean total latency增加`12.83%/14.85%
 | TMP-CACHE2I | `04-tmp2i-randrw-cache-sampler-interference-closure.md` | 否 | 已使用性能独占窗口 | TMP-CACHE2H | **5/5 cell有效；P25仍下降16.88%，旧/新描述差异不材料；签`NO_MATERIAL_MIXED_CACHE_CANDIDATE`并关闭共享配额线** |
 | TMP-CACHE2J | `04-tmp2j-randrw-read-cache-capacity-curve-retest.md` | 否 | 已使用性能独占窗口 | TMP-CACHE2I | **RUN `20260907-155057`完成8/8格并签`VALID/CURVE_COMPLETE`；A0漂移5.03%，96GiB为128GiB热集最小平台L1 canary候选；环境闭合，不重开混合缓存线** |
 | CACHE-STALL | `04-7-randrw-cache-stall-attribution-and-async-dio-screen.md` | 否 | 已使用性能独占窗口 | TMP-CACHE2I | **RUN `20260908-095000`四格有效并签`STOP_NEGATIVE`；`async_dio`减少同步无记录区间但带宽下降11.45%/13.03%；环境闭合，候选关闭** |
+| FUSE1M-FORMAL | `04-8-max-fuse-io-1m-formal-validation.md` | 否 | 已使用性能独占窗口 | Z0b | **RUN `20260909-115749`有效并关闭：seqwrite正式收益`+14.31%`，但mseqread不确定、randwrite回归；通用基线保持256K，仅保留seqwrite专用挂载灰度候选** |
 | TMP-H3C | `04-tmp3-competitor-large-block-sequential-benchmark.md` | 否 | 已使用读写性能独占窗口 | U1、Z0 | **已完成并关闭：R读臂`+65.27%`为强L1信号，F写臂`+10.60%`具确认资格，`buffer-size=1024`无增量；4/4披露目标未达，不自动L2** |
 | TMP-H3C-BIGSEQ2 | `04-tmp3b-competitor-large-block-io-path-alignment.md` | 否 | 已使用读写性能独占窗口 | TMP-H3C | **已完成并关闭、归因已订正：B4/RA8混入对象并发变化，写侧为恢复状态机误判；旧强结论撤回** |
 | TMP-H3C-C | `04-tmp3c-blocksize-readahead-concurrency-decoupling.md` | 否 | 已完成 | TMP-H3C-BIGSEQ2 | **B4/RA32较相邻RA8提升`73.60%/77.55%`，订正B4归因；登记L2候选** |
@@ -648,3 +655,4 @@ randrw方向均值下降`11.45%/13.03%`、mean total latency增加`12.83%/14.85%
 | 2026-09-06 | 04-tmp2i RUN `20260906-201646`以五格最小矩阵完成采样器订正：最大采样间隔约1.03秒，P25相对插值A0仍下降16.88%，纯R提高12.32%、纯W提高5.45%；旧/新P25差异不材料，签`NO_MATERIAL_MIXED_CACHE_CANDIDATE`并关闭共享配额线 |
 | 2026-09-07 | 04-tmp2j RUN `20260907-155057`完成纯读缓存五档有效重测：A0漂移`5.03%`，效应`+5.62%/+3.95%/+9.82%/+11.07%/+14.84%`，命中率`11.08%→47.41%`；按合同登记96GiB最小平台L1 canary，环境与证据闭合 |
 | 2026-09-08 | 04-7 RUN `20260908-095000`完成P25 A-B-B-A筛选：`async_dio`将同步无记录负担降低`75.53%/100%`，但两配对方向均值带宽下降`11.45%/13.03%`且总延迟上升；签`STOP_NEGATIVE`并关闭候选，环境与证据闭合 |
+| 2026-09-09 | 04-8 RUN `20260909-115749`完成FUSE1M正式验证：seqwrite四配对全正、几何效应`+14.31%`；mseqread签`INCONCLUSIVE`，randwrite签`REGRESSION`。通用生产基线保持256K，1M只保留seqwrite专用挂载灰度候选；证据与环境闭合 |
