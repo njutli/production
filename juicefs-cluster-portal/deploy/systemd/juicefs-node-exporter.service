@@ -1,0 +1,44 @@
+[Unit]
+Description=JuiceFS portal node exporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=jfsnode
+Group=jfsnode
+EnvironmentFile=/etc/juicefs-portal/node-exporter.env
+ExecStart=/opt/juicefs-portal/bin/node_exporter --web.listen-address=${NODE_EXPORTER_ADDR} --collector.disable-defaults --collector.cpu --collector.diskstats --collector.filesystem --collector.meminfo --collector.netclass --collector.netdev --collector.textfile --collector.time --collector.uname --collector.textfile.directory=/var/lib/juicefs-node-exporter/textfile --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run/.+|var/lib/containers/.+)($|/) --collector.netdev.device-exclude=^(veth.*|[a-f0-9]{15})$
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=15s
+
+CPUQuota=20%
+MemoryAccounting=true
+MemoryMax=128M
+IOAccounting=true
+IOWeight=10
+TasksMax=64
+LimitNOFILE=8192
+Nice=10
+
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+IPAddressAllow=10.20.1.0/24
+ReadOnlyPaths=/var/lib/juicefs-node-exporter/textfile
+
+[Install]
+WantedBy=multi-user.target

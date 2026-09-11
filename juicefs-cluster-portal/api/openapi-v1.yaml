@@ -1,0 +1,417 @@
+openapi: 3.0.3
+info:
+  title: JuiceFS Cluster Portal Monitoring API
+  version: 1.2.0
+  description: Local-session authenticated monitoring API. Cluster monitoring and authorized directory-usage snapshots are read-only.
+servers:
+  - url: /api/v1
+security:
+  - cookieAuth: []
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      security: []
+      summary: Portal process health
+      responses:
+        '200':
+          description: Process is serving requests
+  /me:
+    get:
+      summary: Current identity and role
+      responses:
+        '200':
+          description: Identity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Identity'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /session:
+    post:
+      security: []
+      summary: Create an eight-hour local account session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated identity and session expiry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Identity'
+        '400':
+          description: Invalid request body
+        '401':
+          description: Invalid username or password
+        '429':
+          description: Login attempts temporarily rate limited
+        '426':
+          description: HTTPS required when secure cookies are enabled
+    delete:
+      summary: Clear the browser session cookie
+      responses:
+        '204':
+          description: Session cookie cleared
+  /usage/roots:
+    get:
+      summary: Authorized JuiceFS directory-usage roots from the latest SQLite snapshot
+      responses:
+        '200':
+          description: Roots visible to the current USER or ADMIN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NamespaceRootsEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          description: Namespace snapshot unavailable
+  /usage/tree:
+    get:
+      summary: Recursive directory usage within at most three levels
+      parameters:
+        - name: rootId
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^[a-z0-9][a-z0-9._-]{0,63}$'
+        - name: maxDepth
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 3
+            default: 3
+      responses:
+        '200':
+          description: Directory-only tree read from the latest completed snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NamespaceTreeEnvelope'
+        '400':
+          description: Invalid root identifier or depth
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Root not present in the snapshot
+        '503':
+          description: Namespace snapshot unavailable
+  /admin/overview:
+    get:
+      summary: Cluster overview
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonObject'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/topology:
+    get:
+      summary: Expected and observed component topology
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonObject'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/nodes:
+    get:
+      summary: Nodes and current host metrics
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonArray'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/nodes/{nodeId}/disks:
+    get:
+      summary: Disks, health, I/O and service mappings on one node
+      parameters:
+        - name: nodeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonArray'
+        '404':
+          description: Node not found
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/juicefs/clients:
+    get:
+      summary: JuiceFS client state and metrics
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonArray'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/tikv:
+    get:
+      summary: PD and TiKV state and metrics
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonObject'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/ceph:
+    get:
+      summary: Ceph health, capacity and I/O
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonObject'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/usage:
+    get:
+      summary: Whole-volume logical and Ceph physical usage
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonObject'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/alerts:
+    get:
+      summary: Active and recently recovered alerts
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonArray'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/timeseries:
+    get:
+      summary: Whitelisted time series only
+      parameters:
+        - name: metric
+          in: query
+          required: true
+          description: Semantic metric ID from METRICS-WHITELIST-V1.md
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: step
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 5
+            maximum: 3600
+            default: 15
+      responses:
+        '200':
+          $ref: '#/components/responses/JsonObject'
+        '400':
+          description: Invalid or non-whitelisted query
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: jfsportal_session
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 64
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+    Identity:
+      type: object
+      required: [subject, role]
+      properties:
+        subject:
+          type: string
+        role:
+          type: string
+          description: USER may access only explicitly assigned directory-usage roots; ADMIN may access all roots and monitoring APIs.
+          enum: [ADMIN, USER]
+        expiresAt:
+          type: string
+          format: date-time
+    SampleMeta:
+      type: object
+      required: [source, collectedAt, ageSeconds, freshness]
+      properties:
+        source:
+          type: string
+        collectedAt:
+          type: string
+          format: date-time
+        ageSeconds:
+          type: number
+        freshness:
+          type: string
+          enum: [fresh, stale, unavailable, unknown]
+        error:
+          type: string
+          nullable: true
+    NamespaceRoot:
+      type: object
+      required: [id, displayName, path, logicalBytes, fileCount, dirCount, collectedAt, status]
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        path:
+          type: string
+          description: Virtual path only; the host mount path is never exposed.
+        logicalBytes:
+          type: integer
+          format: int64
+        fileCount:
+          type: integer
+          format: int64
+        dirCount:
+          type: integer
+          format: int64
+        collectedAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [ready, stale, failed]
+        error:
+          type: string
+    NamespaceEntry:
+      type: object
+      required: [path, parentPath, name, kind, depth, logicalBytes, recursiveBytes, fileCount, dirCount]
+      properties:
+        path:
+          type: string
+        parentPath:
+          type: string
+        name:
+          type: string
+        kind:
+          type: string
+          description: directory/file为具名top项，aggregate为同一父目录未进入top 100的其余项汇总。
+          enum: [directory, file, aggregate]
+        depth:
+          type: integer
+          minimum: 0
+          maximum: 3
+        logicalBytes:
+          type: integer
+          format: int64
+        recursiveBytes:
+          type: integer
+          format: int64
+        fileCount:
+          type: integer
+          format: int64
+        dirCount:
+          type: integer
+          format: int64
+        modifiedAt:
+          type: string
+          format: date-time
+    NamespaceRootsEnvelope:
+      type: object
+      required: [data, sample]
+      properties:
+        data:
+          type: object
+          required: [roots]
+          properties:
+            roots:
+              type: array
+              items:
+                $ref: '#/components/schemas/NamespaceRoot'
+        sample:
+          $ref: '#/components/schemas/SampleMeta'
+    NamespaceTreeEnvelope:
+      type: object
+      required: [data, sample]
+      properties:
+        data:
+          type: object
+          required: [root, maxDepth, entries]
+          properties:
+            root:
+              $ref: '#/components/schemas/NamespaceRoot'
+            maxDepth:
+              type: integer
+            entries:
+              type: array
+              items:
+                $ref: '#/components/schemas/NamespaceEntry'
+        sample:
+          $ref: '#/components/schemas/SampleMeta'
+    JsonObject:
+      type: object
+      additionalProperties: true
+    JsonArray:
+      type: array
+      items:
+        type: object
+        additionalProperties: true
+  responses:
+    JsonObject:
+      description: Read-only monitoring object containing SampleMeta
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/JsonObject'
+    JsonArray:
+      description: Read-only monitoring object list
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/JsonArray'
+    Unauthorized:
+      description: Authentication required
+    Forbidden:
+      description: ADMIN role required

@@ -1,0 +1,8 @@
+[Unit]
+Description=Refresh JuiceFS namespace snapshot every minute
+
+[Timer]
+OnActiveSec=5s
+OnUnitActiveSec=60s
+AccuracySec=5s
+Unit=juicefs-namespace-collector.service

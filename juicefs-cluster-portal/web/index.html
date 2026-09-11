@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="JuiceFS、TiKV/PD 与 Ceph 集群只读监控门户">
+    <title>JuiceFS 集群监控</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <section id="login-screen" class="auth-screen">
+      <form id="login-form" class="login-card">
+        <div class="brand login-brand">
+          <span class="brand-mark">JF</span>
+          <div><strong>Storage Ops</strong><small>JuiceFS 集群只读管理面</small></div>
+        </div>
+        <label for="username">用户名</label>
+        <input id="username" name="username" autocomplete="username" maxlength="64" required>
+        <label for="password">密码</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" maxlength="128" required>
+        <button id="login" type="submit">登录</button>
+        <p id="login-error" class="login-error" role="alert" hidden></p>
+        <small class="auth-note">会话仅保存在受保护的浏览器 Cookie 中；门户不提供任何集群写操作。</small>
+      </form>
+    </section>
+
+    <section id="user-screen" class="user-portal" hidden>
+      <header class="user-header">
+        <div class="brand">
+          <span class="brand-mark">JF</span>
+          <div><strong>Storage Ops</strong><small>授权目录用量</small></div>
+        </div>
+        <div class="header-actions"><span id="user-identity" class="identity">USER</span><button id="user-refresh" type="button">立即刷新</button><button class="logout" type="button">退出</button></div>
+      </header>
+      <main class="user-main">
+        <div class="section-heading"><div><p class="eyebrow">JUICEFS-PROD / READ ONLY</p><h1>三级目录用量</h1></div><span id="user-usage-freshness" class="identity">尚无快照</span></div>
+        <p class="scope-copy">数据来自后台SQLite快照；页面刷新不会扫描JuiceFS。总量覆盖全部后代，每个目录只展示top 100大项及其余项聚合。</p>
+        <div id="user-root-selector" class="segmented root-selector" aria-label="授权目录"></div>
+        <div id="user-usage-content" class="namespace-layout"><p class="loading">加载授权目录…</p></div>
+        <p id="user-error" class="error" hidden></p>
+      </main>
+    </section>
+
+    <div id="admin-shell" class="shell" hidden>
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">JF</span>
+          <div><strong>Storage Ops</strong><small>只读管理面</small></div>
+        </div>
+        <nav aria-label="管理页面">
+          <button class="nav-item active" data-view="overview" type="button">总览</button>
+          <button class="nav-item" data-view="topology" type="button">拓扑</button>
+          <button class="nav-item" data-view="storage" type="button">节点与磁盘</button>
+          <button class="nav-item" data-view="clients" type="button">JuiceFS 客户端</button>
+          <button class="nav-item" data-view="tikv" type="button">TiKV / PD</button>
+          <button class="nav-item" data-view="ceph" type="button">Ceph</button>
+          <button class="nav-item" data-view="usage" type="button">容量</button>
+          <button class="nav-item" data-view="directories" type="button">目录用量</button>
+          <button class="nav-item" data-view="alerts" type="button">告警</button>
+        </nav>
+        <div class="scope-note"><span></span> ADMIN · READ ONLY</div>
+      </aside>
+
+      <main>
+        <header>
+          <div>
+            <p id="page-eyebrow" class="eyebrow">JUICEFS-PROD / 管理总览</p>
+            <h1 id="page-title">集群运行状态</h1>
+          </div>
+          <div class="header-actions">
+            <span id="identity" class="identity">ADMIN</span>
+            <button id="refresh" type="button">立即刷新</button>
+            <button class="logout" type="button">退出</button>
+          </div>
+        </header>
+
+        <section class="status-strip" aria-live="polite">
+          <div><span id="health-dot" class="health-dot"></span><strong id="cluster-health">正在连接</strong></div>
+          <span id="freshness">尚无样本</span>
+        </section>
+
+        <section id="view-overview" class="view active" data-title="集群运行状态" data-eyebrow="JUICEFS-PROD / 管理总览">
+          <div class="metric-grid" aria-label="关键指标">
+            <article class="metric-card cyan"><span>JuiceFS 逻辑读</span><strong id="jfs-read">—</strong><small>客户端可见吞吐</small></article>
+            <article class="metric-card blue"><span>JuiceFS 逻辑写</span><strong id="jfs-write">—</strong><small>客户端可见吞吐</small></article>
+            <article class="metric-card violet"><span>Ceph 物理读</span><strong id="ceph-read">—</strong><small>juicefs-data Pool</small></article>
+            <article class="metric-card amber"><span>Ceph 物理写</span><strong id="ceph-write">—</strong><small>EC 后端吞吐</small></article>
+          </div>
+          <div class="workspace">
+            <article class="panel topology-panel">
+              <div class="panel-title"><div><span>实时数据路径</span><small>元数据与对象数据路径分开展示</small></div><span class="tag">10 秒刷新</span></div>
+              <div id="overview-topology" class="topology"><p class="loading">加载拓扑…</p></div>
+            </article>
+            <article class="panel health-panel">
+              <div class="panel-title"><div><span>组件健康</span><small>缺失数据不会显示为健康</small></div></div>
+              <div id="components" class="component-list"><p class="loading">加载组件…</p></div>
+            </article>
+            <article class="panel nodes-panel">
+              <div class="panel-title"><div><span>节点负载</span><small>四个业务与管理节点</small></div></div>
+              <div class="table-wrap">
+                <table><thead><tr><th>节点</th><th>角色</th><th>CPU</th><th>可用内存</th><th>网络入 / 出</th><th>状态</th></tr></thead>
+                  <tbody id="overview-nodes"><tr><td colspan="6" class="loading">加载节点…</td></tr></tbody></table>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="view-topology" class="view" data-title="组件与存储拓扑" data-eyebrow="JUICEFS-PROD / 实时拓扑">
+          <article class="panel">
+            <div class="panel-title"><div><span>端到端关系</span><small>状态来自实时指标，连接关系来自版本化部署清单</small></div><span class="tag">动态</span></div>
+            <div id="full-topology" class="topology topology-full"><p class="loading">加载拓扑…</p></div>
+          </article>
+        </section>
+
+        <section id="view-storage" class="view" data-title="节点与物理磁盘" data-eyebrow="JUICEFS-PROD / 主机与 NVMe">
+          <article class="panel">
+            <div class="panel-title"><div><span>节点</span><small>选择节点查看磁盘用途、实时 I/O 与 SMART</small></div><div id="node-selector" class="segmented"></div></div>
+            <div class="table-wrap">
+              <table class="disk-table"><thead><tr><th>设备 / 用途</th><th>型号 / 序列号</th><th>容量</th><th>读 / 写</th><th>IOPS / 延迟</th><th>利用率 / 队列</th><th>温度 / 寿命</th><th>状态</th></tr></thead>
+                <tbody id="disks"><tr><td colspan="8" class="loading">请选择节点…</td></tr></tbody></table>
+            </div>
+          </article>
+        </section>
+
+        <section id="view-clients" class="view" data-title="JuiceFS 客户端" data-eyebrow="JUICEFS-PROD / 客户端状态">
+          <div id="clients-content" class="detail-grid"><p class="loading">加载客户端…</p></div>
+        </section>
+
+        <section id="view-tikv" class="view" data-title="TiKV / PD" data-eyebrow="JUICEFS-PROD / 元数据引擎">
+          <div id="tikv-content" class="detail-grid"><p class="loading">加载 TiKV / PD…</p></div>
+        </section>
+
+        <section id="view-ceph" class="view" data-title="Ceph 数据引擎" data-eyebrow="JUICEFS-PROD / 对象存储">
+          <div id="ceph-content" class="detail-grid"><p class="loading">加载 Ceph…</p></div>
+        </section>
+
+        <section id="view-usage" class="view" data-title="容量与用量" data-eyebrow="JUICEFS-PROD / 逻辑与物理容量">
+          <div id="usage-content" class="detail-grid"><p class="loading">加载容量…</p></div>
+        </section>
+
+        <section id="view-directories" class="view" data-title="三级目录用量" data-eyebrow="JUICEFS-PROD / SQLITE 快照">
+          <article class="panel">
+            <div class="panel-title"><div><span>授权根目录</span><small>总量完整；每个目录展示top 100大项及其余项聚合，页面不直接扫描文件系统</small></div><div id="admin-root-selector" class="segmented root-selector"></div></div>
+            <div id="admin-usage-content" class="namespace-layout"><p class="loading">加载目录快照…</p></div>
+          </article>
+        </section>
+
+        <section id="view-alerts" class="view" data-title="当前告警" data-eyebrow="JUICEFS-PROD / 只读告警">
+          <article class="panel"><div class="panel-title"><div><span>活动告警</span><small>告警只提示，不自动执行修复</small></div></div><div id="alerts-content" class="alert-list"><p class="loading">加载告警…</p></div></article>
+        </section>
+
+        <p id="error" class="error" hidden></p>
+      </main>
+    </div>
+    <script src="/app.js" defer></script>
+  </body>
+</html>

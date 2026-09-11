@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+OUT_DIR=/var/lib/juicefs-node-exporter/textfile
+OUT_FILE=$OUT_DIR/nvme.prom
+[[ $EUID -eq 0 ]] || { printf 'must run as root\n' >&2; exit 1; }
+[[ -d "$OUT_DIR" && ! -L "$OUT_DIR" ]] || { printf 'invalid output directory\n' >&2; exit 1; }
+
+work=$(mktemp -d /tmp/jfsportal-nvme.XXXXXX)
+out_tmp=$(mktemp "$OUT_DIR/.nvme.prom.XXXXXX")
+cleanup() {
+  [[ "$work" == /tmp/jfsportal-nvme.* ]] && rm -rf -- "$work"
+  if [[ -n "${out_tmp:-}" && "$out_tmp" == "$OUT_DIR"/.nvme.prom.* ]]; then
+    rm -f -- "$out_tmp"
+  fi
+}
+trap cleanup EXIT
+
+devices=()
+for controller in /sys/class/nvme/nvme0 /sys/class/nvme/nvme1 /sys/class/nvme/nvme2 /sys/class/nvme/nvme3; do
+  [[ -d "$controller" ]] || { printf 'missing expected controller: %s\n' "$controller" >&2; exit 1; }
+  device=/dev/$(basename -- "$controller")
+  [[ -c "$device" ]] || { printf 'missing controller device: %s\n' "$device" >&2; exit 1; }
+  /usr/sbin/nvme smart-log -o json "$device" >"$work/$(basename -- "$device").json"
+  devices+=("$device")
+done
+
+/usr/bin/python3 - "$work" "${devices[@]}" >"$out_tmp" <<'PY'
+import json
+import pathlib
+import sys
+
+work = pathlib.Path(sys.argv[1])
+devices = sys.argv[2:]
+
+
+def scalar(data, *names):
+    for name in names:
+        if name in data:
+            value = data[name]
+            if isinstance(value, dict):
+                for nested in ("value", "raw"):
+                    if nested in value:
+                        value = value[nested]
+                        break
+            if isinstance(value, str):
+                value = value.strip().replace(",", "")
+                return int(value, 0)
+            return int(value)
+    raise KeyError("/".join(names))
+
+
+def label(value):
+    return str(value).replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ").strip()
+
+
+print("# HELP jfsportal_nvme_info Static NVMe controller information.")
+print("# TYPE jfsportal_nvme_info gauge")
+print("# HELP jfsportal_nvme_temperature_celsius NVMe composite temperature in Celsius.")
+print("# TYPE jfsportal_nvme_temperature_celsius gauge")
+print("# HELP jfsportal_nvme_available_spare_ratio Remaining available spare as a ratio.")
+print("# TYPE jfsportal_nvme_available_spare_ratio gauge")
+print("# HELP jfsportal_nvme_percentage_used_ratio Estimated endurance consumed as a ratio.")
+print("# TYPE jfsportal_nvme_percentage_used_ratio gauge")
+print("# HELP jfsportal_nvme_media_errors_total Unrecovered data integrity errors reported by the controller.")
+print("# TYPE jfsportal_nvme_media_errors_total counter")
+print("# HELP jfsportal_nvme_unsafe_shutdowns_total Unsafe shutdown count reported by the controller.")
+print("# TYPE jfsportal_nvme_unsafe_shutdowns_total counter")
+print("# HELP jfsportal_nvme_critical_warning NVMe SMART critical warning bit mask.")
+print("# TYPE jfsportal_nvme_critical_warning gauge")
+
+for device_path in devices:
+    device = pathlib.Path(device_path).name
+    with (work / f"{device}.json").open(encoding="utf-8") as handle:
+        data = json.load(handle)
+    sysfs = pathlib.Path("/sys/class/nvme") / device
+    model = label((sysfs / "model").read_text(encoding="utf-8"))
+    serial = label((sysfs / "serial").read_text(encoding="utf-8"))
+    labels = f'device="{label(device)}",model="{model}",serial="{serial}"'
+    temperature = scalar(data, "temperature")
+    if temperature > 200:
+        temperature -= 273.15
+    spare = scalar(data, "avail_spare", "available_spare") / 100.0
+    used = scalar(data, "percent_used", "percentage_used") / 100.0
+    media_errors = scalar(data, "media_errors")
+    unsafe_shutdowns = scalar(data, "unsafe_shutdowns")
+    critical_warning = scalar(data, "critical_warning")
+    print(f"jfsportal_nvme_info{{{labels}}} 1")
+    print(f"jfsportal_nvme_temperature_celsius{{{labels}}} {temperature:g}")
+    print(f"jfsportal_nvme_available_spare_ratio{{{labels}}} {spare:g}")
+    print(f"jfsportal_nvme_percentage_used_ratio{{{labels}}} {used:g}")
+    print(f"jfsportal_nvme_media_errors_total{{{labels}}} {media_errors}")
+    print(f"jfsportal_nvme_unsafe_shutdowns_total{{{labels}}} {unsafe_shutdowns}")
+    print(f"jfsportal_nvme_critical_warning{{{labels}}} {critical_warning}")
+PY
+
+[[ -s "$out_tmp" ]] || { printf 'empty collector output\n' >&2; exit 1; }
+chown root:jfsnode "$out_tmp"
+chmod 0644 "$out_tmp"
+mv -f -- "$out_tmp" "$OUT_FILE"
+out_tmp=
+printf 'NVME_COLLECT_PASS devices=%s output=%s\n' "${#devices[@]}" "$OUT_FILE"

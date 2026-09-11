@@ -1,0 +1,34 @@
+[Unit]
+Description=JuiceFS portal NVMe SMART collector
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/opt/juicefs-portal/bin/collect-nvme-metrics
+
+CPUQuota=20%
+MemoryAccounting=true
+MemoryMax=128M
+IOAccounting=true
+IOWeight=10
+TasksMax=32
+Nice=10
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX
+ReadWritePaths=/var/lib/juicefs-node-exporter/textfile
+DevicePolicy=closed
+DeviceAllow=/dev/nvme0 r
+DeviceAllow=/dev/nvme1 r
+DeviceAllow=/dev/nvme2 r
+DeviceAllow=/dev/nvme3 r

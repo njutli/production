@@ -1,0 +1,47 @@
+[Unit]
+Description=JuiceFS portal dedicated namespace summary control mount
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=jfsportal
+Group=jfsportal
+EnvironmentFile=/etc/juicefs-portal/namespace.env
+Environment=HOME=/var/lib/juicefs-portal/namespace-runtime
+ExecStart=/opt/juicefs-portal/bin/juicefs-ro mount --atime-mode noatime --cache-size 0 --backup-meta 0 --max-fuse-io 256K --log /dev/stderr ${JFS_META} /var/lib/juicefs-portal/namespace-mount
+ExecStop=/opt/juicefs-portal/bin/juicefs-ro umount /var/lib/juicefs-portal/namespace-mount
+Restart=no
+TimeoutStartSec=60s
+TimeoutStopSec=60s
+UMask=0027
+
+CPUQuota=20%
+MemoryAccounting=true
+MemoryMax=256M
+MemorySwapMax=0
+IOAccounting=true
+IOWeight=10
+TasksMax=64
+Nice=10
+
+# Mount must be visible outside this service, so filesystem namespace isolation
+# directives such as ProtectSystem/PrivateTmp are intentionally not used here.
+DevicePolicy=closed
+DeviceAllow=/dev/fuse rw
+# On systemd 249 both RestrictAddressFamilies= and LockPersonality=true imply
+# NoNewPrivileges=1, which prevents the setuid fusermount3 helper from mounting.
+# Destination IP filtering and /dev/fuse device filtering remain enforced.
+IPAddressDeny=any
+IPAddressAllow=10.20.1.150/32
+IPAddressAllow=10.20.1.151/32
+IPAddressAllow=10.20.1.152/32
+# JuiceFS uses direct RADOS for data, so the mount also needs the Ceph
+# public/client addresses.  Do not allow the 10.3.2.0/24 cluster network.
+IPAddressAllow=10.3.1.6/32
+IPAddressAllow=10.3.1.7/32
+IPAddressAllow=10.3.1.8/32
+StandardOutput=journal
+StandardError=journal
+LogRateLimitIntervalSec=30s
+LogRateLimitBurst=200

@@ -4,6 +4,7 @@
 > 创建日期：2026-09-10
 > 实施目录：`/home/lilingfeng/demo/production/juicefs-cluster-portal`
 > 当前范围：方案设计，不执行部署、不修改现有集群
+> 范围调整：2026-09-10起文件/目录查询和普通用户门户延期到T09；T09现只恢复“完整总量+每目录top 100大项”，使用与Portal隔离的专用目录统计控制挂载。
 
 ## 1. 建设目标
 
@@ -78,8 +79,8 @@ Nginx / 统一认证入口
     │           ├── Node Exporter
     │           └── SMART/NVMe metrics
     │
-    └── JuiceFS 专用只读挂载
-          └── 文件和目录查询
+    └── JuiceFS 专用目录统计控制挂载
+          └── summary采集 → SQLite（总量完整、每目录top 100）
 ```
 
 ### 3.2 推荐组件
@@ -293,7 +294,7 @@ TiKV：
 
 Namespace API 必须：
 
-- 使用专用 JuiceFS 只读挂载；
+- 使用专用 JuiceFS 目录统计控制挂载；`summary`要求内核rw，但挂载不含`allow_other/allow_root`，Portal进程不可访问；
 - 标准化路径并拒绝 `..` 越界；
 - 防止符号链接跳出授权根目录；
 - 不向浏览器暴露 META URL、TiKV 地址或 Ceph 凭据；
@@ -308,7 +309,7 @@ Namespace API 必须：
 
 - 从每个挂载客户端的 Prometheus `/metrics` 采集运行指标；
 - 定期运行只读 `juicefs status` 获取卷和会话状态；
-- 文件及目录查询只通过专用只读挂载；
+- 三级目录总量由专用控制挂载上的固定`summary`任务采集到SQLite；页面只读SQLite，每目录明细限top 100及其余项聚合；
 - 禁止直接查询或解析 TiKV 内部键值结构。
 
 ### 7.2 TiKV/PD

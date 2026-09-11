@@ -1,0 +1,12 @@
+[Unit]
+Description=Run JuiceFS portal NVMe SMART collection every five minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+RandomizedDelaySec=30s
+AccuracySec=10s
+Unit=juicefs-nvme-collector.service
+
+[Install]
+WantedBy=timers.target

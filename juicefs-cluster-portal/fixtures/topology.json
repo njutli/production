@@ -1,0 +1,17 @@
+{
+  "nodes": [
+    {"id": "client-157", "kind": "client", "label": "JuiceFS client 157", "status": "healthy"},
+    {"id": "volume-prod", "kind": "volume", "label": "juicefs-prod", "status": "healthy"},
+    {"id": "pd-cluster", "kind": "pd", "label": "PD ×3", "status": "healthy", "detail": "leader: 150"},
+    {"id": "tikv-cluster", "kind": "tikv", "label": "TiKV ×3", "status": "healthy"},
+    {"id": "ceph-pool", "kind": "pool", "label": "juicefs-data · EC 4+2", "status": "healthy"},
+    {"id": "osd-cluster", "kind": "osd", "label": "OSD ×6 · NVMe ×6", "status": "healthy"}
+  ],
+  "edges": [
+    {"from": "client-157", "to": "volume-prod", "relation": "mounts"},
+    {"from": "volume-prod", "to": "pd-cluster", "relation": "metadata"},
+    {"from": "pd-cluster", "to": "tikv-cluster", "relation": "stores"},
+    {"from": "volume-prod", "to": "ceph-pool", "relation": "data"},
+    {"from": "ceph-pool", "to": "osd-cluster", "relation": "places"}
+  ]
+}

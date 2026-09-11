@@ -1,0 +1,45 @@
+[Unit]
+Description=JuiceFS portal Grafana
+After=network-online.target juicefs-prometheus.service
+Wants=network-online.target juicefs-prometheus.service
+
+[Service]
+Type=simple
+User=jfsportal
+Group=jfsportal
+EnvironmentFile=/etc/juicefs-portal/grafana.env
+WorkingDirectory=/opt/juicefs-portal/grafana
+ExecStart=/opt/juicefs-portal/grafana/bin/grafana server --homepath=/opt/juicefs-portal/grafana --config=/etc/juicefs-portal/grafana/grafana.ini
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30s
+
+CPUQuota=50%
+MemoryAccounting=true
+MemoryMax=1G
+IOAccounting=true
+IOWeight=10
+TasksMax=256
+LimitNOFILE=65536
+Nice=10
+
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+ReadOnlyPaths=/opt/juicefs-portal /etc/juicefs-portal
+ReadWritePaths=/var/lib/juicefs-portal/grafana /var/log/juicefs-portal/grafana
+
+[Install]
+WantedBy=multi-user.target

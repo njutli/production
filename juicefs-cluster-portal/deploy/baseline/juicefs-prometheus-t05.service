@@ -1,0 +1,44 @@
+[Unit]
+Description=JuiceFS portal Prometheus
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=jfsportal
+Group=jfsportal
+ExecStart=/opt/juicefs-portal/bin/prometheus --config.file=/etc/juicefs-portal/prometheus/prometheus.yml --storage.tsdb.path=/var/lib/juicefs-portal/prometheus --storage.tsdb.retention.time=14d --storage.tsdb.retention.size=30GB --web.listen-address=127.0.0.1:9090
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30s
+
+CPUQuota=200%
+MemoryAccounting=true
+MemoryMax=6G
+IOAccounting=true
+IOWeight=10
+TasksMax=512
+LimitNOFILE=65536
+Nice=10
+
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+ReadOnlyPaths=/opt/juicefs-portal /etc/juicefs-portal
+ReadWritePaths=/var/lib/juicefs-portal/prometheus
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,42 @@
+[Unit]
+Description=JuiceFS portal namespace snapshot collector
+Requisite=juicefs-namespace-mount.service
+After=juicefs-namespace-mount.service
+
+[Service]
+Type=oneshot
+User=jfsportal
+Group=jfsportal
+# systemd 249 did not recognize the live JuiceFS FUSE mount through
+# ConditionPathIsMountPoint=.  Use findmnt's exact mountpoint selector instead;
+# a missing mount skips this oneshot without replacing the last good snapshot.
+ExecCondition=/usr/bin/findmnt -rn -M /var/lib/juicefs-portal/namespace-mount
+ExecStart=/opt/juicefs-portal/bin/juicefs-namespace-collector -config /etc/juicefs-portal/namespace-roots.json -db /var/lib/juicefs-portal/portal/namespace.db -juicefs /opt/juicefs-portal/bin/juicefs-ro -timeout 15s -allow-writable-roots
+TimeoutStartSec=30s
+UMask=0027
+
+CPUQuota=20%
+MemoryAccounting=true
+MemoryMax=192M
+MemorySwapMax=0
+IOAccounting=true
+IOWeight=10
+TasksMax=64
+Nice=10
+
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_UNIX
+IPAddressDeny=any
+ReadOnlyPaths=/opt/juicefs-portal /etc/juicefs-portal
+ReadWritePaths=/var/lib/juicefs-portal/portal /var/lib/juicefs-portal/namespace-mount

@@ -2,6 +2,7 @@
 
 > 目标节点：`10.20.1.152（ceph-node3）`
 > 约束：只读管理面；数据和指标不落入 TiKV、Ceph OSD、DB/WAL 或 JuiceFS 业务路径
+> 当前范围：管理员监控MVP及T09“三级递归总量完整、每个目录top 100大项”均已部署；Portal只能读取SQLite快照，完整文件明细浏览仍延期。
 
 ## 1. 阶段0：冻结边界与只读盘点
 
@@ -51,7 +52,7 @@ juicefs-cluster-portal/
 
 ## 3. 阶段2：152基础运行环境
 
-在152系统盘建立专用目录：
+在152系统盘建立专用目录。T04决定采用分段部署：T05先只启动loopback基础服务；外部HTTPS入口推迟到T08认证完成时开放。
 
 ```text
 /opt/juicefs-portal/              # 程序与只读静态资源
@@ -61,7 +62,6 @@ juicefs-cluster-portal/
 ├── grafana/
 └── portal/                       # 用户/RBAC配置
 /var/log/juicefs-portal/          # 有轮转和容量上限
-/mnt/juicefs-portal-ro/           # 专用只读挂载点
 ```
 
 创建专用系统账户`jfsportal`，不加入sudo组，不授予业务目录写权限。
@@ -70,10 +70,11 @@ juicefs-cluster-portal/
 
 | 服务 | 地址 | 外部是否直接可见 |
 |---|---|---|
-| Nginx | `10.20.1.152:443` | 管理网可见 |
 | Portal API | `127.0.0.1:8080` | 否 |
 | Grafana | `127.0.0.1:3000` | 否 |
 | Prometheus | `127.0.0.1:9090` | 否 |
+
+T05～T08不安装Nginx；T08只在152管理IP开放TLS 8443，systemd除loopback和152自身健康验收外只允许157外部来源，用户经现有`thailand` SSH隧道访问。可信证书与更广管理网入口留到T11正式交付前单独审批。
 
 systemd/cgroup上限：
 
@@ -142,13 +143,15 @@ systemd/cgroup上限：
 
 ## 7. 阶段6：只读文件浏览和用量
 
-1. 在152建立专用JuiceFS只读挂载，不复用业务挂载。
+> 状态：`IN_PROGRESS`。当前只实现授权根三级递归用量快照；文件明细浏览、内容预览和下载继续延期。
+
+1. 在152建立专用JuiceFS控制挂载，不复用业务挂载；因`summary`控制请求需要打开`.control`，内核标志为rw，但禁止`allow_other/allow_root`并使用JuiceFS参数`--atime-mode noatime`。
 2. 禁止内容预览、下载和全部写操作。
 3. 每个用户绑定允许访问的根路径及UID/GID。
 4. API执行路径规范化、`..`拒绝、符号链接逃逸防护和分页。
 5. 每页最多200项、全局最多4个并发目录请求、单用户每秒最多5次。
 6. 当前目录缓存5～10秒，只刷新打开目录。
-7. 用量优先读取JuiceFS目录/UID/GID统计；不具备快速统计时使用低频异步任务。
+7. 用量读取JuiceFS DirStats：总量覆盖全部后代，每个目录仅展示top 100直接子项和一个其余项聚合，不承诺完整文件清单。
 8. 禁止页面刷新触发递归`find`、`du`或严格`summary`。
 
 ## 8. 阶段7：低扰动和安全验收
@@ -180,6 +183,6 @@ systemd/cgroup上限：
 - 配置管理网防火墙端口；
 - 启用Ceph mgr Prometheus模块并创建只读CephX身份；
 - 在150～152/157安装和启动受限exporter；
-- 创建152上的JuiceFS只读挂载服务。
+- 创建152上的JuiceFS专用目录统计控制挂载服务。
 
 任何磁盘格式化、LVM、loop、Ceph Pool修改、OSD操作、TiKV重启、生产挂载重挂和数据删除都不属于本方案授权范围。

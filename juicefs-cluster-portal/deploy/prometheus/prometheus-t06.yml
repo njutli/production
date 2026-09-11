@@ -1,0 +1,81 @@
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: juicefs-prod
+    monitor: portal-152
+
+scrape_configs:
+  - job_name: prometheus
+    scrape_interval: 30s
+    static_configs:
+      - targets: [127.0.0.1:9090]
+
+  - job_name: juicefs-client
+    scrape_interval: 10s
+    static_configs:
+      - targets: [10.20.1.157:9633]
+        labels:
+          node: "157"
+          component: juicefs-client
+          volume: juicefs-prod
+          mountpoint: /mnt/juicefs
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        action: keep
+        regex: 'juicefs_(fuse_(ops_total|ops_durations_histogram_seconds_(bucket|count|sum)|read_size_bytes_(count|sum)|written_size_bytes_(count|sum))|object_(request_data_bytes|request_durations_histogram_seconds_(bucket|count|sum)|request_errors)|blockcache_(bytes|hit_bytes|miss_bytes|evicts|drops)|used_(space|inodes|buffer_size_bytes|read_buffer_size_bytes)|staging_(blocks|block_bytes|writing_blocks)|uptime|process_(cpu_seconds_total|resident_memory_bytes))'
+
+  - job_name: pd
+    scrape_interval: 15s
+    static_configs:
+      - targets: [10.20.1.150:2379]
+        labels: {node: "150", component: pd}
+      - targets: [10.20.1.151:2379]
+        labels: {node: "151", component: pd}
+      - targets: [10.20.1.152:2379]
+        labels: {node: "152", component: pd}
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        action: keep
+        regex: '(etcd_server_(has_leader|is_leader)|pd_(cluster_(status|store_sync)|regions_(status|offline_status)|scheduler_(hot_.*|.*heartbeat.*)))'
+
+  - job_name: tikv
+    scrape_interval: 15s
+    static_configs:
+      - targets: [10.20.1.150:20180]
+        labels: {node: "150", component: tikv}
+      - targets: [10.20.1.151:20180]
+        labels: {node: "151", component: tikv}
+      - targets: [10.20.1.152:20180]
+        labels: {node: "152", component: tikv}
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        action: keep
+        regex: '(process_(cpu_seconds_total|resident_memory_bytes)|tikv_(server_(info|cpu_cores_quota)|pd_(heartbeat_message_total|pending_heartbeat_total|reconnect_total|request_duration_seconds_(bucket|count|sum))|grpc_msg_duration_seconds_(bucket|count|sum)|scheduler_(command_duration_seconds_(bucket|count|sum)|latch_wait_duration_seconds_(bucket|count|sum))|storage_(engine_async_request_duration_seconds_(bucket|count|sum)|command_total)|raftstore_(append_log_duration_seconds_(bucket|count|sum)|commit_log_duration_seconds_(bucket|count|sum)|apply_duration_secs_(bucket|count|sum)|raft_log_kv_sync_duration_secs_(bucket|count|sum)|region_count|leader_missing)|engine_(size_bytes|block_cache_size_bytes|cache_efficiency|pending_compaction_bytes|compaction_flow_bytes|num_files_at_level|num_immutable_mem_table|write_stall|write_stall_reason|stall_micro_seconds|wal_file_sync_micro_seconds|write_wal_time_micro_seconds)))'
+
+  - job_name: node
+    scrape_interval: 10s
+    static_configs:
+      - targets: [10.20.1.150:9100]
+        labels: {node: "150", component: host}
+      - targets: [10.20.1.151:9100]
+        labels: {node: "151", component: host}
+      - targets: [10.20.1.152:9100]
+        labels: {node: "152", component: host}
+      - targets: [10.20.1.157:9100]
+        labels: {node: "157", component: host}
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        action: keep
+        regex: '(node_(cpu_seconds_total|memory_MemAvailable_bytes|network_(receive|transmit)_bytes_total|filesystem_(size|avail)_bytes|disk_(read_bytes_total|written_bytes_total|reads_completed_total|writes_completed_total|read_time_seconds_total|write_time_seconds_total|io_time_seconds_total|io_time_weighted_seconds_total|io_now|info)|uname_info|time_seconds)|jfsportal_nvme_.*)'
+
+  - job_name: ceph
+    scrape_interval: 15s
+    static_configs:
+      - targets: [10.20.1.150:9283, 10.20.1.151:9283]
+        labels: {component: ceph-mgr}
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        action: keep
+        regex: 'ceph_(health_status|mon_quorum_status|mgr_.*|osd_.*|pg_.*|cluster_.*|pool_.*|daemon_metadata|disk_occupation_human)'
