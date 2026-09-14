@@ -1,5 +1,31 @@
 const byId = (id) => document.getElementById(id);
-const state = { view: "overview", node: "150", namespaceRoot: "", refreshing: false, identity: null, refreshTimer: null };
+const state = {
+  view: "overview",
+  node: "150",
+  namespaceRoot: "",
+  refreshing: false,
+  identity: null,
+  refreshTimer: null,
+  bandwidthTimer: null,
+  bandwidthRange: "1h",
+  bandwidthRequestId: 0,
+  bandwidthSeries: [],
+  bandwidthWindow: null,
+};
+
+const bandwidthRanges = {
+  "15m": { seconds: 15 * 60, step: 15 },
+  "1h": { seconds: 60 * 60, step: 30 },
+  "6h": { seconds: 6 * 60 * 60, step: 120 },
+  "24h": { seconds: 24 * 60 * 60, step: 300 },
+};
+
+const bandwidthMetrics = [
+  { id: "jfs.fuse.read_bps", label: "JuiceFS逻辑读", className: "series-jfs-read" },
+  { id: "jfs.fuse.write_bps", label: "JuiceFS逻辑写", className: "series-jfs-write" },
+  { id: "ceph.pool.read_bps", label: "Ceph物理读", className: "series-ceph-read" },
+  { id: "ceph.pool.write_bps", label: "Ceph物理写", className: "series-ceph-write" },
+];
 
 const escapeHtml = (value) => String(value ?? "—")
   .replaceAll("&", "&amp;")
@@ -76,6 +102,11 @@ function stopRefreshTimer() {
     clearInterval(state.refreshTimer);
     state.refreshTimer = null;
   }
+  if (state.bandwidthTimer !== null) {
+    clearInterval(state.bandwidthTimer);
+    state.bandwidthTimer = null;
+  }
+  state.bandwidthRequestId += 1;
 }
 
 function showLogin(message = "") {
@@ -112,6 +143,8 @@ function showAdmin(identity) {
   stopRefreshTimer();
   refresh();
   state.refreshTimer = setInterval(refresh, 5000);
+  refreshBandwidthChart();
+  state.bandwidthTimer = setInterval(refreshBandwidthChart, 30000);
 }
 
 function applyIdentity(identity) {
@@ -199,6 +232,125 @@ function renderOverview(payload) {
     const normal = Number.isFinite(healthyCount) && Number.isFinite(item.total) && healthyCount === item.total;
     return `<div class="component"><div><strong>${escapeHtml(name.toUpperCase())}</strong><small>${healthyCount ?? "—"} / ${item.total ?? "—"}</small></div>${badge(normal ? "healthy" : "warning")}</div>`;
   }).join("");
+}
+
+function niceBandwidthCeiling(value) {
+  const minimum = 1e6;
+  const raw = Math.max(minimum, value * 1.08);
+  const power = 10 ** Math.floor(Math.log10(raw));
+  const fraction = raw / power;
+  const nice = fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 5 ? 5 : 10;
+  return nice * power;
+}
+
+function formatChartTime(epoch, includeDate = false) {
+  const value = new Date(epoch * 1000);
+  const options = includeDate
+    ? { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }
+    : { hour: "2-digit", minute: "2-digit", hour12: false };
+  return new Intl.DateTimeFormat("zh-CN", options).format(value);
+}
+
+function renderBandwidthChart(series, fromEpoch, toEpoch) {
+  const svg = byId("bandwidth-svg");
+  const width = 1000;
+  const height = 320;
+  const padding = { left: 76, right: 22, top: 18, bottom: 38 };
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+  const values = series.flatMap((item) => item.points.map((point) => point[1])).filter(Number.isFinite);
+  const yMax = niceBandwidthCeiling(values.length > 0 ? Math.max(...values) : 0);
+  const x = (epoch) => padding.left + ((epoch - fromEpoch) / Math.max(1, toEpoch - fromEpoch)) * plotWidth;
+  const y = (value) => padding.top + (1 - Math.max(0, value) / yMax) * plotHeight;
+
+  const horizontal = Array.from({ length: 5 }, (_, index) => {
+    const ratio = index / 4;
+    const ypos = padding.top + ratio * plotHeight;
+    const label = formatRate(yMax * (1 - ratio));
+    return `<line class="chart-grid" x1="${padding.left}" y1="${ypos}" x2="${width - padding.right}" y2="${ypos}"></line><text class="chart-axis-label" x="${padding.left - 10}" y="${ypos + 4}" text-anchor="end">${escapeHtml(label)}</text>`;
+  }).join("");
+  const includeDate = toEpoch - fromEpoch > 12 * 60 * 60;
+  const vertical = Array.from({ length: 5 }, (_, index) => {
+    const ratio = index / 4;
+    const xpos = padding.left + ratio * plotWidth;
+    const epoch = fromEpoch + ratio * (toEpoch - fromEpoch);
+    return `<line class="chart-grid vertical" x1="${xpos}" y1="${padding.top}" x2="${xpos}" y2="${height - padding.bottom}"></line><text class="chart-axis-label" x="${xpos}" y="${height - 12}" text-anchor="middle">${escapeHtml(formatChartTime(epoch, includeDate))}</text>`;
+  }).join("");
+  const paths = series.map((item) => {
+    const visible = item.points.filter((point) => point[0] >= fromEpoch && point[0] <= toEpoch && Number.isFinite(point[1]));
+    const path = visible.map((point, index) => `${index === 0 ? "M" : "L"}${x(point[0]).toFixed(1)},${y(point[1]).toFixed(1)}`).join(" ");
+    return path ? `<path class="chart-series ${item.className}" d="${path}"></path>` : "";
+  }).join("");
+
+  svg.innerHTML = `${horizontal}${vertical}<line id="bandwidth-hover-line" class="chart-hover-line" x1="0" y1="${padding.top}" x2="0" y2="${height - padding.bottom}" hidden></line>${paths}`;
+  state.bandwidthSeries = series;
+  state.bandwidthWindow = { fromEpoch, toEpoch, width, padding, plotWidth };
+}
+
+function nearestPoint(points, epoch) {
+  if (points.length === 0) return null;
+  let low = 0;
+  let high = points.length - 1;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    if (points[middle][0] < epoch) low = middle + 1; else high = middle;
+  }
+  if (low > 0 && Math.abs(points[low - 1][0] - epoch) < Math.abs(points[low][0] - epoch)) return points[low - 1];
+  return points[low];
+}
+
+function showBandwidthTooltip(event) {
+  if (!state.bandwidthWindow || state.bandwidthSeries.length === 0) return;
+  const svg = byId("bandwidth-svg");
+  const rect = svg.getBoundingClientRect();
+  const viewX = ((event.clientX - rect.left) / Math.max(1, rect.width)) * state.bandwidthWindow.width;
+  const clampedX = Math.min(state.bandwidthWindow.padding.left + state.bandwidthWindow.plotWidth, Math.max(state.bandwidthWindow.padding.left, viewX));
+  const ratio = (clampedX - state.bandwidthWindow.padding.left) / state.bandwidthWindow.plotWidth;
+  const epoch = state.bandwidthWindow.fromEpoch + ratio * (state.bandwidthWindow.toEpoch - state.bandwidthWindow.fromEpoch);
+  const values = state.bandwidthSeries.map((item) => ({ ...item, point: nearestPoint(item.points, epoch) }));
+  const observedEpoch = values.find((item) => item.point)?.point?.[0] || epoch;
+  const tooltip = byId("bandwidth-tooltip");
+  tooltip.innerHTML = `<strong>${escapeHtml(formatChartTime(observedEpoch, true))}</strong>${values.map((item) => `<span class="${item.className}">${escapeHtml(item.label)}：${escapeHtml(item.point ? formatRate(item.point[1]) : "—")}</span>`).join("")}`;
+  tooltip.hidden = false;
+  const tooltipLeft = Math.min(rect.width - 210, Math.max(8, event.clientX - rect.left + 14));
+  tooltip.style.left = `${tooltipLeft}px`;
+  tooltip.style.top = "12px";
+  const hoverLine = byId("bandwidth-hover-line");
+  hoverLine.hidden = false;
+  hoverLine.setAttribute("x1", clampedX);
+  hoverLine.setAttribute("x2", clampedX);
+}
+
+function hideBandwidthTooltip() {
+  byId("bandwidth-tooltip").hidden = true;
+  const hoverLine = byId("bandwidth-hover-line");
+  if (hoverLine) hoverLine.hidden = true;
+}
+
+async function refreshBandwidthChart() {
+  if (state.identity?.role !== "ADMIN" || state.view !== "overview") return;
+  const requestId = ++state.bandwidthRequestId;
+  const range = bandwidthRanges[state.bandwidthRange];
+  const to = new Date();
+  const from = new Date(to.getTime() - range.seconds * 1000);
+  const status = byId("bandwidth-chart-status");
+  status.textContent = "正在加载历史带宽…";
+  try {
+    const payloads = await Promise.all(bandwidthMetrics.map((metric) => {
+      const query = new URLSearchParams({ metric: metric.id, from: from.toISOString(), to: to.toISOString(), step: String(range.step) });
+      return api(`/api/v1/admin/timeseries?${query}`);
+    }));
+    if (requestId !== state.bandwidthRequestId) return;
+    const series = bandwidthMetrics.map((metric, index) => ({
+      ...metric,
+      points: (payloads[index].data?.points || []).map((point) => [Number(point[0]), Number(point[1])]).filter((point) => Number.isFinite(point[0]) && Number.isFinite(point[1])),
+    }));
+    renderBandwidthChart(series, from.getTime() / 1000, to.getTime() / 1000);
+    status.textContent = `Prometheus历史样本 · ${range.step}秒步长 · 每30秒刷新 · 更新于 ${formatChartTime(to.getTime() / 1000, true)}`;
+  } catch (cause) {
+    if (requestId !== state.bandwidthRequestId) return;
+    status.textContent = `历史带宽加载失败：${cause.message}`;
+  }
 }
 
 function findNode(nodes, id) {
@@ -446,10 +598,14 @@ function switchView(view) {
   byId("page-title").textContent = section.dataset.title;
   byId("page-eyebrow").textContent = section.dataset.eyebrow;
   refresh();
+  if (view === "overview") refreshBandwidthChart();
 }
 
 document.querySelectorAll(".nav-item").forEach((item) => item.addEventListener("click", () => switchView(item.dataset.view)));
-byId("refresh").addEventListener("click", refresh);
+byId("refresh").addEventListener("click", () => {
+  refresh();
+  refreshBandwidthChart();
+});
 byId("login-form").addEventListener("submit", login);
 document.querySelectorAll(".logout").forEach((button) => button.addEventListener("click", logout));
 byId("user-refresh").addEventListener("click", refreshUserUsage);
@@ -467,5 +623,14 @@ byId("node-selector").addEventListener("click", (event) => {
   byId("node-selector").querySelectorAll("button").forEach((item) => item.classList.toggle("active", item === button));
   refresh();
 });
+byId("bandwidth-range").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-range]");
+  if (!button || !bandwidthRanges[button.dataset.range] || button.dataset.range === state.bandwidthRange) return;
+  state.bandwidthRange = button.dataset.range;
+  byId("bandwidth-range").querySelectorAll("button").forEach((item) => item.classList.toggle("active", item === button));
+  refreshBandwidthChart();
+});
+byId("bandwidth-svg").addEventListener("pointermove", showBandwidthTooltip);
+byId("bandwidth-svg").addEventListener("pointerleave", hideBandwidthTooltip);
 
 restoreSession();

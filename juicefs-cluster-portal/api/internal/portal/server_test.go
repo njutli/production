@@ -185,8 +185,14 @@ func TestLiveModeNeverServesFixtureData(t *testing.T) {
 
 func TestStaticDashboardIsServed(t *testing.T) {
 	response := request(t, testServer(t), http.MethodGet, "/", "")
-	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "JuiceFS 集群监控") {
+	body := response.Body.String()
+	if response.Code != http.StatusOK || !strings.Contains(body, "JuiceFS 集群监控") {
 		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	for _, required := range []string{"bandwidth-range", "bandwidth-svg", "JuiceFS逻辑读", "Ceph物理写"} {
+		if !strings.Contains(body, required) {
+			t.Fatalf("static dashboard missing %q", required)
+		}
 	}
 }
 

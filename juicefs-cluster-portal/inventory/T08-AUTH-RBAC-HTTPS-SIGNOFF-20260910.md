@@ -42,7 +42,7 @@
 - 更新只执行Portal受管文件替换、`systemctl daemon-reload`及Portal重启；未重启Prometheus、Grafana或业务服务。
 - PD PID=`1589960`、TiKV PID=`2088516`保持不变。
 - `/mnt/jfs-tikv`仍为`/dev/nvme1n1`上的ext4，`/mnt/dbwal`仍为tmpfs；未操作Ceph、JuiceFS、NVMe或业务数据。
-- 首次失败已自动恢复T07，详见`T08-UPDATE-ATTEMPT1-ROLLBACK-SIGNOFF-20260910.md`；修复版执行成功，无待处理运行态异常。
+- 首次失败已自动恢复T07；相关经验已合并到`CURRENT-DEPLOYMENT-ACCEPTANCE-SUMMARY-20260914.md`，修复版执行成功，无待处理运行态异常。
 
 ## 用户后续动作
 

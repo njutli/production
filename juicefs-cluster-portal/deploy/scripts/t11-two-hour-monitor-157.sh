@@ -52,11 +52,15 @@ while :; do
     exit 2
   fi
   sample=$((sample + 1))
-  for minute in 1 2 3 4 5; do
-    sleep 60
-    printf 'T11_MONITOR_HEARTBEAT mode=%s next_sample=%s wait_minute=%s epoch=%s\n' \
-      "$MODE" "$sample" "$minute" "$(date +%s)"
-  done
+  if [[ "$MODE" == two-hour ]]; then
+    for minute in 1 2 3 4 5; do
+      sleep 60
+      printf 'T11_MONITOR_HEARTBEAT mode=%s next_sample=%s wait_minute=%s epoch=%s\n' \
+        "$MODE" "$sample" "$minute" "$(date +%s)"
+    done
+  else
+    sleep 300
+  fi
 done
 
 if [[ $failure_count -eq 0 ]]; then

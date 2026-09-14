@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="JuiceFS、TiKV/PD 与 Ceph 集群只读监控门户">
     <title>JuiceFS 集群监控</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=20260914-bandwidth">
   </head>
   <body>
     <section id="login-screen" class="auth-screen">
@@ -86,6 +86,28 @@
             <article class="metric-card violet"><span>Ceph 物理读</span><strong id="ceph-read">—</strong><small>juicefs-data Pool</small></article>
             <article class="metric-card amber"><span>Ceph 物理写</span><strong id="ceph-write">—</strong><small>EC 后端吞吐</small></article>
           </div>
+          <article class="panel bandwidth-panel">
+            <div class="panel-title">
+              <div><span>读写带宽趋势</span><small>JuiceFS客户端逻辑吞吐与Ceph Pool物理吞吐</small></div>
+              <div id="bandwidth-range" class="segmented chart-range" aria-label="带宽趋势时间范围">
+                <button type="button" data-range="15m">15分钟</button>
+                <button type="button" data-range="1h" class="active">1小时</button>
+                <button type="button" data-range="6h">6小时</button>
+                <button type="button" data-range="24h">24小时</button>
+              </div>
+            </div>
+            <div class="chart-legend" aria-label="带宽曲线图例">
+              <span class="legend-jfs-read">JuiceFS逻辑读</span>
+              <span class="legend-jfs-write">JuiceFS逻辑写</span>
+              <span class="legend-ceph-read">Ceph物理读</span>
+              <span class="legend-ceph-write">Ceph物理写</span>
+            </div>
+            <div id="bandwidth-chart" class="bandwidth-chart">
+              <svg id="bandwidth-svg" viewBox="0 0 1000 320" preserveAspectRatio="none" role="img" aria-label="读写带宽随时间变化曲线"></svg>
+              <div id="bandwidth-tooltip" class="chart-tooltip" hidden></div>
+            </div>
+            <div id="bandwidth-chart-status" class="chart-status" aria-live="polite">正在加载历史带宽…</div>
+          </article>
           <div class="workspace">
             <article class="panel topology-panel">
               <div class="panel-title"><div><span>实时数据路径</span><small>元数据与对象数据路径分开展示</small></div><span class="tag">10 秒刷新</span></div>
@@ -152,6 +174,6 @@
         <p id="error" class="error" hidden></p>
       </main>
     </div>
-    <script src="/app.js" defer></script>
+    <script src="/app.js?v=20260914-bandwidth" defer></script>
   </body>
 </html>

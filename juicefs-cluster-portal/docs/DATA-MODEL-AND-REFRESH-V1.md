@@ -16,6 +16,7 @@
 | `Alert` | `alertId` | severity、objectRef、summary、activeSince、updatedAt、status | 关联任一实体 |
 | `DirectoryUsageRoot` | `rootId` | displayName、logicalBytes、fileCount、dirCount、collectedAt、status | 绑定一个或多个本地账户 |
 | `DirectoryUsageEntry` | `rootId + generation + path` | parentPath、name、kind、depth、recursiveBytes、fileCount、dirCount | 属于一个三级用量快照；kind为directory/file/aggregate，总量完整但每目录具名项限top 100 |
+| `MetricSeries` | `metric + from + to + step` | 白名单语义指标ID、起止时间、步长、`[epoch,value]`点列 | 管理员历史曲线；查询窗口最长31天，当前页面只使用最长24小时 |
 | `SampleMeta` | 内嵌 | source、collectedAt、ageSeconds、freshness、error | 附在所有动态对象上 |
 
 T09只建立目录递归用量快照，不建立文件内容、下载或同步Namespace浏览实体。文件明细继续延期。
@@ -53,8 +54,9 @@ PD/TiKV/MON/MGR/OSD --runs_on--> Node
 | SMART/NVMe | 300 s | 660 s | 30 s |
 | 告警规则 | 15 s | 35 s | SSE 或 5 s |
 | 三级目录用量快照 | 60 s | 180 s | 30 s |
+| JuiceFS/Ceph带宽趋势 | 复用上述Prometheus样本 | 35 s | 30 s；15分钟/1小时/6小时/24小时分别按15/30/120/300秒步长查询 |
 
-页面只调用 Portal API。前端可每 5 秒轮询总览或使用 SSE；不要求 WebSocket。图表默认查询 1 分钟 rate，避免把 counter 瞬时差当带宽。
+页面只调用 Portal API。前端可每 5 秒轮询总览或使用 SSE；不要求 WebSocket。带宽图表通过白名单时序API查询1分钟rate，避免把counter瞬时差当带宽；前端不能直接访问Prometheus或提交任意PromQL。
 
 ## 5. 降级约定
 

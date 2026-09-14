@@ -14,7 +14,7 @@
 
 | 页面 | 必须展示的字段 |
 |---|---|
-| 总览 | 集群总状态；在线/过期客户端数；JuiceFS 逻辑读写带宽；Ceph 物理读写带宽；节点网络带宽；全卷逻辑空间/inode；Ceph pool/raw 用量；PD/TiKV/MON/MGR/OSD/PG 摘要；当前告警；各数据源年龄 |
+| 总览 | 集群总状态；在线/过期客户端数；JuiceFS 逻辑读写带宽；Ceph 物理读写带宽；上述四项带宽的15分钟/1小时/6小时/24小时趋势；节点网络带宽；全卷逻辑空间/inode；Ceph pool/raw 用量；PD/TiKV/MON/MGR/OSD/PG 摘要；当前告警；各数据源年龄 |
 | 拓扑 | client→JuiceFS volume；client→PD/TiKV；client→Ceph pool→OSD→物理盘；PD Leader；MGR Active；TiKV Store、OSD up/in 和客户端在线状态；静态映射与实时状态的来源时间 |
 | 节点与磁盘 | 主机 CPU/内存/网络；设备名、型号、序列号、容量、挂载点、用途；读写带宽、IOPS、平均时延、队列、util；NVMe 温度、寿命、media error、unsafe shutdown；OSD block/DB/WAL 和 TiKV 路径映射 |
 | JuiceFS 客户端 | 主机、挂载点、版本、启动时间/uptime；FUSE 读写吞吐、IOPS和平均延迟；对象 GET/PUT 吞吐、请求率、平均延迟和错误；缓存命中/未命中字节、淘汰/drop；buffer/staging；进程 CPU/内存 |
@@ -42,6 +42,14 @@ T02～T08期间以下内容曾延期；2026-09-11起仅恢复“授权根目录�
 - 门户数据只写 152 系统盘，禁止写入 `/mnt/jfs-tikv`、`/mnt/dbwal` 和任何 Ceph OSD 设备。
 - 页面刷新不触发 SSH、sudo、Ceph CLI、smartctl 或 PD/TiKV 管理命令。
 - 管理面故障只允许造成监控不可见，不能影响 JuiceFS、TiKV/PD 或 Ceph 服务。
+
+## 4.1 2026-09-14带宽趋势增量
+
+- 用户明确批准在管理员总览增加只读带宽曲线，不改变USER权限边界；
+- 前端只调用既有`GET /api/v1/admin/timeseries`白名单接口，不允许提交PromQL；
+- 固定展示JuiceFS逻辑读/写和Ceph Pool物理读/写四项，时间范围限15分钟、1小时、6小时、24小时；
+- 曲线每30秒刷新，分别使用15、30、120、300秒步长，后端仍以1分钟rate计算带宽；
+- 不新增exporter、采集器、挂载、定时任务或集群权限，不改变Prometheus保留策略。
 
 ## 5. T02 冻结规则
 
