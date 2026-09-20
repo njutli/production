@@ -4,21 +4,22 @@
 >
 > 面向：执行方采集原始证据，GPT复算与裁决
 >
-> 状态：`PLANNED / SCRIPTS_NOT_READY / NO_ENVIRONMENT_AUTHORITY`
+> 状态：`COMPLETED / VALID / PHASE_C_SKIPPED_BY_REVIEW / ENVIRONMENT_CLOSED`
 >
 > 上位计划：`doc/perf-analysis/05-block-size-adaptive-performance-comparison-plan.md`
 
 ```text
 04阶段：exact patched v1.4.1与B256/FUSE256/msgr8通用基线已锁定
   ↓
-05-1 Phase A：当前配置只改fio bs，得到randrw标准曲线  ← 你在这里
+05-1 Phase A：当前配置只改fio bs，得到randrw标准曲线  ✅
   ├─ 曲线/状态门失败 → 停止，归因后新RUN
   └─ 有效 → Phase B只对1M/4M筛选FUSE1M
-                 ├─ 无材料信号 → 保持现有挂载参数，任务收口
-                 └─ 有材料信号 → 用户审核后Phase C验证一个卷BlockSize候选
+                 ├─ 4M无材料信号 → 保持现有挂载参数，停止该档
+                 └─ 1M通过L1（最小效应+16.40%）→ 登记专用挂载候选；Phase C经复核跳过
                                       ├─ 无材料信号 → 收口
                                       └─ 有材料信号 → 另授权L2正式确认
-后续：05-2随机纯读/纯写 → 05-3/05-4顺序项 → 05-5导入有方结果汇总
+后续：05-2上传并发/缓冲闸门 → 05-3随机纯读/纯写 → 05-4/05-5顺序项 → 05-6导入有方结果汇总
+（2026-09-15编号顺延，见05阶段计划书§4.1）
 ```
 
 一句话：先测“应用BS本身”，再逐层测“FUSE适配”和“卷BlockSize适配”，不把三者混成一个组合收益。
@@ -108,7 +109,8 @@ randrepeat=1
 
 每个BS获得一个早期点和一个后期点，256K提供首尾漂移锚。整段使用同一挂载、同一数据集，不重挂、不layout、不改变任何JuiceFS参数。
 
-Phase A开始前完成一次既有标准full-clean门；cell之间只检查health、foreign fio、I/O error和必要的TiKV/OSD状态，不主动compact或改变环境。Phase结束后再做写后恢复。这样避免恢复动作与BS档位共线；正反向次序用于量化运行状态累计。
+Phase A开始前完成一次既有标准full-clean门；在每个新RUN的每个cell开始前，先对冻结卷执行一次
+`timeout 1800 env JFS_GC_SKIPPEDTIME=0 juicefs gc --compact --delete --threads 32 <META>`（不使用sudo），随后以10秒间隔执行只读恢复采样，最长等待30分钟。每次必须记录JuiceFS status、Ceph health/PG/OSD、`ceph df`对象与已用量以及三节点TiKV pending-compaction快照；出现连续三次对象数相等、stored极差不超过16 MiB、pending-compaction均为0，且health为`HEALTH_OK`、PG为`active+clean`、OSD全`up/in`后才允许fio。GC刚结束后的非零pending只表示后台债务仍在排空，继续等待而非立即判失败；30分钟内不能形成连续三次稳态才停止。GC超时/失败、任一身份/健康门失败则立即停止并保留现场。该动作不改变scrub flags、不drop_caches、不重建/销毁卷；旧RUN的`RESOLUTION_INSUFFICIENT`证据保持INVALID，不补样改判。Phase结束后再做写后恢复。
 
 有效性规则：
 
@@ -126,7 +128,9 @@ C: --max-fuse-io 256K
 T: --max-fuse-io 1M
 ```
 
-其他挂载参数、fio合同和数据资产完全一致。每个BS独立执行`C→T→T→C`；两个BS之间完成必要的full-clean恢复。04-8已确认FUSE1M不能作为七项通用配置，但该结论不排除它成为大BS randrw专用参数。
+其他挂载参数、fio合同和数据资产完全一致。每个BS独立执行`C→T→T→C`；每个cell的fio前均执行上述卷内GC及三次只读恢复门。`1M`与`4M`之间必须在phase边界重新完成恢复门并获得单独的跨BS ACK，不得连续带着上一档状态债务切换。04-8已确认FUSE1M不能作为七项通用配置，但该结论不排除它成为大BS randrw专用参数。
+
+Phase A与Phase B允许使用不同RUN_ID，但Phase B必须冻结并记录已签收Phase A的源根目录、`phase-a-analysis-final.json`和`phase-a-decision.tsv` SHA256，且验证12个cell无分析错误、256K首尾锚为PASS。这样，Phase B挂载身份采集等执行器问题不会迫使已有效的Phase A重跑；不同RUN的数据不得混作同一位置配对。
 
 通过门：两次配对的READ、WRITE均同向，且四个方向效应中的最小值`>=5%`；fio错误、FUSE请求尺寸、JuiceFS GET/PUT及Ceph完成率不得显示反向机制。未通过即停止，不扫描512K、2M或更多FUSE值。
 

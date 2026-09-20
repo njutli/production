@@ -888,3 +888,110 @@
 | 总裁决 | `VALID / STOP_REGRESSION`；通用生产挂载继续256K，1M只保留4MiB单流seqwrite专用挂载灰度候选 |
 | 环境闭环 | 精确清理96GiB私有资产；对象`1978609→1978610`，TiKV pending=0；scrub恢复，Ceph `HEALTH_OK`、97 PG clean |
 | 持久证据 | `/mnt/c/SunRise/test/04-8/20260909-115749/`；Phase B raw包SHA256=`f43db3855fd70173dfe6cc8daba3a39235fc87e1fd8aaff4d80bd3b6abc23624` |
+
+## 三十九、05-1 randrw不同BS曲线与FUSE适配（2026-09-14）
+
+> 正式报告：`doc/perf-report/05-1-randrw-block-size-sweep-and-adaptive-tuning-20260914.md`；
+> Phase A RUN `20260914-124132`，Phase B RUN `20260914-141125`。本项形成按应用BS选择挂载参数的L1结论，不替换256 KiB通用基线。
+
+| 项 | 结果 |
+|---|---|
+| 标准BS曲线 | 单方向READ/WRITE约为：4K `21`、16K `88`、64K `405`、256K `1731`、1M `1545--1742`、4M `2152--2160 MiB/s`；1M位置漂移超过10%只报范围 |
+| 1M FUSE适配 | `--max-fuse-io 256K→1M`两组配对READ/WRITE均提升，效应为`+16.40%--+24.11%`，通过5% L1门 |
+| 4M FUSE适配 | 第一对约`+13%`、第二对仅约`+3%`，最小效应`+2.92%`，按合同停止 |
+| 配置边界 | FUSE1M只登记为1M randrw专用挂载canary；04-8已证明不能替换256K通用挂载 |
+| Phase C | 经复核跳过fresh B1M/B256卷BlockSize筛选；未来仅在明确需要1M专用配置最后增量时重开 |
+| 环境闭环 | 最终GC第二轮确认pending delete=0；对象数回到`1994996`，stored相对任务前仅`+655360 B`，三节点TiKV pending=0；Ceph `HEALTH_OK`、97 PG clean，无任务挂载/进程 |
+| 持久证据 | Phase A包SHA256=`df81e21b...755b2`；含最终恢复的Phase B final包SHA256=`07eb203b...54bc`；路径均在`/mnt/c/SunRise/test/05-1/` |
+
+## 四十、05-1b randrw卷BlockSize联动收尾（2026-09-14—15）
+
+> 正式报告：`doc/perf-report/05-1b-randrw-blocksize-and-bs-coupled-parameter-closure-20260914.md`；
+> 首轮RUN `20260914-172354`，诊断RUN `20260914-221613`，正式补测RUN `20260914-225012`。
+> 任务已完成；B256通用生产基线不变。
+
+| 项 | 结果 |
+|---|---|
+| FUSE64筛选 | 首轮受约15.6%同臂漂移影响，未形成正收益；结合后续B64结果，保持FUSE256K |
+| B1M工程信号 | 1 MiB fio下相对fresh B256两位置READ/WRITE提升`+28.34%～+40.70%`，对象请求粒度约`256KiB→1MiB`；因对照漂移约8%，不签精确生产效应 |
+| B4M停顿归因 | buffer300时FUSE平均操作时间`26.98→2136.21 ms`且完成集中在正式窗后；buffer1024解除客户端部分块缓冲/周期排空，恢复约`1996/2006 MiB/s` |
+| B4M正式效应 | 两臂共同FUSE1M、buffer1024时，B4M相对B256两组READ/WRITE提升`+17.94%～+18.80%`，同臂漂移≤0.69%；登记4 MiB randrw专用卷L1候选，不替换通用卷 |
+| B64 16/64 KiB | 16 KiB仅`+1.15%～+1.68%`；64 KiB为`-4.49%～-0.28%`，均无材料性正收益 |
+| B64 4 KiB收尾 | 独立`C1→T1→T2→C2`的两组READ为`-6.28%/-2.27%`、WRITE为`-6.29%/-2.25%`，同臂漂移≤2.7%，均值约`-4.3%`；保持B256 |
+| scrub与环境闭环 | 两次精确lease均恢复原flag；L/S临时卷按UUID销毁，无任务挂载/进程；Ceph `HEALTH_OK`、6/6 OSD、97/97 PG clean |
+| 权威证据 | `/mnt/c/SunRise/test/05-1b/20260914-225012/final/opencode-05-1b-20260914-225012-final.tar.gz`；SHA256=`8ef69d78f6464abb02dc91ca32c1e0c8f75286c8d8ca9b2dab86ce3df84132c4` |
+
+## 四十一、05-1/05-1b BS数据可用性与对外可比性独立复算审计（2026-09-15）
+
+> 审计报告：`doc/perf-report/audit-05-1-05-1b-bs-data-usability-and-comparison-20260915.md`（不占任务编号）。
+> 纯离线复算：不导入任务方分析器，从四个既有权威归档的fio原始日志与逐秒指标重算54个性能格；
+> 无SSH/mount/fio/环境变更。**数值层面无订正**，订正的是可比性等级与两条读法。
+
+| 项 | 结果 |
+|---|---|
+| 数值复现 | 54/54性能格正式窗均值与05-1/05-1b报告逐格一致（例：256K `1749.7652/1712.9957`、L组`1873.85→2226.125`、M组`2020.47/2592.97/2614.37/1860.41`）；非性能门（fio error=0、身份、97/97 PG active+clean、无foreign fio）全部通过 |
+| 可比性分级 | ✅ 256K `1713.0--1749.8`（离散`2.1%`）、4M/FUSE1M `2216.1--2310.7`（`4.3%`）可做精确百分比；⚠️ 1M按口径分`1548--1742`（FUSE256K）/`1970--2058`（FUSE1M）/`2593--2614`（B1M）；❌ 4K `20.2--39.6`、16K `84.7--124.8`、64K `400.3--590.1`只能给区间（离散`5.5%--61.5%`） |
+| 口径风险1 | 正式窗`[15,175)`相对fio summary在小BS低`4.18%--8.89%`、大BS低`0.17%--1.37%`；与有方（其数据为180s summary）比对必须同栏并列 |
+| 口径风险2 | `W4/W1`：4K `0.44--0.61`、16K `0.41--0.61`、64K `0.43--0.60`、256K `0.79--0.80`、1M `0.92--1.26`、4M `0.91--1.08` ⇒ ≤64K在180s内未达稳态，均值是runtime的函数 |
+| 口径风险3 | 同为B256：老生产卷4K `20.2--22.2`、16K `84.7--90.4`；同日新建卷4K `24.5--39.6`、16K `104.0--124.8`。卷状态必须逐点标注，⛔ 不得混入同一条"标准曲线" |
+| 口径风险4 | S组12格内同配置4K由`39.6`（位置1）降到`24.5`（位置12），`-38.1%`；根因为元数据事务延迟`6.54→11.17 ms`（格内四分位`3.33→5.67→8.52→12.30 ms`），同期对象GET延迟反而`2.03→0.96 ms` |
+| 口径风险5 | 4M用per-job bw log时逐秒积分比`io_bytes`少`8.19%--9.71%`；改用完成日志的正式补测RUN为`0.00%` |
+| 订正1 | 05-1b「B4M `+17.94%~+18.80%`」⇒ `NET_GAIN_UNPROVEN` **且已从交付候选撤出**（⛔ 既不写"有收益"也不写"无收益"；跨RUN证据足以撤销候选、不足以重新主张任一方向，重新主张须同RUN三臂）：候选`B4M/b1024=2226.13/2227.25`与现成`B256/FUSE1M/b300=2201.56/2216.14/2310.66`同水平；`+18%`来自对照臂被buffer1024压低`2201.56→1873.85`（读放大`1.06→1.37`）。内部效度不变 |
+| 订正2 | 05-1 Phase A的`metrics-pre/post.prom`为空（`METRICS_MISSING_ALLOWED_PHASE_A`）⇒ 标准曲线只有fio端点，⛔ 不得用于机制归因；挂载身份经核对确为交付配置`--max-uploads 150 --cache-size 0 --max-fuse-io 256K` |
+| 机制发现 | 12/12个B256大BS格PUT在途量`147.6--149.8`/上限`--max-uploads 150`，逐秒gauge mean=p95=max=`150.0`；写向天花板=`150×256KiB÷PUT延迟`（`15.03--19.95 ms`→`1880--2496 MiB/s`，与实测对象层`1849/2284`吻合）。B1M/B4M解闸后在途量`60.5/27.1`，对象层总流量`4.12--5.15`→`6.07--6.15 GiB/s`；`used_buffer`p95在所有大BS格均越配置值（`334--1234`）；客户端`7.75--10.20`核/64核、NIC单向`3220 MiB/s`/100GbE |
+| 小BS机制 | 4K格uploading p95仅`42`、`used_buffer`p95 `10.8 MiB`、对象时延`1.44/1.81 ms`、读写放大约`8.2×`（正式窗应用`39.6/39.7`↔对象`327.2/325.3 MiB/s`）；元数据事务在途量全窗`74.3--91.9`、格内末窗`93.7--101.9`（≈128 inode串行上限）⇒ 属04-4/04-5元数据事务与TiKV方向，不是挂载参数问题 |
+| 256K状态 | ⚠️ **推算非实测**：`1749.3 ÷ 0.25 = 6997 PUT/s × 15.03--19.95 ms ⇒ 在途量 105--140/150（70%--93%）`。256K格无机制数据，故只能判"接近闸门"，⛔ 不得写成"已证明饱和"；05-2 用宽松的`256K_UPLOAD_PROXIMITY_GATE`（`uploading` p95 >= 120）决定是否测该 BS |
+| 口径归属 | 对外表"JuiceFS标准配置"列只能填通用交付口径（B256+FUSE256K+buffer300）；`FUSE1M/B1M/B4M`值只能填"该BS最优有效配置"列——04-8已证FUSE1M全局化会使256K randwrite回归 |
+| 对比裁决规则 | 两侧均输出两栏（summary + 正式窗/W1--W4/W4-W1/CV）；`允许写方向性结论 = 两栏同号 AND 效应 > ε_pair`，其中相对半幅`ε_side=abs(位置1−位置2)/(位置1+位置2)`、`ε_pair=ε_ours+ε_theirs`（均无量纲）。异号记`STATISTIC_SENSITIVE`、同号未超噪声记`INCONCLUSIVE`，均只报区间 |
+| 后续 | 新立`doc/perf-tasks/05-2-randrw-upload-concurrency-and-buffer-gate.md`（`max-uploads 150→300`在03-19/04-6b Phase C/05-1b §2.6三次预注册但从未在写侧执行）；原05-2--05-5顺延为05-3--05-6 |
+| 复核收敛 | Opus↔GPT两轮往返后一致：审计结论受纳；05-2精简为1M单变量主判+256K条件门+buffer条件分支，删Phase V，机制门改对象PUT字节吞吐，scrub二选一前置，compact降条件动作，⛔ 不预注册U450/U600；格数`15→5--13`、临时卷`2→0`。记录见`doc/deploy-log/review-05-1-05-1b-audit-and-05-2-20260915.md` |
+| 证据 | `/mnt/c/SunRise/test/audit-05-1-05-1b/20260915-recompute/`；复算器SHA256=`24cc8e3f5ffff555...`，逐格结果`derived/cells-recompute.tsv`（54格×45列）SHA256=`4d73215072397d1e...`；T-D后顶层`SHA256SUMS` 递归覆盖205项、`205/205 OK`、SHA256=`db8ebac9...16c2`；`ENVIRONMENT_MUTATION=NONE` |
+| T-D归档互证 | 七项randrw@256K读写聚合`4350--5328 MiB/s`与sweep正式窗`3535.31/3746.14 MiB/s`不重叠，反映跨RUN/资产状态漂移；七项主机名缺失不可追溯。≥1M仅保留观测并标`NOT_COMPARABLE`，不生成新效应量 |
+
+## 四十二、05-2 randrw上传并发闸门验证（2026-09-15）
+
+> 正式报告：`doc/perf-report/05-2-randrw-upload-concurrency-and-buffer-gate-20260915.md`；
+> 有效 RUN `20260915-141750`。任务完成，无新配置候选。
+
+| 项 | 结果 |
+|---|---|
+| 1 MiB U150→U300 | 两组READ效应`+4.32%/-4.64%`，WRITE效应`+4.41%/-4.66%`；同臂噪声`5.30%/5.36%`，材料门`10.60%/10.73%`，裁决`RESOLUTION_INSUFFICIENT / SCREEN_CONTINUE=FAIL` |
+| 对象机制 | uploading mean由`149.81/149.94`升至`193.87/177.45`（`+29.41%/+18.34%`），p95为`300/286.45`；PUT延迟`+25.28%/+28.86%`，吞吐却仅`+1.62%/-5.88%`，四格put_ops/s极差`6.25%`。因此`150`是对照臂命中的并发上限，不是可通过加大并发解锁的吞吐上限；停止U450/U600 |
+| 口径稳健性 | READ `ε` 用bwlog/fio summary分别为`5.30%/5.07%`，WRITE为`5.36%/5.05%`；两种口径的配对效应均异号且未过门。逐秒日志积分亏损按位置约`-3.04%→-2.45%`，不改变`NO_CANDIDATE` |
+| 256 KiB筛选 | B1 READ/WRITE=`1635.00/1634.72 MiB/s`；uploading mean/p95/max=`69.83/98.15/115`，`98.15<120`，判`GATE_NOT_TRIGGERED`；B2取消 |
+| buffer分支 | Phase A未通过四条材料信号，Phase C未触发并取消 |
+| 配置结论 | 不登记`max-uploads=300`；通用基线保持B256、FUSE256K、buffer300、U150、cache=0；05-1b竞品对比快照不变 |
+| 环境闭环 | scrub flags精确恢复；Ceph `HEALTH_OK`、6/6 OSD up/in、97/97 PG clean；无任务进程/挂载残留，128×1GiB资产完整，未执行主动OSD compact |
+| 权威证据 | `/mnt/c/SunRise/test/05-2/20260915-141750/final/05-2-20260915-141750-final.tar.gz`；SHA256=`96be3a4704128cc9f666a3c78eb697675d0598a98d37f797118310439a2eaa4f` |
+
+## 四十三、06-1 randrw缓存与writeback组合包筛选（2026-09-15）
+
+> 正式报告：`doc/perf-report/06-1-randrw-cache-writeback-configuration-screen-20260915.md`；
+> 有效 RUN `20260915-204941`。任务完成，未登记生产候选。
+
+| 项 | 结果 |
+|---|---|
+| 正式均值 | C1=`1796.50/1799.87`、T1=`2090.92/2093.68`、T2=`1990.70/1993.22`、C2=`1664.99/1668.21 MiB/s`（READ/WRITE） |
+| 配对均值 | T1/C1=`+16.39%/+16.32%`，T2/C2=`+19.56%/+19.48%`；审计后均改判为**窗长依赖瞬时量，不登记效应** |
+| 稳定性裁决 | 同臂噪声`ε=7.32%≥5%`；T格CV=`38.0%～42.1%`、W4/W1=`0.387～0.414`，裁决`RESOLUTION_INSUFFICIENT / NO_DECISION / NO_CANDIDATE` |
+| 缓存机制 | T1/T2命中率=`58.05%/60.78%`，命中字节约`1380/1400 MiB/s`，但设备读仅`9.07/0.60 MiB/s`；命中几乎全由宿主页缓存供给，NVMe读缓存名义臂未成立 |
+| 衰减机制 | 应用写减设备写与Dirty增长在约11%内闭合，强支持“RAM吸收→脏页回压”；96GiB缓存约`41.3/43.0s`周转并有约`2078/1988 drops/s`。设备高util不能单独证明是衰减主因 |
+| 持久化 | rawstaging峰值=`71.08/75.30 GiB`，Dirty峰值更高达`112.4/118.5 GiB`；两格最终47秒排空，stageFull/errors=0，无缓存验证挂载读回PASS |
+| 环境闭环 | scrub精确恢复；Ceph `HEALTH_OK`、6/6 OSD、97/97 PG clean；无任务进程、挂载、缓存目录残留，128×1GiB资产完整 |
+| 权威证据 | `/mnt/c/SunRise/test/06-1/20260915-204941/phase-a-raw/06-1-raw.tar.gz`；SHA256=`ce8ec6c203d4bae4d8bf39cea38d1af64d7e67fe2a9001d6fa8b2af47383357c`；分析SHA256=`bc81625b7bc114d1444b4750024ba4638bdc41125b3a55440229bd2876281f7b` |
+
+## 四十四、06-2 randrw whole-inode flush调查（2026-09-16）
+
+> 正式报告：`doc/perf-report/06-2-randrw-m1-flush-investigation-20260916.md`；
+> RUN `20260916-091446`。调查完成，未登记生产候选。
+
+| 项 | 结果 |
+|---|---|
+| 前置归因 | Gate2A出现材料阻塞信号；Gate2B经审计回溯`GATE_INVALID`：wall-union `F=0.999990/Gmax=100196`构造性退化，request-weighted `F=0.8964/Gmax=8.65`也不是串行关键路径；观测开销约23%>`M=14.64%` |
+| 语义门 | 真实FUSE R1--R8、关键依赖用例、填充卷fsck通过；因上游单测基础设施限制登记`QUALIFIED_GATE3_PASS`，⛔ 不称R1--R10全通过 |
+| 补丁机制 | 观测scope约`1.87→1.00`，但flush wait/read约`35/37 ms→52/51 ms`；依赖闭包计数全零且约100ms单桶聚集，不能确认依赖闭包正确，疑似定时轮询待代码确认 |
+| Phase A | T1/T2/C2正式窗覆盖仅`158/153/77`秒且runtime超合同，裁决`EVIDENCE_INVALID / NO_DECISION`；fio汇总位置对照约`-30.7%`与`-7.8%~-8.0%`仅作描述 |
+| 状态累计 | 四格Ceph objects `4,671,724→5,725,452`；无共享卷GC口径下状态显著变化，未经状态重置不原样重跑 |
+| 最终裁决 | `GATE2B_INVALID / EVIDENCE_INVALID / NO_CANDIDATE / PHASE_B_NOT_TRIGGERED / NOT_FOR_PRODUCTION`；06阶段无新增交付配置，不重跑 |
+| 环境闭环 | scrub恢复；Ceph `HEALTH_OK`、6/6 OSD up/in；无fio、私有挂载和RUN缓存目录残留；生产二进制未替换 |
+| 权威证据 | `/mnt/c/SunRise/test/06-2/20260916-091446/`；Phase A raw包SHA256=`181b7be91b19de794661c8999aebe8f5df6f682e05bafee39bc44e556ded2fb9` |
