@@ -30,6 +30,10 @@ unset LEGACY_PREFIX
 unset -f phase_a recovery_gate offline_self_test write_plans require_online_ack
 SCRIPT_DIR=$THIS_DIR
 MODE=${1:-}; RUN_ID=${2:-}
+case $MODE in
+  burst-self-test|burst-plan|burst-phase) MATRIX_PROFILE=burst-abba ;;
+  *) MATRIX_PROFILE=legacy-six-cell ;;
+esac
 ROOT=/tmp/production/opencode-06-3-$RUN_ID
 PLAN_OUT=${T063_PLAN_OUT:-/tmp/t06-3-plan-$RUN_ID}
 SCRUB=$SCRIPT_DIR/u141d-scrub-control.sh
@@ -47,9 +51,15 @@ valid_run() {
   [[ $RUN_ID =~ ^[0-9]{8}-[0-9]{6}$ && $ROOT == /tmp/production/opencode-06-3-$RUN_ID && ! -L $ROOT ]] || die invalid_RUN_ID_or_root
 }
 matrix_rows() {
-  printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
-    1 C1 C 0 0 0 2 S1 S 98304 1 0 3 W1 W 98304 1 1 \
-    4 W2 W 98304 1 1 5 S2 S 98304 1 0 6 C2 C 0 0 0
+  if [[ $MATRIX_PROFILE == burst-abba ]]; then
+    printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+      1 A1 A 0 0 0 2 B1 B 98304 0 1 \
+      3 B2 B 98304 0 1 4 A2 A 0 0 0
+  else
+    printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+      1 C1 C 0 0 0 2 S1 S 98304 1 0 3 W1 W 98304 1 1 \
+      4 W2 W 98304 1 1 5 S2 S 98304 1 0 6 C2 C 0 0 0
+  fi
 }
 contract_value() {
   python3 - "$CONTRACT" "$1" <<'PY'
@@ -60,7 +70,7 @@ print(json.dumps(v,separators=(',',':')) if isinstance(v,(list,dict)) else v)
 PY
 }
 validate_contract() {
-  python3 - "$CONTRACT" "$RUN_ID" "$META" <<'PY'
+  python3 - "$CONTRACT" "$RUN_ID" "$META" "$MATRIX_PROFILE" <<'PY'
 import json,re,sys
 def pairs(xs):
  d={}
@@ -73,6 +83,7 @@ def need(ok,k):
  if not ok:raise SystemExit('contract_'+k)
 need(d['schema']=='06-3-v1' and d['status']=='APPROVED','approval')
 need(d['run_id']==sys.argv[2] and d['meta']==sys.argv[3],'run_meta')
+if sys.argv[4]=='burst-abba':need(d.get('matrix_profile')=='burst-abba','matrix_profile')
 for k in ('hostname','machine_id','ceph_fsid','volume_uuid','fio_version','cache_source','cache_major_minor','cache_fstype','cache_filesystem_uuid','cache_mount_target','cache_mount_options','cache_physical_leaf_devices'):
  need(isinstance(d[k],str) and bool(d[k]) and '\n' not in d[k] and '\t' not in d[k],k)
 need(re.fullmatch('[0-9a-f]{64}',d['assets_sha256']) is not None,'asset_hash')
@@ -113,7 +124,9 @@ PY
 }
 require_online_ack() {
   valid_run
-  [[ ${T063_EXECUTE_ACK:-} == I_ACK_06_3_PHASE_$RUN_ID ]] || die execute_ack_missing
+  local execute_ack=I_ACK_06_3_PHASE_$RUN_ID
+  [[ $MATRIX_PROFILE != burst-abba ]] || execute_ack=I_ACK_06_3_BURST_PHASE_$RUN_ID
+  [[ ${T063_EXECUTE_ACK:-} == "$execute_ack" ]] || die execute_ack_missing
   [[ ${T063_PATH_ACK:-} == I_ACK_06_3_CACHE_PATHS_$RUN_ID ]] || die path_ack_missing
   [[ ${T063_SCRUB_ACK:-} == I_ACK_GLOBAL_CEPH_SCRUB_PAUSE ]] || die scrub_ack_missing
   [[ -f $CONTRACT && ! -L $CONTRACT ]] || die contract_missing
@@ -169,12 +182,12 @@ if d['cache_fstype'] in ('tmpfs','overlay','fuse.juicefs'):raise SystemExit('non
 PY
 }
 cache_dirs_for_cell() {
-  [[ $1 =~ ^[SW][12]$ ]] || die invalid_cache_cell
+  [[ $1 =~ ^(S|W|B)[12]$ ]] || die invalid_cache_cell
   validate_parent "$CACHE_PARENT"
   printf '%s/jfs-06-3-%s-%s\n' "$CACHE_PARENT" "$RUN_ID" "$1"
 }
 cache_tree_guard() {
-  [[ $1 =~ ^[SW][12]$ && $2 == "$CACHE_PARENT/jfs-06-3-$RUN_ID-$1" ]] || die unsafe_cache_child
+  [[ $1 =~ ^(S|W|B)[12]$ && $2 == "$CACHE_PARENT/jfs-06-3-$RUN_ID-$1" ]] || die unsafe_cache_child
   validate_parent "$CACHE_PARENT"
   no_symlink_components "$2" || die cache_child_symlink
   python3 - "$2" <<'PY'
@@ -305,8 +318,9 @@ mount_args() {
   local arm=$1 mnt=$2 metrics=$3 log=$4 dirs=$5
   MOUNT_CMD=("$JFS" mount -d --max-fuse-io 256K --buffer-size 300 --max-uploads 150 --max-downloads 200 --metrics "$metrics" --log "$log")
   case $arm in
-    C) [[ -z $dirs ]] || die control_cache_dir; MOUNT_CMD+=(--cache-size 0);;
+    C|A) [[ -z $dirs ]] || die control_cache_dir; MOUNT_CMD+=(--cache-size 0);;
     S|W) [[ -n $dirs ]] || die cache_dir_required; MOUNT_CMD+=(--cache-dir "$dirs" --cache-size 98304 --free-space-ratio 0.20 --cache-large-write --upload-delay 0); [[ $arm != W ]] || MOUNT_CMD+=(--writeback);;
+    B) [[ -n $dirs ]] || die cache_dir_required; MOUNT_CMD+=(--cache-dir "$dirs" --cache-size 98304 --free-space-ratio 0.20 --upload-delay 0 --writeback);;
     *) die arm_not_mainline;;
   esac
   MOUNT_CMD+=("$META" "$mnt")
@@ -343,7 +357,7 @@ PY
 }
 mount_private() {
   local cell=$1 arm=$2 tag=$3 mnt=$4 metrics=$5 dirs=$6 c=$ROOT/cells/$1
-  [[ $cell =~ ^[CSW][12]$ && ( $tag == formal || $tag == verify ) ]] || die mount_tags
+  [[ $cell =~ ^[ABCSW][12]$ && ( $tag == formal || $tag == verify ) ]] || die mount_tags
   local expected=/tmp/jfs-06-3-$RUN_ID-$cell
   [[ $tag == formal ]] || expected+=-verify
   [[ $mnt == "$expected" && ! -e $mnt && ! -L $mnt ]] || die private_mount_scope
@@ -489,12 +503,12 @@ for l in open(sys.argv[1]):
 stages=['juicefs_staging_blocks','juicefs_staging_block_bytes','juicefs_staging_writing_blocks']
 if m['pending']!='UNREGISTERED':raise SystemExit('pending_registration_contract')
 required=[m['uploading']]
-if sys.argv[4]=='W':required+=stages
+if sys.argv[4] in ('W','B'):required+=stages
 if any(n not in values for n in required):raise SystemExit('core_queue_metric_missing')
 error=values.get(m['staging_errors'],0 if m['error_counter_absent_is_zero'] else None)
 if error is None or error!=0:raise SystemExit('staging_errors_or_unknown')
 stage=[values.get(n,'NA') for n in stages]
-if sys.argv[4]!='W' and any(v!='NA' and v!=0 for v in stage):raise SystemExit('unexpected_nonWB_staging')
+if sys.argv[4] not in ('W','B') and any(v!='NA' and v!=0 for v in stage):raise SystemExit('unexpected_nonWB_staging')
 count=size=0
 if sys.argv[2]:
  # Frozen 06-2 source: cached_store.go:589-594 appends volume UUID;
@@ -530,7 +544,7 @@ PY
 }
 queues_zero() {
   local q=$1 arm=${2:-W}
-  if [[ $arm == W ]]; then [[ $q == $'0\t0\t0\tNA\t0\t0\t0' ]]
+  if [[ $arm == W || $arm == B ]]; then [[ $q == $'0\t0\t0\tNA\t0\t0\t0' ]]
   else
     awk -F '\t' 'NF!=7{exit 1} {for(i=1;i<=3;i++)if($i!="NA"&&$i!="0")exit 1;if($4!="NA")exit 1;for(i=5;i<=7;i++)if($i!="0")exit 1}' <<<"$q"
   fi
@@ -640,7 +654,7 @@ run_cell() {
   printf 'epoch_ns\tavail_bytes\tMemAvailable_bytes\n' >"$c/safety.tsv"
   verify_assets "$REF" "$c/assets-before.tsv"; volume_identity "$REF"
   health_gate "$c/health-before"; backend_snapshot "$c/backend-before"
-  if [[ $arm != C ]]; then dirs=$(cache_dirs_for_cell "$cell"); create_cache_dirs "$cell" "$dirs"; fi
+  if [[ $arm != C && $arm != A ]]; then dirs=$(cache_dirs_for_cell "$cell"); create_cache_dirs "$cell" "$dirs"; fi
   printf 'cell\t%s\narm\t%s\ncache_mib\t%s\ncache_large_write\t%s\nwriteback\t%s\ncache_dirs\t%s\n' "$cell" "$arm" "$cache_mib" "$clw" "$wb" "${dirs:-NONE}" >"$c/state.tsv"
   mount_private "$cell" "$arm" formal "$mnt" "$metrics" "$dirs"
   verify_assets "$mnt" "$c/assets-mounted.tsv"
@@ -653,7 +667,7 @@ run_cell() {
   (( FORMAL_RC == 0 )) || { event FIO_FAIL_PRESERVE_MOUNT "$cell:rc=$FORMAL_RC"; return "$FORMAL_RC"; }
   drain_writeback "$cell" "$metrics" "$dirs" "$arm" || return $?
   graceful_umount "$cell" formal "$mnt"
-  mount_private "$cell" C verify "$verify" "$metrics" ""
+  mount_private "$cell" A verify "$verify" "$metrics" ""
   verify_assets "$verify" "$c/assets-verify.tsv"
   readback_verify "$cell" "$verify"; : >"$c/READBACK_PASS"
   graceful_umount "$cell" verify "$verify"
@@ -713,9 +727,9 @@ write_plans() {
   printf '%s\n' 'FUTURE AUTHORIZED WRITES: exact RUN result/cache/mount mkdir; scrub helper sudo ceph osd set/unset noscrub and nodeep-scrub; private JFS mount/umount; fio existing 128 files; exact owned fio PID SIGTERM/SIGKILL safety stop; exact sampler PID SIGTERM; drained/readback exact cache find -xdev -delete and rmdir.' >"$out/gate0/write-operations.txt"
   write_fio_job "$out/gate0/warmup" '<PRIVATE_MOUNT>' randread 60 no
   write_fio_job "$out/gate0/formal" '<PRIVATE_MOUNT>' randrw 180 yes
-  python3 - "$RUN_ID" "$META" >"$out/gate0/contract-template.NOT-APPROVED.json" <<'PY'
+  python3 - "$RUN_ID" "$META" "$MATRIX_PROFILE" >"$out/gate0/contract-template.NOT-APPROVED.json" <<'PY'
 import json,sys
-d=dict(schema='06-3-v1',status='NOT_APPROVED',run_id=sys.argv[1],meta=sys.argv[2],hostname='INVENTORY_REQUIRED',machine_id='INVENTORY_REQUIRED',ceph_fsid='INVENTORY_REQUIRED',volume_uuid='INVENTORY_REQUIRED',fio_version='INVENTORY_REQUIRED',assets_sha256='INVENTORY_REQUIRED',cache_parent='/mnt/jfs-cache/04tmp3',cache_exclusive_use=False,no_concurrent_benchmark=False,approved_osd_flags=[],protected_processes=[],metrics=dict(pending='UNREGISTERED',uploading='juicefs_object_request_uploading',staging_errors='INVENTORY_REQUIRED',error_counter_absent_is_zero=False))
+d=dict(schema='06-3-v1',status='NOT_APPROVED',run_id=sys.argv[1],meta=sys.argv[2],matrix_profile=sys.argv[3],hostname='INVENTORY_REQUIRED',machine_id='INVENTORY_REQUIRED',ceph_fsid='INVENTORY_REQUIRED',volume_uuid='INVENTORY_REQUIRED',fio_version='INVENTORY_REQUIRED',assets_sha256='INVENTORY_REQUIRED',cache_parent='/mnt/jfs-cache/04tmp3',cache_exclusive_use=False,no_concurrent_benchmark=False,approved_osd_flags=[],protected_processes=[],metrics=dict(pending='UNREGISTERED',uploading='juicefs_object_request_uploading',staging_errors='INVENTORY_REQUIRED',error_counter_absent_is_zero=False))
 for k in ('source','major_minor','fstype','filesystem_uuid','mount_target','mount_options','physical_leaf_devices'):d['cache_'+k]='INVENTORY_REQUIRED'
 for k in ('owner_uid','owner_gid','mode'):d['cache_'+k]=0
 d['space']={k:0 for k in ('worst_backlog_bytes','filesystem_reserve_bytes','business_reserve_bytes','stop_margin_bytes','max_ingress_bytes_per_sec','stop_latency_seconds','monitor_interval_seconds','minimum_start_avail_bytes','minimum_mem_available_bytes','max_fio_wall_seconds')};d['space']['read_cache_bytes']=96*2**30
@@ -725,16 +739,24 @@ PY
 }
 offline_self_test() {
   valid_run
-  [[ $(matrix_order) == C1,S1,W1,W2,S2,C2 ]] || die test_matrix
+  if [[ $MATRIX_PROFILE == burst-abba ]]; then
+    [[ $(matrix_order) == A1,B1,B2,A2 ]] || die test_burst_matrix
+    [[ $(matrix_rows | awk -F '\t' '$3=="A"&&$4==0&&$5==0&&$6==0{n++}END{print n+0}') -eq 2 ]] || die test_burst_A
+    [[ $(matrix_rows | awk -F '\t' '$3=="B"&&$4==98304&&$5==0&&$6==1{n++}END{print n+0}') -eq 2 ]] || die test_burst_B
+  else
+    [[ $(matrix_order) == C1,S1,W1,W2,S2,C2 ]] || die test_matrix
+  fi
   if declare -F phase_a >/dev/null || declare -F recovery_gate >/dev/null; then die test_legacy_entrypoint; fi
   local arm args dirs
-  for arm in C S W; do
-    dirs=/mock/cache; [[ $arm != C ]] || dirs=
+  for arm in C S W A B; do
+    dirs=/mock/cache; [[ $arm != C && $arm != A ]] || dirs=
     mount_args "$arm" /mock/mount 127.0.0.1:19631 /mock/log "$dirs"; args=" ${MOUNT_CMD[*]} "
     case $arm in
       C) [[ $args == *' --cache-size 0 '* && $args != *' --writeback '* && $args != *' --cache-large-write '* ]] || die test_C;;
       S) [[ $args == *' --cache-size 98304 '* && $args == *' --cache-large-write '* && $args != *' --writeback '* ]] || die test_S;;
       W) [[ $args == *' --cache-size 98304 '* && $args == *' --cache-large-write '* && $args == *' --writeback '* ]] || die test_W;;
+      A) [[ $args == *' --cache-size 0 '* && $args != *' --writeback '* && $args != *' --cache-large-write '* ]] || die test_A;;
+      B) [[ $args == *' --cache-size 98304 '* && $args == *' --writeback '* && $args != *' --cache-large-write '* ]] || die test_B;;
     esac
   done
   local zero=$'0\t0\t0\tNA\t0\t0\t0' td
@@ -809,11 +831,14 @@ offline_self_test() {
   if (validate_parent /mnt/jfs-cache) >/dev/null 2>&1; then die test_shared_parent; fi
   ln -s /tmp "$td/link"
   if (no_symlink_components "$td/link/private") >/dev/null 2>&1; then die test_symlink_component; fi
-  printf 'T063_DRIVER_SELF_TEST_PASS\tmatrix=C1,S1,W1,W2,S2,C2\tfixture=%s\n' "$td"
+  printf 'T063_DRIVER_SELF_TEST_PASS\tprofile=%s\tmatrix=%s\tfixture=%s\n' "$MATRIX_PROFILE" "$(matrix_order)" "$td"
 }
 case $MODE in
   --self-test) offline_self_test;;
+  burst-self-test) offline_self_test;;
   plan) valid_run; write_plans "$PLAN_OUT"; printf 'T063_PLAN_ONLY_PASS\troot=%s\n' "$PLAN_OUT";;
   phase) phase;;
-  *) printf 'usage: bash %s --self-test|plan|phase RUN_ID\n' "$0" >&2; exit 2;;
+  burst-plan) valid_run; write_plans "$PLAN_OUT"; printf 'T063_BURST_PLAN_ONLY_PASS\troot=%s\n' "$PLAN_OUT";;
+  burst-phase) phase;;
+  *) printf 'usage: bash %s --self-test|burst-self-test|plan|phase|burst-plan|burst-phase RUN_ID\n' "$0" >&2; exit 2;;
 esac

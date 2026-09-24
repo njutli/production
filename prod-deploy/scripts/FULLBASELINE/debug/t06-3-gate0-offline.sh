@@ -6,6 +6,8 @@ export LC_ALL=C PYTHONDONTWRITEBYTECODE=1
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 RUN_ID=${1:-}
 OUT=${2:-}
+PROFILE=${3:-legacy-six-cell}
+[[ $PROFILE == legacy-six-cell || $PROFILE == burst-abba ]] || { printf 'T063_GATE0_FAIL\tinvalid_profile\n' >&2; exit 2; }
 DRIVER=$SCRIPT_DIR/t06-3-randrw-cache-driver.sh
 ANALYZER=$SCRIPT_DIR/t06-3-randrw-analyze.py
 LEGACY_DRIVER=$SCRIPT_DIR/t06-1-randrw-cache-driver.sh
@@ -22,7 +24,7 @@ for file in "${inputs[@]}"; do [[ -s $file && ! -L $file ]] || die "missing_inpu
 [[ -s $HISTORY && ! -L $HISTORY ]] || die historical_archive_missing
 mkdir -m 0700 -p "$OUT"
 printf 'Offline Gate only; remote_calls=0; environment_authorized=no\n' >"$OUT/scope.txt"
-printf 'bash %q %q %q\n' "$0" "$RUN_ID" "$OUT" >"$OUT/commands.sh"
+printf 'bash %q %q %q %q\n' "$0" "$RUN_ID" "$OUT" "$PROFILE" >"$OUT/commands.sh"
 
 for file in "$0" "$DRIVER" "$LEGACY_DRIVER" "$SCRUB"; do bash -n "$file"; bash -u -n "$file"; done
 python3 - "$ANALYZER" "$LEGACY_ANALYZER" <<'PY'
@@ -67,12 +69,15 @@ for name in names:
 PY
 export PATH="$OUT/deny-bin:$PATH"
 export TMPDIR="$OUT"
-bash "$DRIVER" --self-test "$RUN_ID" >"$OUT/driver-self-test.txt" 2>&1 || die driver_self_test
+driver_test=--self-test; driver_plan=plan; driver_phase=phase
+if [[ $PROFILE == burst-abba ]]; then driver_test=burst-self-test; driver_plan=burst-plan; driver_phase=burst-phase; fi
+bash "$DRIVER" "$driver_test" "$RUN_ID" >"$OUT/driver-self-test.txt" 2>&1 || die driver_self_test
 grep -q 'T063_DRIVER_SELF_TEST_PASS' "$OUT/driver-self-test.txt" || die driver_self_test_marker
-T063_PLAN_OUT="$OUT/plan" bash "$DRIVER" plan "$RUN_ID" >"$OUT/plan.stdout" 2>"$OUT/plan.stderr" || die driver_plan
-python3 - "$ANALYZER" "$OUT/plan/gate0" >"$OUT/plan-analyzer-contract.txt" <<'PY'
+T063_PLAN_OUT="$OUT/plan" bash "$DRIVER" "$driver_plan" "$RUN_ID" >"$OUT/plan.stdout" 2>"$OUT/plan.stderr" || die driver_plan
+python3 - "$ANALYZER" "$OUT/plan/gate0" "$PROFILE" >"$OUT/plan-analyzer-contract.txt" <<'PY'
 import csv, pathlib, runpy, sys
 analysis = runpy.run_path(sys.argv[1])
+analysis['configure_profile'](sys.argv[3])
 root = pathlib.Path(sys.argv[2])
 def job(path):
     return dict(line.strip().split('=', 1) for line in path.read_text().splitlines()
@@ -84,11 +89,12 @@ assert formal['filename_format'] == '<PRIVATE_MOUNT>/test_dir/rw_test.$jobnum.0'
 warm = job(root/'warmup/fio.job')
 assert warm['rw'] == 'randread' and warm['runtime'] == '60'
 rows = list(csv.DictReader((root/'mainline-matrix.tsv').open(), delimiter='\t'))
-assert tuple(row['cell'] for row in rows) == analysis['CELLS']
+expected_cells = ("A1", "B1", "B2", "A2") if sys.argv[3] == "burst-abba" else ("C1", "S1", "W1", "W2", "S2", "C2")
+assert tuple(row['cell'] for row in rows) == expected_cells
 print('GENERATED_PLAN_ANALYZER_CONTRACT_PASS')
 PY
 set +e
-env -u T063_EXECUTE_ACK bash "$DRIVER" phase "$RUN_ID" >"$OUT/no-ack.stdout" 2>"$OUT/no-ack.stderr"
+env -u T063_EXECUTE_ACK bash "$DRIVER" "$driver_phase" "$RUN_ID" >"$OUT/no-ack.stdout" 2>"$OUT/no-ack.stderr"
 no_ack_rc=$?
 set -e
 [[ $no_ack_rc -eq 42 ]] || die missing_ack_not_rejected
@@ -98,7 +104,7 @@ bash "$DRIVER" phase-a "$RUN_ID" >"$OUT/legacy-entry.stdout" 2>"$OUT/legacy-entr
 legacy_rc=$?
 set -e
 [[ $legacy_rc -ne 0 ]] || die legacy_GC_entry_exposed
-python3 "$ANALYZER" self-test >"$OUT/analyzer-self-test.json" || die analyzer_self_test
+python3 "$ANALYZER" self-test --profile "$PROFILE" >"$OUT/analyzer-self-test.json" || die analyzer_self_test
 python3 - "$OUT/analyzer-self-test.json" <<'PY'
 import json, sys
 assert json.load(open(sys.argv[1]))['status'] == 'PASS'
@@ -152,10 +158,11 @@ PY
 
 # Coverage is scoped to the changed contract, not a claim to have rerun every
 # unrelated legacy fixture. Specific executable assertions remain in self-tests.
-python3 - "$OUT" <<'PY'
+python3 - "$OUT" "$PROFILE" <<'PY'
 from pathlib import Path
 import sys
 out = Path(sys.argv[1])
+profile = sys.argv[2]
 rows = [
  ('D01/D02', 'timing/log integration', 'analyzer-self-test.json; history-replay.json'),
  ('D03', 'EXPLICIT_OVERRIDE: full runtime primary; old window diagnostic only', '06-3 taskbook section 2.1'),
@@ -166,14 +173,14 @@ rows = [
  ('D27/D28', 'frozen dependencies and fail-closed entry', 'no-ack.stderr; scripts.sha256'),
  ('FIO_GROUP_RUNTIME', 'single group; no cumulative job_runtime divisor', 'analyzer-self-test.json; independent-history.json'),
  ('BURST_UNKNOWN_ZERO', 'do not erase stalls or zero-fill unknown logs', 'analyzer-self-test.json'),
- ('C_S_W', 'CLW and WB independent configuration, six-cell order', 'driver-self-test.txt; plan/'),
+ ('MATRIX', 'A/B original-package ABBA' if profile == 'burst-abba' else 'CLW and WB independent six-cell order', 'driver-self-test.txt; plan/'),
  ('NO_ENVIRONMENT', 'PATH tripwire + no live calls in offline modes', 'absence of FORBIDDEN_CALLS'),
 ]
 (out/'coverage.tsv').write_text('class\tscope\tevidence\n' + ''.join('\t'.join(r)+'\n' for r in rows))
 (out/'lifecycle.tsv').write_text('scope\tremote_status\tlocal_status\tpurge\tnext_checkpoint\n'
     'OFFLINE_ONLY\tNONE\tPRESERVED\tNO_PURGE_REQUIRED\tonline-plan-review\n')
 (out/'gate-result.json').write_text('{"status":"PASS","scope":"OFFLINE_ONLY",'
-    '"remote_calls":0,"formal_load":"NOT_AUTHORIZED"}\n')
+    f'"profile":"{profile}","remote_calls":0,"formal_load":"NOT_AUTHORIZED"}}\n')
 PY
 
 python3 - "$OUT" "${inputs[@]}" <<'PY'
@@ -192,4 +199,4 @@ PY
   find . -type f ! -name manifest.sha256 -print0 | sort -z | xargs -0 sha256sum >manifest.sha256
   sha256sum -c manifest.sha256 >/dev/null
 )
-printf 'T063_GATE0_OFFLINE_PASS\troot=%s\tremote_calls=0\tformal_load=NOT_AUTHORIZED\n' "$OUT"
+printf 'T063_GATE0_OFFLINE_PASS\troot=%s\tprofile=%s\tremote_calls=0\tformal_load=NOT_AUTHORIZED\n' "$OUT" "$PROFILE"

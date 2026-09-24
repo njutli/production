@@ -1,0 +1,573 @@
+--- a/pkg/vfs/writer.go
++++ b/pkg/vfs/writer.go
+@@ -43,6 +43,7 @@
+ type DataWriter interface {
+ 	Open(inode Ino, fleng uint64, tierID uint8) FileWriter
+ 	Flush(ctx meta.Context, inode Ino) syscall.Errno
++	FlushRange(ctx meta.Context, inode Ino, off, size uint64) syscall.Errno
+ 	GetLength(inode Ino) uint64
+ 	Truncate(inode Ino, length uint64)
+ 	UpdateMtime(inode Ino, mtime time.Time)
+@@ -229,16 +230,21 @@
+ 			f.err = err
+ 			logger.Errorf("write inode:%d indx:%d %s", f.inode, c.indx, err)
+ 		}
+-		s.committed = true
+-		if s.growing {
+-			f.commitcond.Broadcast()
+-		}
++		f.markCommitted(s)
+ 		c.slices = c.slices[1:]
+ 	}
+ 	f.freeChunk(c)
+ 	f.Unlock()
+ }
+ 
++// markCommitted publishes completion to every waiter.  Dependency waiters
++// historically only needed notifications for growing slices, but range flush
++// also waits for fixed-size overwrite slices.  The caller must hold f.Mutex.
++func (f *fileWriter) markCommitted(s *sliceWriter) {
++	s.committed = true
++	f.commitcond.Broadcast()
++}
++
+ type fileWriter struct {
+ 	sync.Mutex
+ 	w *dataWriter
+@@ -444,6 +450,120 @@
+ 	return f.flush(ctx, false)
+ }
+ 
++// rangeScope returns the live slices in chunks intersecting [off, off+size),
++// plus the FIFO prefixes required by their uncommitted dependencies.  The
++// caller must hold f.Mutex.  If an uncommitted dependency cannot be found in
++// its live chunk queue, it conservatively falls back to all live slices.
++func (f *fileWriter) rangeScope(off, size uint64) (map[*sliceWriter]struct{}, bool) {
++	targets := make(map[*sliceWriter]struct{})
++	if size == 0 || off+size < off {
++		return targets, false
++	}
++	end := off + size
++	first := uint32(off / meta.ChunkSize)
++	last := uint32((end - 1) / meta.ChunkSize)
++	for indx, c := range f.chunks {
++		if indx < first || indx > last {
++			continue
++		}
++		for _, s := range c.slices {
++			targets[s] = struct{}{}
++		}
++	}
++
++	changed := true
++	for changed {
++		changed = false
++		for s := range targets {
++			dep := s.dep
++			if dep == nil || dep.committed {
++				continue
++			}
++			if dep.chunk == nil {
++				return f.allLiveSlices(), true
++			}
++			found := false
++			for _, prefix := range dep.chunk.slices {
++				if _, ok := targets[prefix]; !ok {
++					targets[prefix] = struct{}{}
++					changed = true
++				}
++				if prefix == dep {
++					found = true
++					break
++				}
++			}
++			if !found {
++				return f.allLiveSlices(), true
++			}
++		}
++	}
++	return targets, false
++}
++
++// allLiveSlices is the safe fallback for an invariant violation in the
++// dependency graph.  The caller must hold f.Mutex.
++func (f *fileWriter) allLiveSlices() map[*sliceWriter]struct{} {
++	targets := make(map[*sliceWriter]struct{})
++	for _, c := range f.chunks {
++		for _, s := range c.slices {
++			targets[s] = struct{}{}
++		}
++	}
++	return targets
++}
++
++func rangePending(targets map[*sliceWriter]struct{}) bool {
++	for s := range targets {
++		if !s.committed {
++			return true
++		}
++	}
++	return false
++}
++
++// flushRange freezes and waits only for the selected chunks and the FIFO
++// prefixes of their live dependencies.  Full Flush/Close/fsync/Truncate and
++// copy_file_range semantics continue to use the original whole-inode path.
++func (f *fileWriter) flushRange(ctx meta.Context, off, size uint64) syscall.Errno {
++	start := time.Now()
++	f.Lock()
++	defer f.Unlock()
++	f.flushwaiting++
++
++	var err syscall.Errno
++	wait := time.Second * time.Duration((f.w.maxRetries+2)*(f.w.maxRetries+2)/2)
++	if wait < time.Minute*5 {
++		wait = time.Minute * 5
++	}
++	deadline := time.Now().Add(wait)
++	targets, _ := f.rangeScope(off, size)
++	for rangePending(targets) && err == 0 {
++		for s := range targets {
++			if !s.freezed {
++				s.freezed = true
++				go s.flushData()
++			}
++		}
++		if f.commitcond.WaitWithTimeout(time.Second*3) && ctx.Canceled() && time.Since(start) > f.w.conf.Chunk.PutTimeout*2 {
++			err = syscall.EINTR
++			break
++		}
++		if time.Now().After(deadline) {
++			err = syscall.EIO
++			break
++		}
++	}
++	f.flushwaiting--
++	if f.flushwaiting == 0 && f.writewaiting > 0 {
++		f.writecond.Broadcast()
++	}
++	if err == 0 {
++		err = f.err
++	}
++	return err
++}
++
+ func (f *fileWriter) Close(ctx meta.Context) syscall.Errno {
+ 	defer f.w.free(f)
+ 	return f.Flush(ctx)
+@@ -562,6 +682,14 @@
+ 	}
+ 	return 0
+ }
++
++func (w *dataWriter) FlushRange(ctx meta.Context, inode Ino, off, size uint64) syscall.Errno {
++	f := w.find(inode)
++	if f != nil {
++		return f.flushRange(ctx, off, size)
++	}
++	return 0
++}
+ 
+ func (w *dataWriter) GetLength(inode Ino) uint64 {
+ 	f := w.find(inode)
+--- a/pkg/vfs/vfs.go
++++ b/pkg/vfs/vfs.go
+@@ -786,7 +786,7 @@
+ 	}
+ 	defer h.Runlock()
+ 
+-	_ = v.writer.Flush(ctx, ino)
++	_ = v.writer.FlushRange(ctx, ino, off, uint64(size))
+ 	n, err = h.reader.Read(ctx, off, buf)
+ 	for err == syscall.EAGAIN {
+ 		n, err = h.reader.Read(ctx, off, buf)
+--- /dev/null
++++ b/pkg/vfs/writer_range_test.go
+@@ -0,0 +1,387 @@
++/*
++ * JuiceFS, Copyright 2026 Juicedata, Inc.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package vfs
++
++import (
++	"bytes"
++	"syscall"
++	"testing"
++	"time"
++
++	"github.com/juicedata/juicefs/pkg/chunk"
++	"github.com/juicedata/juicefs/pkg/meta"
++	"github.com/juicedata/juicefs/pkg/utils"
++)
++
++func rangeTestFile(indices ...uint32) *fileWriter {
++	f := &fileWriter{chunks: make(map[uint32]*chunkWriter)}
++	f.commitcond = utils.NewCond(f)
++	for _, index := range indices {
++		f.chunks[index] = &chunkWriter{indx: index, file: f}
++	}
++	return f
++}
++
++func rangeTestSlice(c *chunkWriter) *sliceWriter {
++	s := &sliceWriter{chunk: c}
++	c.slices = append(c.slices, s)
++	return s
++}
++
++// waitForRangeTestCommit mirrors the predicate loop used by flushRange while
++// allowing deterministic notification tests without storage or timing hooks.
++func waitForRangeTestCommit(f *fileWriter, s *sliceWriter, ready chan<- struct{}, timeout time.Duration) bool {
++	f.Lock()
++	defer f.Unlock()
++	if ready != nil {
++		close(ready)
++	}
++	for !s.committed {
++		if f.commitcond.WaitWithTimeout(timeout) {
++			return false
++		}
++	}
++	return true
++}
++
++func TestRangeFlushFixedOverwriteCommitNotification(t *testing.T) {
++	f := rangeTestFile(0)
++	s := rangeTestSlice(f.chunks[0])
++	ready := make(chan struct{})
++	done := make(chan bool, 1)
++	go func() { done <- waitForRangeTestCommit(f, s, ready, 2*time.Second) }()
++	<-ready
++
++	// Acquiring the same lock proves WaitWithTimeout captured the condition
++	// channel and released the lock.  Completion therefore cannot win a race
++	// by happening before waiter registration.
++	f.Lock()
++	f.markCommitted(s)
++	f.Unlock()
++	select {
++	case ok := <-done:
++		if !ok {
++			t.Fatal("non-growing overwrite waiter returned via timeout")
++		}
++	case <-time.After(time.Second):
++		t.Fatal("non-growing overwrite commit did not wake range waiter")
++	}
++}
++
++func TestRangeFlushCommitNotificationRaces(t *testing.T) {
++	t.Run("commit-before-waiter", func(t *testing.T) {
++		f := rangeTestFile(0)
++		s := rangeTestSlice(f.chunks[0])
++		f.Lock()
++		f.markCommitted(s)
++		f.Unlock()
++		if !waitForRangeTestCommit(f, s, nil, time.Second) {
++			t.Fatal("already committed slice waited")
++		}
++	})
++
++	t.Run("multiple-waiters", func(t *testing.T) {
++		f := rangeTestFile(0)
++		s := rangeTestSlice(f.chunks[0])
++		const n = 4
++		ready := make([]chan struct{}, n)
++		done := make(chan bool, n)
++		for i := range ready {
++			ready[i] = make(chan struct{})
++			go func(ch chan struct{}) { done <- waitForRangeTestCommit(f, s, ch, 2*time.Second) }(ready[i])
++		}
++		for _, ch := range ready {
++			<-ch
++		}
++		f.Lock()
++		f.markCommitted(s)
++		f.Unlock()
++		for i := 0; i < n; i++ {
++			if !<-done {
++				t.Fatalf("waiter %d timed out", i)
++			}
++		}
++	})
++
++	t.Run("spurious-wake-does-not-complete", func(t *testing.T) {
++		f := rangeTestFile(0)
++		s := rangeTestSlice(f.chunks[0])
++		ready := make(chan struct{})
++		done := make(chan bool, 1)
++		go func() { done <- waitForRangeTestCommit(f, s, ready, 2*time.Second) }()
++		<-ready
++		f.Lock()
++		f.commitcond.Broadcast()
++		f.Unlock()
++		select {
++		case <-done:
++			t.Fatal("spurious wake bypassed committed predicate")
++		case <-time.After(25 * time.Millisecond):
++		}
++		f.Lock()
++		f.markCommitted(s)
++		f.Unlock()
++		if !<-done {
++			t.Fatal("waiter timed out after real commit")
++		}
++	})
++
++	t.Run("timeout-is-not-success", func(t *testing.T) {
++		f := rangeTestFile(0)
++		s := rangeTestSlice(f.chunks[0])
++		if waitForRangeTestCommit(f, s, nil, 10*time.Millisecond) {
++			t.Fatal("timeout reported commit success")
++		}
++	})
++}
++
++func TestRangeScopeChunkBoundaryAndNoDependency(t *testing.T) {
++	f := rangeTestFile(0, 1, 2)
++	a := rangeTestSlice(f.chunks[0])
++	b := rangeTestSlice(f.chunks[1])
++	c := rangeTestSlice(f.chunks[2])
++	targets, fallback := f.rangeScope(meta.ChunkSize-1, 2)
++	if fallback || len(targets) != 2 {
++		t.Fatalf("boundary scope fallback=%v targets=%d, want false/2", fallback, len(targets))
++	}
++	if _, ok := targets[a]; !ok {
++		t.Fatal("chunk 0 omitted")
++	}
++	if _, ok := targets[b]; !ok {
++		t.Fatal("chunk 1 omitted")
++	}
++	if _, ok := targets[c]; ok {
++		t.Fatal("unrelated chunk 2 selected")
++	}
++}
++
++func TestRangeScopeDependencyClosureAndCommittedExclusion(t *testing.T) {
++	t.Run("live-multilevel-prefix", func(t *testing.T) {
++		f := rangeTestFile(0, 1, 2, 3)
++		a := rangeTestSlice(f.chunks[0])
++		prefix := rangeTestSlice(f.chunks[0])
++		tail := rangeTestSlice(f.chunks[0])
++		b := rangeTestSlice(f.chunks[1])
++		c := rangeTestSlice(f.chunks[2])
++		unrelated := rangeTestSlice(f.chunks[3])
++		b.dep = prefix
++		c.dep = b
++		prefix.dep = a
++
++		targets, fallback := f.rangeScope(2*meta.ChunkSize, 1)
++		if fallback {
++			t.Fatal("valid dependency chain used full fallback")
++		}
++		for name, s := range map[string]*sliceWriter{"a": a, "prefix": prefix, "b": b, "c": c} {
++			if _, ok := targets[s]; !ok {
++				t.Fatalf("dependency closure omitted %s", name)
++			}
++		}
++		for name, s := range map[string]*sliceWriter{"tail": tail, "unrelated": unrelated} {
++			if _, ok := targets[s]; ok {
++				t.Fatalf("dependency closure included %s", name)
++			}
++		}
++	})
++
++	t.Run("committed-dependency-removed-from-queue", func(t *testing.T) {
++		f := rangeTestFile(0, 1)
++		committed := &sliceWriter{chunk: f.chunks[0], committed: true}
++		later := rangeTestSlice(f.chunks[0])
++		target := rangeTestSlice(f.chunks[1])
++		target.dep = committed
++
++		targets, fallback := f.rangeScope(meta.ChunkSize, 1)
++		if fallback {
++			t.Fatal("committed dependency triggered full fallback")
++		}
++		if _, ok := targets[target]; !ok {
++			t.Fatal("primary target omitted")
++		}
++		if _, ok := targets[later]; ok {
++			t.Fatal("later unrelated slice from committed dependency chunk selected")
++		}
++	})
++
++	t.Run("missing-live-dependency-falls-back", func(t *testing.T) {
++		f := rangeTestFile(0, 1, 2)
++		missing := &sliceWriter{chunk: f.chunks[0]}
++		rangeTestSlice(f.chunks[0])
++		target := rangeTestSlice(f.chunks[1])
++		other := rangeTestSlice(f.chunks[2])
++		target.dep = missing
++		targets, fallback := f.rangeScope(meta.ChunkSize, 1)
++		if !fallback {
++			t.Fatal("missing uncommitted dependency did not trigger safe fallback")
++		}
++		if _, ok := targets[other]; !ok {
++			t.Fatal("safe fallback did not include every live slice")
++		}
++	})
++}
++
++func TestRangeFlushRealWritePathDependenciesAndReadback(t *testing.T) {
++	v, _ := createTestVFS(nil, "")
++	ctx := NewLogContext(meta.Background())
++	fe, fh, errno := v.Create(ctx, 1, "range-growth", 0644, 0, syscall.O_RDWR)
++	if errno != 0 {
++		t.Fatalf("create: %s", errno)
++	}
++	defer v.Release(ctx, fe.Inode, fh)
++
++	want := bytes.Repeat([]byte{0x5a}, 256<<10)
++	for i := uint64(0); i < 3; i++ {
++		if errno := v.Write(ctx, fe.Inode, want, i*meta.ChunkSize, fh); errno != 0 {
++			t.Fatalf("growth write chunk %d: %s", i, errno)
++		}
++	}
++
++	dw := v.writer.(*dataWriter)
++	f := dw.find(fe.Inode)
++	if f == nil {
++		t.Fatal("live file writer missing")
++	}
++	f.Lock()
++	if len(f.chunks) != 3 || len(f.chunks[1].slices) == 0 || len(f.chunks[2].slices) == 0 {
++		f.Unlock()
++		t.Fatalf("unexpected live chunk graph: %d chunks", len(f.chunks))
++	}
++	s1 := f.chunks[1].slices[0]
++	s2 := f.chunks[2].slices[0]
++	if s1.dep == nil || s2.dep != s1 {
++		f.Unlock()
++		t.Fatal("real growth writes did not create the expected cross-chunk dependency chain")
++	}
++	f.Unlock()
++
++	if errno := dw.FlushRange(ctx, fe.Inode, 2*meta.ChunkSize, uint64(len(want))); errno != 0 {
++		t.Fatalf("range flush: %s", errno)
++	}
++	got := make([]byte, len(want))
++	if n, errno := v.Read(ctx, fe.Inode, got, 2*meta.ChunkSize, fh); errno != 0 || n != len(got) || !bytes.Equal(got, want) {
++		t.Fatalf("growth readback errno=%s n=%d equal=%v", errno, n, bytes.Equal(got, want))
++	}
++
++	// Once the file length already covers the write, a fixed-size overwrite
++	// must not invent a growth dependency.
++	if errno := v.Write(ctx, fe.Inode, bytes.Repeat([]byte{0x33}, 256<<10), meta.ChunkSize+1<<20, fh); errno != 0 {
++		t.Fatalf("fixed overwrite: %s", errno)
++	}
++	f.Lock()
++	for _, s := range f.chunks[1].slices {
++		if s.dep != nil {
++			f.Unlock()
++			t.Fatal("fixed-size overwrite unexpectedly acquired dependency")
++		}
++	}
++	f.Unlock()
++}
++
++func TestRangeFlushMultiHandleOverlapCrossChunkAndEOF(t *testing.T) {
++	v, _ := createTestVFS(nil, "")
++	ctx := NewLogContext(meta.Background())
++	fe, fh1, errno := v.Create(ctx, 1, "range-api", 0644, 0, syscall.O_RDWR)
++	if errno != 0 {
++		t.Fatalf("create: %s", errno)
++	}
++	defer v.Release(ctx, fe.Inode, fh1)
++	_, fh2, errno := v.Open(ctx, fe.Inode, syscall.O_RDWR)
++	if errno != 0 {
++		t.Fatalf("open second handle: %s", errno)
++	}
++	defer v.Release(ctx, fe.Inode, fh2)
++
++	off := uint64(meta.ChunkSize - 128<<10)
++	want := bytes.Repeat([]byte{0x7b}, 256<<10)
++	if errno := v.Write(ctx, fe.Inode, want, off, fh1); errno != 0 {
++		t.Fatalf("cross-chunk write: %s", errno)
++	}
++	got := make([]byte, len(want))
++	if n, errno := v.Read(ctx, fe.Inode, got, off, fh2); errno != 0 || n != len(got) || !bytes.Equal(got, want) {
++		t.Fatalf("multi-handle read errno=%s n=%d equal=%v", errno, n, bytes.Equal(got, want))
++	}
++	partial := make([]byte, 32<<10)
++	if n, errno := v.Read(ctx, fe.Inode, partial, off+17<<10, fh2); errno != 0 || n != len(partial) || !bytes.Equal(partial, want[17<<10:49<<10]) {
++		t.Fatalf("overlap read errno=%s n=%d equal=%v", errno, n, bytes.Equal(partial, want[17<<10:49<<10]))
++	}
++	eof := make([]byte, 4096)
++	if n, errno := v.Read(ctx, fe.Inode, eof, off+uint64(len(want)), fh2); errno != 0 || n != 0 {
++		t.Fatalf("EOF read errno=%s n=%d, want success/0", errno, n)
++	}
++}
++
++func TestRangeScopeZeroAndOverflow(t *testing.T) {
++	f := rangeTestFile(0)
++	rangeTestSlice(f.chunks[0])
++	for name, tc := range map[string]struct{ off, size uint64 }{
++		"zero":     {off: 0, size: 0},
++		"overflow": {off: ^uint64(0) - 1, size: 4},
++	} {
++		targets, fallback := f.rangeScope(tc.off, tc.size)
++		if fallback || len(targets) != 0 {
++			t.Fatalf("%s scope fallback=%v targets=%d, want false/0", name, fallback, len(targets))
++		}
++	}
++}
++
++func TestRangePendingRequiresEveryTarget(t *testing.T) {
++	a := &sliceWriter{committed: true}
++	b := &sliceWriter{}
++	targets := map[*sliceWriter]struct{}{a: {}, b: {}}
++	if !rangePending(targets) {
++		t.Fatal("uncommitted target was ignored")
++	}
++	b.committed = true
++	if rangePending(targets) {
++		t.Fatal("all committed targets still reported pending")
++	}
++}
++
++func TestRangeFlushErrorAndCancellation(t *testing.T) {
++	t.Run("stored-error", func(t *testing.T) {
++		f := rangeTestFile()
++		f.w = &dataWriter{
++			conf:       &Config{Chunk: &chunk.Config{}},
++			maxRetries: 0,
++		}
++		f.writecond = utils.NewCond(f)
++		f.err = syscall.EIO
++		if got := f.flushRange(meta.Background(), 0, 1); got != syscall.EIO {
++			t.Fatalf("flushRange error=%s, want EIO", got)
++		}
++	})
++
++	t.Run("canceled-wait", func(t *testing.T) {
++		f := rangeTestFile(0)
++		f.w = &dataWriter{
++			conf:       &Config{Chunk: &chunk.Config{PutTimeout: 0}},
++			maxRetries: 0,
++		}
++		f.writecond = utils.NewCond(f)
++		s := rangeTestSlice(f.chunks[0])
++		s.freezed = true // keep it pending without invoking storage
++		ctx := meta.NewContext(1, 1, nil)
++		ctx.Cancel()
++		started := time.Now()
++		if got := f.flushRange(ctx, 0, 1); got != syscall.EINTR {
++			t.Fatalf("canceled flushRange error=%s, want EINTR", got)
++		}
++		if elapsed := time.Since(started); elapsed < 2*time.Second || elapsed > 5*time.Second {
++			t.Fatalf("canceled flushRange elapsed=%s, want one normal 3s wait", elapsed)
++		}
++	})
++}

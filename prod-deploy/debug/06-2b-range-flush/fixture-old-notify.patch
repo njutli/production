@@ -1,0 +1,13 @@
+--- a/pkg/vfs/writer.go
++++ b/pkg/vfs/writer.go
+@@ -242,7 +242,9 @@
+ // also waits for fixed-size overwrite slices.  The caller must hold f.Mutex.
+ func (f *fileWriter) markCommitted(s *sliceWriter) {
+ 	s.committed = true
+-	f.commitcond.Broadcast()
++	if s.growing {
++		f.commitcond.Broadcast()
++	}
+ }
+ 
+ type fileWriter struct {

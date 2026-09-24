@@ -7,10 +7,24 @@
 > | **FT** | Fault Tolerance | 容错验证——验证故障期间数据可用、I/O 不中断 |
 > | **OPS** | Operations | 运维操作——验证恢复/重建等运维流程可执行 |
 > | **DG** | Degradation | 性能退化量化——验证故障期间吞吐退化幅度可控 |
+> | **LT** | Long Term | 长时间读写、空间回收和受控维护稳定性 |
 >
 
 
 ---
+
+## LT 长时间稳定性用例
+
+LT脚本必须在客户端157执行，使用统一的 `plan → prepare → start → status → collect` 流程；不进入普通 `run.sh all`。公共实现位于 `lib/long_term.sh`，离线门为 `test-long-term.sh`。
+
+| ID | profile | 固定数据集/负载 | 主要判据 |
+|---|---|---|---|
+| LT-001 | `seqread` / `randread` | 1×32GiB顺序读；128×1GiB随机读 | 小时带宽与P99、错误/停顿、客户端资源不漂移、最终CRC通过 |
+| LT-002 | `seqwrite16m` / `randwrite256k` / `randrw256k` | 16×4GiB或128×1GiB固定文件覆盖 | 写入字节、对象/stored、每OSD DB、TiKV pending形成可接受上界；最终CRC通过 |
+| LT-003 | 同LT-002写profile | 默认10min burst + 10min idle；前三轮全文件，之后只写前半文件 | 相同周期位置的峰/低谷与恢复时间不持续抬高，后半冷文件历史可继续回收 |
+| LT-004 | `compact-randread` | 使用已积累历史slice的128×1GiB源数据集，在线randread期间精确compact | 数据正确、维护耗时/资源、在线读影响及恢复时间；不自动化全卷GC |
+
+默认2小时只属于安全筛查。24小时用于候选组合，72小时只用于拟交付组合。数据集、远端结果和持久化证据均按RUN隔离且不自动删除；停止时只向记录了PID+starttime的本RUN fio发TERM。
 
 ---
 

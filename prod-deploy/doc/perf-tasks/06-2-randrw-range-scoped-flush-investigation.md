@@ -18,7 +18,8 @@
 >
 > 后续（2026-09-16）：通知/范围修复与新合同验证另见
 > [06-2b](06-2b-randrw-range-flush-repair-and-burst-validation.md)，不在本RUN补格。
-> 下文“06-3用于交付验证”是历史预留；现06-3已用于缓存配置筛选，交付验证编号待定。
+> 下文“06-3用于交付验证”是历史预留；现06-3已用于缓存配置筛选，且本任务没有候选，
+> 因此交付验证**未触发且不再预留编号**。
 >
 > 上位计划：`doc/perf-analysis/06-randrw-cache-and-write-path-tuning-plan.md`
 >
@@ -62,7 +63,7 @@
        门3 语义回归：含**跨 chunk 依赖闭包**用例，全通才能进效应量
   ↓
        三门皆过 → 四格 ABBA（baseline vs patched）
-       ├─ 有材料收益 → 整理上游 PR；另立 06-3 才谈交付
+       ├─ 有材料收益 → 整理上游 PR；另立任务才谈交付（本次未触发）
        └─ 无材料收益 → M1 不是主要瓶颈，randrw 调优在本后端收敛
 ```
 
@@ -81,7 +82,7 @@ SCREEN_SOURCE=源码 M1（vfs.go:787 全 inode flush；writer.go:386 持锁等�
               ⚠️ 纯写!=混合，剩余约束可能在客户端路径也可能来自 GET/PUT 混合服务关系，待区分）
 SCREEN_CONTINUE=见 §三.3 四条材料信号
 SCREEN_STOP=历史合同见正文；审计后 Gate2B=GATE_INVALID，未来复用须先建立逐请求关键路径与排队换算，且观测开销<M
-FORMAL_MATRIX=有收益则另立 06-3：上游 PR + ABBA-BAAB 8 轮 + 七项非劣回归；本任务不自动升级
+FORMAL_MATRIX=有收益则另立任务：上游PR + ABBA-BAAB 8轮 + 七项非劣回归；本次无候选，未触发且不预留编号
 M1_STATUS=**合理嫌疑，未证主因**。⛔ 全文不得写"M1 是主因"
 SEMANTIC_EQUIVALENCE=**待回归验证的目标**。⛔ 不得预先宣称"语义完全等价"
 NOT_IN_SCOPE=⛔ 不删除 M1（正确性缺陷，见 §一.2）
@@ -554,14 +555,14 @@ patched  = instrumentation-only + range-scoped 行为修改
 
 ## 九、完成线
 
-- [ ] 06-1 裁决已回传，基座配置已冻结登记
-- [ ] **门 1** 构建溯源五步闭合，baseline 登记 SHA256/MD5/BuildID，P0 smoke 通过
-- [ ] **门 2A** 在 writeback 目标模式下取得粗筛证据并判定有材料阻塞信号（否则终止并出报告）
+- [x] 06-1 裁决已回传，基座配置已冻结登记
+- [x] **门 1** 构建溯源五步闭合，baseline 登记 SHA256/MD5/BuildID，P0 smoke 通过
+- [x] **门 2A** 在 writeback 目标模式下取得粗筛证据并判定有材料阻塞信号
 - [x] **门 2B** 已执行但经审计回溯为`GATE_INVALID`：两种`F`均无关键路径语义，观测开销约23%>`M`；不得未来复用
-- [ ] **门 3** R1--R10 全通（含 R5/R6 依赖闭包用例）并经第二方复核
-- [ ] Phase A 四格全部 `fio rc=0`、sampler 完整、正式窗无缺秒、二进制身份门全通、先排空后卸载闭环
-- [ ] Phase B 触发则完成 paired U150/U300、未触发则记 `PHASE_B_NOT_TRIGGERED`
-- [ ] 第二方给出效应量、四条材料信号、四态裁决与 §4.4 探索性假设裁决
-- [ ] 调查构建已从环境移除并登记；生产二进制未被替换
-- [ ] 收口全项通过，证据持久化并校验
-- [ ] 正式报告含 §4.5 六条强制声明项；results-table 与上位计划进展行落地
+- [x] **门 3按限定口径完成**：真实FUSE R1--R8等通过，裁决仅为`QUALIFIED_GATE3_PASS`；⛔ 不得写成原合同R1--R10全通，依赖闭包缺少正面证据
+- [x] Phase A 四格原始生命周期完成；T1/T2/C2正式窗/runtime合同失败，故登记`EVIDENCE_INVALID`而非性能PASS
+- [x] Phase B未触发，已记`PHASE_B_NOT_TRIGGERED`
+- [x] 第二方已给出证据有效性、机制与四态裁决；正式效应量因证据失效不计算
+- [x] 调查构建已从环境移除并登记；生产二进制未被替换
+- [x] 收口全项通过，证据持久化并校验
+- [x] 正式报告、results-table与上位计划进展行已落地

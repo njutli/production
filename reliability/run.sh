@@ -37,7 +37,7 @@ usage() {
 
 target:
   FT-001       单个用例
-  all          全部用例
+  all          全部分钟级用例（故意不包含 LT）
   FT|HA|MON|OPS|DG  按前缀筛选
   P0|P1|P2    按优先级筛选
 
@@ -47,6 +47,9 @@ options:
   --dry-run          仅语法检查
   --quick-check      仅前置检查
   --summary <ts>     查看结果汇总
+
+LT-001～LT-004 是2～72小时独立用例；本轮请按 README 在192.168.11.12上运行；
+run.sh 只用于现有FT/OPS/DG分钟级用例。
 EOF
 }
 
@@ -67,6 +70,10 @@ while [ $# -gt 0 ]; do
 done
 
 [ -z "$TARGET" ] && { usage; exit 1; }
+if [[ "$TARGET" == LT || "$TARGET" == LT-* ]]; then
+    echo "LT长测不由run.sh编排；本轮请按reliability/README.md在192.168.11.12上使用对应cases/LT-*.sh入口。" >&2
+    exit 2
+fi
 
 # ============================================================
 # 函数（续）
@@ -108,6 +115,7 @@ collect_cases() {
     elif echo "$target" | grep -qP '^P[0-3]$'; then
         for f in "${CASES_DIR}"/*.sh; do
             [ -f "$f" ] || continue
+            [[ $(basename "$f") == LT-* ]] && continue
             local pri=$(get_case_priority "$f")
             [ "$pri" = "$target" ] && cases+=("$f")
         done

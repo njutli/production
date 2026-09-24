@@ -1,0 +1,343 @@
+diff --git a/pkg/vfs/writer.go b/pkg/vfs/writer.go
+index ed432cc6..c237ab8e 100644
+--- a/pkg/vfs/writer.go
++++ b/pkg/vfs/writer.go
+@@ -149,6 +149,14 @@ func (s *sliceWriter) write(ctx meta.Context, off uint32, data []uint8) syscall.
+ 	if s.slen == meta.ChunkSize {
+ 		s.freezed = true
+ 		go s.flushData()
++	} else if f.w.eagerFreeze && !s.growing && off == 0 && len(data) == f.w.blockSize &&
++		s.slen == uint32(f.w.blockSize) &&
++		(uint64(s.chunk.indx)*meta.ChunkSize+uint64(s.off))%uint64(f.w.blockSize) == 0 {
++		// Investigation-only fast path for the B256 overwrite workload: once a
++		// single aligned object block is complete, no later write may append to
++		// this slice. Finish/commit still follow the existing path and ordering.
++		s.freezed = true
++		go s.flushData()
+ 	} else if int(s.slen) >= f.w.blockSize {
+ 		if s.id > 0 {
+ 			err := s.writer.FlushTo(int(s.slen))
+@@ -464,26 +472,28 @@ func (f *fileWriter) Truncate(length uint64) {
+ 
+ type dataWriter struct {
+ 	sync.Mutex
+-	m          meta.Meta
+-	store      chunk.ChunkStore
+-	conf       *Config
+-	reader     DataReader
+-	blockSize  int
+-	bufferSize int64
+-	files      map[Ino]*fileWriter
+-	maxRetries uint32
++	m           meta.Meta
++	store       chunk.ChunkStore
++	conf        *Config
++	reader      DataReader
++	blockSize   int
++	bufferSize  int64
++	files       map[Ino]*fileWriter
++	maxRetries  uint32
++	eagerFreeze bool
+ }
+ 
+ func NewDataWriter(conf *Config, m meta.Meta, store chunk.ChunkStore, reader DataReader) DataWriter {
+ 	w := &dataWriter{
+-		m:          m,
+-		store:      store,
+-		reader:     reader,
+-		conf:       conf,
+-		blockSize:  conf.Chunk.BlockSize,
+-		bufferSize: int64(conf.Chunk.BufferSize),
+-		files:      make(map[Ino]*fileWriter),
+-		maxRetries: uint32(conf.Meta.Retries),
++		m:           m,
++		store:       store,
++		reader:      reader,
++		conf:        conf,
++		blockSize:   conf.Chunk.BlockSize,
++		bufferSize:  int64(conf.Chunk.BufferSize),
++		files:       make(map[Ino]*fileWriter),
++		maxRetries:  uint32(conf.Meta.Retries),
++		eagerFreeze: conf.ExperimentalEagerFreeze,
+ 	}
+ 	go w.flushAll()
+ 	return w
+diff --git a/pkg/vfs/vfs.go b/pkg/vfs/vfs.go
+index 45b557c5..3e8c8901 100644
+--- a/pkg/vfs/vfs.go
++++ b/pkg/vfs/vfs.go
+@@ -151,6 +151,11 @@ type Config struct {
+ 	StatePath string       `json:",omitempty"`
+ 	FuseOpts  *FuseOptions `json:",omitempty"`
+ 
++	// ExperimentalEagerFreeze freezes a single complete, aligned object block
++	// as soon as it has been written. It is an investigation-only switch and
++	// remains disabled unless explicitly requested by the mount command.
++	ExperimentalEagerFreeze bool `json:",omitempty"`
++
+ 	// the mount point for current volume (to follow symlink)
+ 	Mountpoint string
+ }
+diff --git a/cmd/flags.go b/cmd/flags.go
+index 58a99883..2e3a7f2a 100644
+--- a/cmd/flags.go
++++ b/cmd/flags.go
+@@ -212,6 +212,11 @@ func dataCacheFlags() []cli.Flag {
+ 			Name:  "writeback",
+ 			Usage: "upload blocks in background",
+ 		},
++		&cli.BoolFlag{
++			Name:   "experimental-eager-freeze",
++			Usage:  "freeze complete aligned write blocks immediately (experimental)",
++			Hidden: true,
++		},
+ 		&cli.StringFlag{
+ 			Name:  "writeback-threshold-size",
+ 			Value: "0",
+diff --git a/cmd/mount.go b/cmd/mount.go
+index 9f141e8f..16f6109c 100644
+--- a/cmd/mount.go
++++ b/cmd/mount.go
+@@ -288,16 +288,17 @@ func getVfsConf(c *cli.Context, metaConf *meta.Config, format *meta.Format, chun
+ 			EnableCap:     c.Bool("enable-cap"),
+ 			EnableSELinux: c.Bool("enable-selinux"),
+ 		},
+-		Version:         version.Version(),
+-		Chunk:           chunkConf,
+-		BackupMeta:      utils.Duration(c.String("backup-meta")),
+-		BackupSkipTrash: c.Bool("backup-skip-trash"),
+-		Port:            &vfs.Port{DebugAgent: debugAgent, PyroscopeAddr: c.String("pyroscope")},
+-		PrefixInternal:  c.Bool("prefix-internal"),
+-		Pid:             os.Getpid(),
+-		PPid:            os.Getppid(),
+-		UMask:           0xFFFF,
+-		HideInternal:    c.Bool("hide-internal"),
++		Version:                 version.Version(),
++		Chunk:                   chunkConf,
++		BackupMeta:              utils.Duration(c.String("backup-meta")),
++		BackupSkipTrash:         c.Bool("backup-skip-trash"),
++		Port:                    &vfs.Port{DebugAgent: debugAgent, PyroscopeAddr: c.String("pyroscope")},
++		PrefixInternal:          c.Bool("prefix-internal"),
++		Pid:                     os.Getpid(),
++		PPid:                    os.Getppid(),
++		UMask:                   0xFFFF,
++		HideInternal:            c.Bool("hide-internal"),
++		ExperimentalEagerFreeze: c.Bool("experimental-eager-freeze"),
+ 	}
+ 
+ 	if c.IsSet("umask") {
+diff --git a/pkg/vfs/writer_eager_freeze_test.go b/pkg/vfs/writer_eager_freeze_test.go
+new file mode 100644
+index 00000000..00000000
+--- /dev/null
++++ b/pkg/vfs/writer_eager_freeze_test.go
+@@ -0,0 +1,209 @@
++/*
++ * JuiceFS, Copyright 2026 Juicedata, Inc.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package vfs
++
++import (
++	"bytes"
++	"sync"
++	"syscall"
++	"testing"
++	"time"
++
++	"github.com/juicedata/juicefs/pkg/meta"
++	"github.com/juicedata/juicefs/pkg/utils"
++)
++
++type eagerFreezeTestWriter struct {
++	mu       sync.Mutex
++	id       uint64
++	finished chan int
++	flushed  []int
++}
++
++func (w *eagerFreezeTestWriter) WriteAt(p []byte, off int64) (int, error) { return len(p), nil }
++func (w *eagerFreezeTestWriter) ID() uint64                               { return w.id }
++func (w *eagerFreezeTestWriter) SetID(id uint64)                          { w.id = id }
++func (w *eagerFreezeTestWriter) SetWriteback(bool)                        {}
++func (w *eagerFreezeTestWriter) Abort()                                   {}
++func (w *eagerFreezeTestWriter) Finish(length int) error {
++	w.finished <- length
++	return nil
++}
++func (w *eagerFreezeTestWriter) FlushTo(offset int) error {
++	w.mu.Lock()
++	w.flushed = append(w.flushed, offset)
++	w.mu.Unlock()
++	return nil
++}
++
++func eagerFreezeTestSliceAt(enabled bool, chunkIndex, sliceOffset uint32, blockSize int) (*fileWriter, *sliceWriter, *eagerFreezeTestWriter) {
++	f := &fileWriter{w: &dataWriter{blockSize: blockSize, eagerFreeze: enabled}, length: 1 << 30}
++	c := &chunkWriter{indx: chunkIndex, file: f}
++	w := &eagerFreezeTestWriter{id: 1, finished: make(chan int, 1)}
++	s := &sliceWriter{
++		id:      1,
++		chunk:   c,
++		off:     sliceOffset,
++		writer:  w,
++		notify:  utils.NewCond(&f.Mutex),
++		started: time.Now(),
++	}
++	c.slices = []*sliceWriter{s}
++	f.chunks = map[uint32]*chunkWriter{chunkIndex: c}
++	return f, s, w
++}
++
++func eagerFreezeTestSlice(enabled bool, logicalOffset uint32) (*fileWriter, *sliceWriter, *eagerFreezeTestWriter) {
++	return eagerFreezeTestSliceAt(enabled, 0, logicalOffset, 256<<10)
++}
++
++func TestExperimentalEagerFreezeCompleteAlignedBlock(t *testing.T) {
++	f, s, w := eagerFreezeTestSlice(true, 0)
++	f.Lock()
++	st := f.writeChunk(meta.Background(), 0, 0, make([]byte, 256<<10))
++	f.Unlock()
++	if st != 0 || !s.freezed {
++		t.Fatalf("expected immediate freeze, status=%v frozen=%v", st, s.freezed)
++	}
++	select {
++	case got := <-w.finished:
++		if got != 256<<10 {
++			t.Fatalf("Finish length=%d", got)
++		}
++	case <-time.After(time.Second):
++		t.Fatal("timed out waiting for Finish")
++	}
++}
++
++func TestExperimentalEagerFreezeUsesGlobalAlignmentAcrossChunk(t *testing.T) {
++	const blockSize = 3 << 20
++	f, s, _ := eagerFreezeTestSliceAt(true, 1, 0, blockSize)
++	f.Lock()
++	st := f.writeChunk(meta.Background(), 1, 0, make([]byte, blockSize))
++	f.Unlock()
++	if st != 0 || s.freezed {
++		t.Fatalf("chunk-relative alignment must not trigger, status=%v frozen=%v", st, s.freezed)
++	}
++
++	// Chunk 1 starts at 64 MiB; adding 2 MiB makes the global offset
++	// divisible by the deliberately non-divisor 3 MiB block size.
++	f, s, w := eagerFreezeTestSliceAt(true, 1, 2<<20, blockSize)
++	f.Lock()
++	st = f.writeChunk(meta.Background(), 1, 2<<20, make([]byte, blockSize))
++	f.Unlock()
++	if st != 0 || !s.freezed {
++		t.Fatalf("globally aligned block did not freeze, status=%v frozen=%v", st, s.freezed)
++	}
++	select {
++	case got := <-w.finished:
++		if got != blockSize {
++			t.Fatalf("Finish length=%d", got)
++		}
++	case <-time.After(time.Second):
++		t.Fatal("timed out waiting for globally aligned Finish")
++	}
++}
++
++func TestExperimentalEagerFreezeVFSKnownContent(t *testing.T) {
++	v, _ := createTestVFS(nil, "")
++	v.writer.(*dataWriter).eagerFreeze = true
++	ctx := NewLogContext(meta.Background())
++	entry, fh, st := v.Create(ctx, 1, "eager-freeze", 0644, 0, syscall.O_RDWR)
++	if st != 0 {
++		t.Fatalf("create: %s", st)
++	}
++	blockSize := v.Conf.Chunk.BlockSize
++	if st = v.Fallocate(ctx, entry.Inode, 0, 0, int64(blockSize), fh); st != 0 {
++		t.Fatalf("fallocate: %s", st)
++	}
++	want := make([]byte, blockSize)
++	for i := range want {
++		want[i] = byte(i*31 + 7)
++	}
++	if st = v.Write(ctx, entry.Inode, want, 0, fh); st != 0 {
++		t.Fatalf("write: %s", st)
++	}
++	deadline := time.Now().Add(time.Second)
++	for {
++		f := v.writer.(*dataWriter).find(entry.Inode)
++		pending := 0
++		if f != nil {
++			f.Lock()
++			pending = len(f.chunks)
++			f.Unlock()
++		}
++		if pending == 0 {
++			break
++		}
++		if time.Now().After(deadline) {
++			t.Fatal("eager write was not committed before any read or explicit flush")
++		}
++		time.Sleep(time.Millisecond)
++	}
++	got := make([]byte, blockSize)
++	n, st := v.Read(ctx, entry.Inode, got, 0, fh)
++	if st != 0 || n != blockSize {
++		t.Fatalf("read: status=%s bytes=%d", st, n)
++	}
++	if !bytes.Equal(got, want) {
++		t.Fatal("read-back content mismatch")
++	}
++	if st = v.Flush(ctx, entry.Inode, fh, 0); st != 0 {
++		t.Fatalf("flush: %s", st)
++	}
++}
++
++func TestExperimentalEagerFreezeDefaultOff(t *testing.T) {
++	f, s, w := eagerFreezeTestSlice(false, 0)
++	f.Lock()
++	st := f.writeChunk(meta.Background(), 0, 0, make([]byte, 256<<10))
++	f.Unlock()
++	if st != 0 || s.freezed {
++		t.Fatalf("default path changed, status=%v frozen=%v", st, s.freezed)
++	}
++	w.mu.Lock()
++	defer w.mu.Unlock()
++	if len(w.flushed) != 1 || w.flushed[0] != 256<<10 {
++		t.Fatalf("expected existing FlushTo path, got %v", w.flushed)
++	}
++}
++
++func TestExperimentalEagerFreezeRejectsMisalignedOrPartial(t *testing.T) {
++	for _, tc := range []struct {
++		name    string
++		offset  uint32
++		size    int
++		growing bool
++	}{
++		{name: "misaligned", offset: 1, size: 256 << 10},
++		{name: "partial", offset: 0, size: 128 << 10},
++		{name: "growing", offset: 0, size: 256 << 10, growing: true},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			f, s, _ := eagerFreezeTestSlice(true, tc.offset)
++			if tc.growing {
++				f.length = 0
++			}
++			f.Lock()
++			st := f.writeChunk(meta.Background(), 0, tc.offset, make([]byte, tc.size))
++			f.Unlock()
++			if st != 0 || s.freezed {
++				t.Fatalf("unexpected freeze, status=%v frozen=%v", st, s.freezed)
++			}
++		})
++	}
++}

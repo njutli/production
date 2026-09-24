@@ -9,8 +9,9 @@
 
 ## 一、结论
 
-06-2 已完成源码溯源、动态归因、range-scoped flush 实现、语义回归和一次四格 ABBA 环境验证，
-但**没有得到可登记或可交付的性能优化**：
+06-2 已完成源码溯源、动态观测、range-scoped flush调查实现、限定语义回归和一次四格ABBA环境验证；
+其中Gate 2B事后作废，故行为补丁的原授权链也随之失效。以上均为调查产物，**没有得到可登记或
+可交付的性能优化**：
 
 1. patched 两格观测到每次 flush 的平均 chunk 数由 baseline 的约 `1.87` 降至 `1.00`；但依赖边、
    闭包深度、额外依赖 chunk 与依赖等待计数全部为零，只能确认 scope 被限制为当前 chunk，**不能确认
@@ -38,7 +39,7 @@ Gate 2B 无判定力、依赖闭包未获正面证据、性能效应未闭合；
 |---|---|---|
 | Gate 1 源码与构建溯源 | PASS | 官方 v1.4.1 `0b90c7d` + B-catchup；冻结工具链；P0 NEW→OLD→NEW 通过 |
 | Gate 2A 零行为粗筛 | PASS | 35/36 dump 出现 read→flush；runtime trace 有材料阻塞信号 |
-| Gate 2B 对称 instrumentation | **GATE_INVALID（事后审计）** | 预注册 wall-union `F=0.999990`、产物 `Gmax=100196.02`；request-weighted附带值`F=0.8964/Gmax=8.65`；两种口径都不能换算串行关键路径收益 |
+| Gate 2B 对称 instrumentation | **GATE_INVALID（事后审计）** | 预注册 wall-union `F=0.999990`、产物`Gmax=100196.02`；request-weighted附带量`F=0.8964`曾被换算为`Gmax=8.65`，但该换算无串行关键路径语义；两种口径均不得用于收益准入 |
 | Gate 3 语义回归 | `QUALIFIED_GATE3_PASS` | 真实 FUSE R1--R8、R5/R6 延时、填充卷只读 fsck、零残留均通过 |
 | Phase A 四格执行 | raw lifecycle PASS | 四格 fio rc=0、排空/无缓存读回/私有挂载清理/健康门通过 |
 | Phase A 正式效应 | **EVIDENCE_INVALID** | T1/T2/C2 带宽日志覆盖与 runtime 合同失败 |
@@ -182,7 +183,7 @@ JuiceFS 覆盖写会产生新的不可变对象，旧对象回收并非原地覆
 | range-scoped flush 候选 | `NO_CANDIDATE` |
 | Phase B U150/U300 | `NOT_TRIGGERED` |
 | 生产交付 | `NOT_FOR_PRODUCTION` |
-| 后续 | 当前停止 06-2；仅在有可重复状态重置/私有卷方案时考虑新 RUN |
+| 后续 | 当前停止06-2；只有同时重写逐请求关键路径判据、将观测开销降至本RUN材料阈值以下、闭合依赖语义，并取得可重复状态重置/私有卷方案时，才可另立新RUN |
 
 本报告不主张 M1 已被证明为 randrw 主因，也不主张补丁语义已由全量上游测试证明；它只确认：
 **whole-inode flush 是可测嫌疑，当前 chunk scope 已缩小，但依赖闭包正确性未闭合；当前准入门无效、

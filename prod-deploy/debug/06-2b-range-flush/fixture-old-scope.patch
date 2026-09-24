@@ -1,0 +1,11 @@
+--- a/pkg/vfs/writer.go
++++ b/pkg/vfs/writer.go
+@@ -476,7 +476,7 @@
+ 		changed = false
+ 		for s := range targets {
+ 			dep := s.dep
+-			if dep == nil || dep.committed {
++			if dep == nil {
+ 				continue
+ 			}
+ 			if dep.chunk == nil {

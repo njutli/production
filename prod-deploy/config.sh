@@ -186,11 +186,14 @@ JUICEFS_CACHE_MOUNT="/mnt/jfs-cache"
 JUICEFS_CACHE_DIR="${JUICEFS_CACHE_MOUNT}"
 JUICEFS_CACHE_SIZE_MB=0             # 0=冷态基线；暖态按需开（如 102400=100G）
 
-# JuiceFS 挂载参数（分层：基线冷态 + 条件性暖态增强）
+# JuiceFS 挂载参数（分层：通用性能基线 + 业务挂载安全基线 + 条件性暖态增强）
 JUICEFS_BASE_MOUNT_OPTS=(
     --storage ceph                     # 08_1：直连 RADOS，随机写 +71%
     --bucket ceph://juicefs-data
-    --max-uploads 150                  # 演进报告 §四：顺序写 +23%
+    --max-fuse-io 256K                 # 通用生产基线；1M 仅作顺序写专用灰度候选
+    --max-uploads 150
+    --max-downloads 200
+    --buffer-size 300
 )
 # 注：不传 --block-size —— JuiceFS 1.3.1 mount 拒绝该选项（block-size 由 format 固定为 256K，
 #     元数据自描述，mount 无需也无法覆盖）
@@ -207,10 +210,34 @@ if [ "${JUICEFS_CACHE_SIZE_MB}" -gt 0 ] && [ -n "${JUICEFS_CACHE_DIR}" ]; then
 fi
 [ "${JUICEFS_ENABLE_WRITEBACK}" = "true" ] && _jfs_cache_args+=( --writeback )
 [ "${JUICEFS_READAHEAD}" = "0" ] && _jfs_cache_args+=( --max-readahead 0 )
-JUICEFS_MOUNT_OPTS=( "${JUICEFS_BASE_MOUNT_OPTS[@]}" "${_jfs_cache_args[@]}" )
+
+# 业务挂载必须把 UID 0 映射到专用低权限数字身份。目标UID/GID有两种确定方式：
+# 1. 实际部署前检查所有客户端、LDAP及既有文件owner，选择未占用的数字；
+# 2. 在统一身份规划阶段提前预留一组专供root映射、禁止登录的UID/GID。
+# 无论采用哪种方式，正式挂载前都要确认其未被业务用户/组占用，并冻结为全客户端一致的
+# 数字值，再通过环境或受保护的部署配置赋值；留空时 deploy-juicefs.sh 拒绝挂载。
+JUICEFS_ROOT_SQUASH_UID="${JUICEFS_ROOT_SQUASH_UID:-}"
+JUICEFS_ROOT_SQUASH_GID="${JUICEFS_ROOT_SQUASH_GID:-}"
+
+JUICEFS_BUSINESS_MOUNT_OPTS=( "${JUICEFS_BASE_MOUNT_OPTS[@]}" "${_jfs_cache_args[@]}" )
+if [ -n "${JUICEFS_ROOT_SQUASH_UID}" ] && [ -n "${JUICEFS_ROOT_SQUASH_GID}" ]; then
+    JUICEFS_BUSINESS_MOUNT_OPTS+=( --root-squash "${JUICEFS_ROOT_SQUASH_UID}:${JUICEFS_ROOT_SQUASH_GID}" )
+fi
+
+# 管理挂载与业务挂载分离：只允许受控运维节点用于建目录、chown和应急修复；
+# 不启用 root-squash，也不继承业务写缓存。当前部署脚本不会自动创建该挂载。
+JUICEFS_MANAGEMENT_MOUNT_OPTS=( "${JUICEFS_BASE_MOUNT_OPTS[@]}" --cache-size 0 )
+
+# 向后兼容现有部署脚本；默认挂载身份明确指向业务挂载。
+JUICEFS_MOUNT_OPTS=( "${JUICEFS_BUSINESS_MOUNT_OPTS[@]}" )
 
 # --- JuiceFS metadata URL ---
 JUICEFS_METADATA_URL="tikv://${PD_ENDPOINTS}/${JUICEFS_FS_NAME}"
+
+# --- Ceph pool / cephx ---
+# 必须在 JUICEFS_FORMAT_OPTS 展开前定义；deploy-juicefs.sh 使用 set -u。
+CEPH_POOL_NAME="juicefs-data"
+CEPHX_CLIENT="client.juicefs"
 
 # --- JuiceFS format options (Ceph RADOS 直连) ---
 # --access-key = Ceph cluster name, --secret-key = Ceph client user name
@@ -222,10 +249,6 @@ JUICEFS_FORMAT_OPTS=(
     --block-size 256K
     --trash-days 0
 )
-
-# --- Ceph pool / cephx ---
-CEPH_POOL_NAME="juicefs-data"
-CEPHX_CLIENT="client.juicefs"
 
 # 注：不部署 RGW、不需 LB。JuiceFS 用 --storage ceph 直连 RADOS（librados）。
 # 数据路径为 JuiceFS → RADOS，跳过 RGW HTTP 层（依据 08_1：去 RGW 后随机写 +71%）。

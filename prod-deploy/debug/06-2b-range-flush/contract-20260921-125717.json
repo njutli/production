@@ -1,0 +1,57 @@
+{
+  "schema": "06-2b-v1",
+  "status": "APPROVED",
+  "run_id": "20260921-125717",
+  "matrix_profile": "range-flush-abba",
+  "meta": "tikv://10.20.1.150:2379,10.20.1.151:2379,10.20.1.152:2379/juicefs-prod",
+  "hostname": "oneasia-c1-cpu-node10",
+  "machine_id": "4d7dca71dfd042a4aa37266eb5a2b258",
+  "ceph_fsid": "f8137e5a-8af2-11f1-aa1c-4df480fc234d",
+  "volume_uuid": "e1b69ea9-0e3d-427d-bea9-8765928afa66",
+  "fio_version": "fio-3.28",
+  "assets_sha256": "655faef11c4cf378097db497ac66fe5dbe5dddd725653619a762d18f69c08a44",
+  "cache_parent": "/mnt/jfs-cache/04tmp3",
+  "cache_exclusive_use": true,
+  "no_concurrent_benchmark": true,
+  "approved_osd_flags": [
+    "sortbitwise",
+    "recovery_deletes",
+    "purged_snapdirs",
+    "pglog_hardlimit"
+  ],
+  "protected_processes": [
+    {"pid": 977835, "starttime_ticks": 1735981983, "exe": "/tmp/juicefs-1.4.1-patched"},
+    {"pid": 977874, "starttime_ticks": 1735981988, "exe": "/tmp/juicefs-1.4.1-patched"},
+    {"pid": 4033424, "starttime_ticks": 1809953885, "exe": "/tmp/juicefs-1.4.1-patched"},
+    {"pid": 4033461, "starttime_ticks": 1809953888, "exe": "/tmp/juicefs-1.4.1-patched"}
+  ],
+  "metrics": {
+    "pending": "UNREGISTERED",
+    "uploading": "juicefs_object_request_uploading",
+    "staging_errors": "juicefs_staging_block_errors",
+    "error_counter_absent_is_zero": false
+  },
+  "cache_source": "/dev/nvme1n1",
+  "cache_major_minor": "259:2",
+  "cache_fstype": "ext4",
+  "cache_filesystem_uuid": "1b691709-e347-452c-96c4-5f37052bc203",
+  "cache_mount_target": "/mnt/jfs-cache",
+  "cache_mount_options": "rw,noatime,stripe=32",
+  "cache_physical_leaf_devices": "nvme1n1",
+  "cache_owner_uid": 1002,
+  "cache_owner_gid": 1002,
+  "cache_mode": 700,
+  "space": {
+    "read_cache_bytes": 103079215104,
+    "worst_backlog_bytes": 274877906944,
+    "filesystem_reserve_bytes": 94489280512,
+    "business_reserve_bytes": 68719476736,
+    "stop_margin_bytes": 77309411328,
+    "max_ingress_bytes_per_sec": 3758096384,
+    "stop_latency_seconds": 10,
+    "monitor_interval_seconds": 1,
+    "minimum_start_avail_bytes": 618475290624,
+    "minimum_mem_available_bytes": 412316860416,
+    "max_fio_wall_seconds": 210
+  }
+}

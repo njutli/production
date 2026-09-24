@@ -45,7 +45,6 @@ EvidenceError = _legacy.EvidenceError
 
 MIB = 1048576
 JOBS = 128
-CELLS = ("C1", "S1", "W1", "W2", "S2", "C2")
 HISTORY_CELLS = ("C1", "T1", "T2", "C2")
 HISTORY_SHA256 = "ce8ec6c203d4bae4d8bf39cea38d1af64d7e67fe2a9001d6fa8b2af47383357c"
 HISTORY_EXPECTED = {
@@ -59,6 +58,35 @@ WORKLOAD = {"ioengine": "libaio", "iodepth": "128", "numjobs": "128",
             "time_based": "1", "runtime": "180", "group_reporting": "1",
             "fallocate": "none", "allow_file_create": "0", "randrepeat": "1",
             "randseed": "20260915", "per_job_logs": "1", "log_avg_msec": "1000"}
+
+
+def configure_profile(profile):
+    global PROFILE, CELLS, ARM_SPECS, COMPARISONS, POSITIONS, FIXTURE_RATES, RESULT_SCHEMA
+    PROFILE = profile
+    if profile == "burst-abba":
+        CELLS = ("A1", "B1", "B2", "A2")
+        ARM_SPECS = {
+            "A": {"cache_mib": 0, "writeback": False, "cache_large_write": False},
+            "B": {"cache_mib": 98304, "writeback": True, "cache_large_write": False},
+        }
+        COMPARISONS = (("B", "A"),)
+        POSITIONS = {"A": [1, 4], "B": [2, 3]}
+        FIXTURE_RATES = {"A": 100, "B": 150}
+        RESULT_SCHEMA = "06-3-cache-burst-abba-v1"
+    else:
+        CELLS = ("C1", "S1", "W1", "W2", "S2", "C2")
+        ARM_SPECS = {
+            "C": {"cache_mib": 0, "writeback": False, "cache_large_write": False},
+            "S": {"cache_mib": 98304, "writeback": False, "cache_large_write": True},
+            "W": {"cache_mib": 98304, "writeback": True, "cache_large_write": True},
+        }
+        COMPARISONS = (("S", "C"), ("W", "C"), ("W", "S"))
+        POSITIONS = {"C": [1, 6], "S": [2, 5], "W": [3, 4]}
+        FIXTURE_RATES = {"C": 100, "S": 120, "W": 150}
+        RESULT_SCHEMA = "06-3-burst-screen-v1"
+
+
+configure_profile("legacy-six-cell")
 
 
 class TextSource:
@@ -437,6 +465,8 @@ def validate_new_cell(evidence, shared, name, primary, mechanism, lifecycle):
     try:
         contract = shared.data("gate0/approved-contract.json")
         require(contract.get("schema") == "06-3-v1" and contract.get("status") == "APPROVED", "contract schema/approval")
+        if PROFILE == "burst-abba":
+            require(contract.get("matrix_profile") == "burst-abba", "contract matrix profile")
         require(contract.get("metrics", {}).get("pending") == "UNREGISTERED", "pending registration contract")
         require(re.fullmatch(r"[0-9]{8}-[0-9]{6}", str(contract.get("run_id", ""))), "contract RUN_ID")
         require(not set(contract["approved_osd_flags"]) & {"noscrub", "nodeep-scrub", "noout", "nobackfill", "norecover", "pause", "pauserd", "pausewr"}, "unsafe preexisting OSD flag")
@@ -463,10 +493,11 @@ def validate_new_cell(evidence, shared, name, primary, mechanism, lifecycle):
     def identity():
         state = dict(line.split("\t", 1) for line in evidence.text("state.tsv").splitlines() if "\t" in line)
         arm = name[0]
+        spec = ARM_SPECS[arm]
         for key, expected in (("cell", name), ("arm", arm),
-                              ("cache_mib", "0" if arm == "C" else "98304"),
-                              ("writeback", "1" if arm == "W" else "0"),
-                              ("cache_large_write", "0" if arm == "C" else "1")):
+                              ("cache_mib", str(spec["cache_mib"])),
+                              ("writeback", "1" if spec["writeback"] else "0"),
+                              ("cache_large_write", "1" if spec["cache_large_write"] else "0")):
             require(state.get(key) == expected, "state mismatch: " + key)
         for tag in ("formal", "verify"):
             rows = evidence.rows("mount-process-" + tag + ".tsv")
@@ -482,10 +513,10 @@ def validate_new_cell(evidence, shared, name, primary, mechanism, lifecycle):
             for flag, expected in (("--max-fuse-io", "256K"), ("--buffer-size", "300"),
                                    ("--max-uploads", "150"), ("--max-downloads", "200")):
                 require(flags.get(flag) == expected, "common mount option mismatch: " + flag)
-            cached = tag == "formal" and arm in ("S", "W")
-            require(flags.get("--cache-size") == ("98304" if cached else "0"), "actual cache size mismatch")
-            require(("--writeback" in flags) == (tag == "formal" and arm == "W"), "actual writeback mismatch")
-            require(("--cache-large-write" in flags) == cached, "actual cache-large-write mismatch")
+            cached = tag == "formal" and spec["cache_mib"] > 0
+            require(flags.get("--cache-size") == (str(spec["cache_mib"]) if cached else "0"), "actual cache size mismatch")
+            require(("--writeback" in flags) == (tag == "formal" and spec["writeback"]), "actual writeback mismatch")
+            require(("--cache-large-write" in flags) == (tag == "formal" and spec["cache_large_write"]), "actual cache-large-write mismatch")
             require("--cache-partial-only" not in flags, "unregistered cache-partial-only")
             if cached:
                 require(flags.get("--cache-dir") == state["cache_dirs"], "actual cache path mismatch")
@@ -553,7 +584,7 @@ def validate_new_cell(evidence, shared, name, primary, mechanism, lifecycle):
         for row in reversed(rows):
             if (number(row["Dirty_kB"], "Dirty") > dirty_limit or
                 number(row["Writeback_kB"], "Writeback") > writeback_limit or
-                any(not queue_value_zero(row[key], key, not name.startswith("W")) for key in zeros)):
+                any(not queue_value_zero(row[key], key, not ARM_SPECS[name[0]]["writeback"]) for key in zeros)):
                 break
             clean.append(int(row["epoch_ns"]))
         require(len(clean) >= 2 and max(clean) - min(clean) >= 30e9, "post-warmup recovery not sustained 30 seconds")
@@ -631,7 +662,7 @@ def pair_matrix(rows):
     by = {row["cell"]: row for row in rows}
     effects = {}
     valid = set(by) == set(CELLS) and all(row.get("EVIDENCE_VALIDITY") == "VALID" for row in rows)
-    for numerator, denominator in (("S", "C"), ("W", "C"), ("W", "S")):
+    for numerator, denominator in COMPARISONS:
         label = numerator + "/" + denominator
         if not all(arm + str(i) in by for arm in (numerator, denominator) for i in (1, 2)):
             effects[label] = {"SCREEN_DECISION": "NO_DECISION_MISSING_CELL"}
@@ -654,10 +685,11 @@ def pair_matrix(rows):
         effects[label] = {"directional": detail,
             "SCREEN_DECISION": "NO_DECISION_EVIDENCE_INVALID" if not valid else (
                 "SCREEN_CONTINUE" if all(directional_pass) else "SCREEN_STOP_NO_CLEAR_REPEATABLE_BENEFIT"),
-            "causal_scope": "WB increment on S base" if denominator == "S" else "configuration package, not isolated CLW effect"}
+            "causal_scope": ("original 96GiB cache plus writeback package; source not isolated" if PROFILE == "burst-abba" else
+                             ("WB increment on S base" if denominator == "S" else "configuration package, not isolated CLW effect"))}
     return {"comparisons": effects, "RUN_VALIDITY_STATE": "VALID" if valid else "EVIDENCE_INVALID",
-            "positions": {"C": [1, 6], "S": [2, 5], "W": [3, 4]},
-            "arm_mean_position": {"C": 3.5, "S": 3.5, "W": 3.5},
+            "positions": POSITIONS,
+            "arm_mean_position": {arm: sum(positions) / len(positions) for arm, positions in POSITIONS.items()},
             "balanced_positions_do_not_prove_state_symmetry": True,
             "production_delivery": "NOT_DECIDED_BY_L1_SCREEN"}
 
@@ -715,7 +747,7 @@ def analyze_files(files, historical=False):
             cells.append(analyze_cell(evidence, name, Evidence(files), historical))
         except (EvidenceError, OSError, ValueError, KeyError, TypeError) as exc:
             failures.append({"cell": name, "error": str(exc), "primary_endpoint_status": "INVALID"})
-    result = {"schema": "06-3-burst-screen-v1", "cells": cells, "errors": failures,
+    result = {"schema": RESULT_SCHEMA, "profile": PROFILE, "cells": cells, "errors": failures,
               "primary_contract": "single-group complete bytes / actual maximum directional runtime",
               "window_contract": "[0,180) four 45-second diagnostics; >180 completion tail separate",
               "legacy_window_is_diagnostic_only": "[15,175)",
@@ -733,7 +765,7 @@ def analyze_files(files, historical=False):
     else:
         for previous, current in zip(cells, cells[1:]):
             if current["primary"]["shell_start_epoch_ns"] <= previous["primary"]["completion_epoch_ns"]:
-                current["nonperformance_errors"].append("six-cell fixed order violated or formal intervals overlap")
+                current["nonperformance_errors"].append("fixed matrix order violated or formal intervals overlap")
                 current["EVIDENCE_VALIDITY"] = "EVIDENCE_INVALID"
         result.update(pair_matrix(cells))
     return result
@@ -760,7 +792,7 @@ def table_text(result):
 
 
 def fixture_files():
-    """A complete synthetic six-cell package, never materialized on disk."""
+    """A complete synthetic package for the active profile, never written to disk."""
     def tsv(fields, rows):
         return "\t".join(fields) + "\n" + "".join("\t".join(map(str, row)) + "\n" for row in rows)
     result = {
@@ -771,7 +803,7 @@ def fixture_files():
     run = "20990101-000000"
     assets = "".join(f"rw_test.{i}.0\t{i+1}\t1073741824\n" for i in range(128))
     health = {"fsid": "fixture-fsid", "health": {"status": "HEALTH_OK", "checks": {}}}
-    result["gate0/approved-contract.json"] = json.dumps({"schema": "06-3-v1", "status": "APPROVED", "run_id": run, "meta": "fixture-meta",
+    result["gate0/approved-contract.json"] = json.dumps({"schema": "06-3-v1", "status": "APPROVED", "run_id": run, "meta": "fixture-meta", "matrix_profile": PROFILE,
         "ceph_fsid": "fixture-fsid", "approved_osd_flags": [], "assets_sha256": hashlib.sha256(assets.encode()).hexdigest(),
         "space": {"minimum_mem_available_bytes": 1024**3, "read_cache_bytes": 96 * 1024**3,
                   "worst_backlog_bytes": 256 * 1024**3, "filesystem_reserve_bytes": 1024**3,
@@ -790,9 +822,10 @@ def fixture_files():
         actual_ns = int((base + .1) * 1e9)
         finish_ns = actual_ns + 180_000_000_000
         arm = name[0]
+        spec = ARM_SPECS[arm]
         mount = f"/tmp/jfs-06-3-{run}-{name}"
         cache = f"/mnt/jfs-cache/04tmp3/06-3-{run}-{name}"
-        rate = {"C": 100, "S": 120, "W": 150}[arm]
+        rate = FIXTURE_RATES[arm]
         options = dict(WORKLOAD, filename_format=mount + "/test_dir/rw_test.$jobnum.0")
         data = {"timestamp_ms": finish_ns // 1000000, "global options": options,
                 "jobs": [{"groupid": 0, "error": 0, "job_runtime": 180000 * 128,
@@ -806,7 +839,7 @@ def fixture_files():
                     "global options": {"rw": "randread", "runtime": "60"},
                     "jobs": [{"error": 0, "read": {"runtime": 60000}}]}),
                 "PASS": "CELL_RAW_PASS\n", "RECOVERY_PASS": "RECOVERY_PASS\n",
-                "state.tsv": f"cell\t{name}\narm\t{arm}\ncache_mib\t{0 if arm == 'C' else 98304}\nwriteback\t{int(arm == 'W')}\ncache_large_write\t{int(arm != 'C')}\ncache_dirs\t{cache if arm != 'C' else 'NONE'}\n",
+                "state.tsv": f"cell\t{name}\narm\t{arm}\ncache_mib\t{spec['cache_mib']}\nwriteback\t{int(spec['writeback'])}\ncache_large_write\t{int(spec['cache_large_write'])}\ncache_dirs\t{cache if spec['cache_mib'] else 'NONE'}\n",
                 "assets-before.tsv": assets, "assets-mounted.tsv": assets, "assets-after.tsv": assets,
                 "readback/fio.json": json.dumps({"timestamp_ms": (finish_ns + 3_000_000_000) // 1000000,
                     "jobs": [{"error": 0, "read": {"io_bytes": 4 * MIB}}]}),
@@ -834,9 +867,11 @@ def fixture_files():
             destination = mount + ("-verify" if tag == "verify" else "")
             cell["findmnt-" + tag + ".tsv"] = "JuiceFS:juicefs-prod " + destination + " fuse.juicefs rw\n"
             command = "/tmp/juicefs-1.4.1-patched mount -d --max-fuse-io 256K --buffer-size 300 --max-uploads 150 --max-downloads 200"
-            if tag == "formal" and arm != "C":
-                command += f" --cache-dir {cache} --cache-size 98304 --free-space-ratio 0.20 --upload-delay 0 --cache-large-write"
-                if arm == "W":
+            if tag == "formal" and spec["cache_mib"]:
+                command += f" --cache-dir {cache} --cache-size {spec['cache_mib']} --free-space-ratio 0.20 --upload-delay 0"
+                if spec["cache_large_write"]:
+                    command += " --cache-large-write"
+                if spec["writeback"]:
                     command += " --writeback"
             else:
                 command += " --cache-size 0"
@@ -991,21 +1026,55 @@ def self_test():
     return {"status": "PASS", "checks": checks}
 
 
+def burst_self_test():
+    checks = []
+    fixture = fixture_files()
+    package = analyze_files(fixture)
+    assert package["profile"] == "burst-abba" and package["RUN_VALIDITY_STATE"] == "VALID"
+    assert [row["cell"] for row in package["cells"]] == list(CELLS)
+    assert package["comparisons"]["B/A"]["SCREEN_DECISION"] == "SCREEN_CONTINUE"
+    checks += ["four_cell_A1_B1_B2_A2_end_to_end", "B_over_A_pairing_and_material_line"]
+
+    prefix = "cells/B1/"
+    original = Evidence({key[len(prefix):]: value for key, value in fixture.items() if key.startswith(prefix)})
+    row = next(value for value in package["cells"] if value["cell"] == "B1")
+    command = original.text("mount-command-formal.txt")
+    assert " --writeback " in command and " --cache-large-write " not in command
+    for label, changed_command in (
+            ("missing_writeback", command.replace(" --writeback", "")),
+            ("unexpected_cache_large_write", command.replace(" --writeback", " --cache-large-write --writeback"))):
+        changed = Evidence(dict(original.files, **{"mount-command-formal.txt": changed_command}))
+        assert validate_new_cell(changed, Evidence(fixture), "B1", row["primary"], row["mechanism"], row["lifecycle"]), label
+        checks.append("reject_" + label)
+    bad_shared = dict(fixture)
+    contract = json.loads(bad_shared["gate0/approved-contract.json"])
+    contract["matrix_profile"] = "legacy-six-cell"
+    bad_shared["gate0/approved-contract.json"] = json.dumps(contract)
+    assert validate_new_cell(original, Evidence(bad_shared), "B1", row["primary"], row["mechanism"], row["lifecycle"])
+    checks.append("reject_wrong_matrix_profile")
+    return {"status": "PASS", "profile": PROFILE, "checks": checks}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     test = sub.add_parser("self-test")
     test.add_argument("--output", type=Path)
+    test.add_argument("--profile", choices=("legacy-six-cell", "burst-abba"), default="legacy-six-cell")
     for command in ("analyze", "replay-archive"):
         child = sub.add_parser(command)
         child.add_argument("--root" if command == "analyze" else "--archive", required=True, type=Path)
         child.add_argument("--output", type=Path)
         child.add_argument("--table", type=Path)
+        child.add_argument("--profile", choices=("legacy-six-cell", "burst-abba"), default="legacy-six-cell")
     args = parser.parse_args()
     try:
+        configure_profile(args.profile)
         if args.command == "self-test":
-            result = self_test()
+            result = burst_self_test() if PROFILE == "burst-abba" else self_test()
         elif args.command == "replay-archive":
+            if PROFILE != "legacy-six-cell":
+                raise EvidenceError("historical replay only supports legacy-six-cell profile")
             files, sha = load_archive(args.archive)
             result = analyze_files(files, historical=True)
             result["archive_sha256"] = sha

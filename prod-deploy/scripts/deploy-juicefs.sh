@@ -74,7 +74,7 @@ install_juicefs() {
 }
 
 show_mount_opts() {
-    echo "  Mount opts (from config.sh JUICEFS_MOUNT_OPTS):"
+    echo "  Business mount opts (from config.sh JUICEFS_MOUNT_OPTS):"
     local k v pending=""
     for tok in "${JUICEFS_MOUNT_OPTS[@]}"; do
         if [ -z "${pending}" ]; then
@@ -92,6 +92,29 @@ show_mount_opts() {
         echo "  Cache: DISABLED (cold-state baseline)"
     fi
     [ "${JUICEFS_ENABLE_WRITEBACK:-false}" = "true" ] && echo "  Writeback: ENABLED" || echo "  Writeback: disabled"
+    if [ -n "${JUICEFS_ROOT_SQUASH_UID:-}" ] && [ -n "${JUICEFS_ROOT_SQUASH_GID:-}" ]; then
+        echo "  Root squash: ${JUICEFS_ROOT_SQUASH_UID}:${JUICEFS_ROOT_SQUASH_GID}"
+    else
+        echo "  Root squash: UNSET (mount action will fail closed)"
+    fi
+}
+
+validate_business_mount_security() {
+    local uid="${JUICEFS_ROOT_SQUASH_UID:-}"
+    local gid="${JUICEFS_ROOT_SQUASH_GID:-}"
+
+    if ! [[ "${uid}" =~ ^[0-9]+$ ]] || ! [[ "${gid}" =~ ^[0-9]+$ ]] || \
+       [ "${uid}" -eq 0 ] || [ "${gid}" -eq 0 ]; then
+        echo "ERROR: business mount requires non-zero numeric JUICEFS_ROOT_SQUASH_UID/GID."
+        echo "Set the globally checked UID/GID before mounting; management mounts use the separate JUICEFS_MANAGEMENT_MOUNT_OPTS baseline."
+        return 1
+    fi
+
+    local joined=" ${JUICEFS_MOUNT_OPTS[*]} "
+    if [[ "${joined}" != *" --root-squash ${uid}:${gid} "* ]]; then
+        echo "ERROR: business mount options do not contain the required --root-squash ${uid}:${gid}."
+        return 1
+    fi
 }
 
 # ============================================================
@@ -158,6 +181,8 @@ do_mount() {
     echo "========================================"
     echo "Mounting JuiceFS (direct RADOS)"
     echo "========================================"
+
+    validate_business_mount_security
 
     ssh_to_client "mountpoint -q ${JUICEFS_MOUNT_POINT} 2>/dev/null && { echo 'Already mounted.'; exit 0; } || true"
 

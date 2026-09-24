@@ -2,16 +2,18 @@
 
 > 日期：2026-09-16；面向 GPT 负责设计/审核、执行方交原始证据。
 >
-> 状态：`PLANNED / OFFLINE_PREP_REQUIRED / ENVIRONMENT_NOT_AUTHORIZED`。本文件不是开跑授权。
+> 状态：`COMPLETED / CORRECTNESS_PASS / PERFORMANCE_SCREEN_STOP / NO_CANDIDATE / NOT_FOR_PRODUCTION`。离线修复与真实环境语义门通过；有效RUN `20260921-140634`完成六格矩阵并安全收口，未形成可重复材料收益。
 >
 > 承接：06-2 报告及 `/mnt/c/SunRise/test/06-2/20260916-091446/`。不追认、不拼接其无效性能样本。
 >
 > 范围：调查构建，`NOT_FOR_PRODUCTION`；与 06-3 配置筛选独立，环境负载必须串行。
-> 2026-09-20承接边界：约21.7%历史缓存组合收益的复现/归因由06-3§七的`CACHE-BURST-21P7`单独跟踪。
-> 本任务即使完成、失败或发现源码收益，也不关闭该项；两线不能互相替代。此次仅补文档，仍不授权执行。
+> **2026-09-21：本周主线二——验证源码改动提升randrw性能的可行性。** 已完成；正式报告见[06-2b报告](../perf-report/06-2b-randrw-range-flush-repair-and-burst-validation-20260921.md)。
+> 历史约21.7%缓存组合收益由[06-3§七](06-3-randrw-cache-admission-and-burst-performance-screen.md#七本周主线一217观察收益复现与来源确认2026-09-21)跟踪；本任务成功或失败均不替代其复现/归因。[06-4](06-4-randrw-buffered-io-model-validation.md)独立验证direct=0，不混入本任务。
 >
 > 规范：`TASK-BOOK-AUTHORING-GUIDE.md`、`TEST-DATA-LIFECYCLE-POLICY.md`；
 > `skills/SYSTEM-SAFETY-SKILL.md`、`skills/EVIDENCE-INTEGRITY-SKILL.md`。
+>
+> 离线结果：[06-2b range-flush修复离线验证报告](../perf-report/06-2b-randrw-range-flush-repair-offline-validation-20260921.md)。
 
 ```text
 06-1   缓存+writeback有前段加速，原合同未形成候选
@@ -21,7 +23,8 @@
        ├─ 正确性失败：停止环境性能测试
        ├─ 无清晰收益：记录当前条件下无升级依据，收口
        └─ 有收益：登记调查候选；交付/上游合入另行决策
-06-3   原六格已结束；§七继续跟踪约21.7%历史收益，尚未授权
+06-3   主线一：原缓存组合复现/来源确认；可并行离线准备
+06-4   独立缓冲I/O模型验证；各任务环境负载串行
 ```
 
 一句话：**修正旧实现的可疑等待，不以错误实现的负向结果否定方向，用同源、低扰动对照回答修正版是否提高完整测试期间的平均带宽。**
@@ -64,6 +67,20 @@ ENVIRONMENT_ASSET_CLEANUP=排空后卸载本任务挂载；隔离语义卷/缓�
 **唯一性能问题**：修正版相对同源无调查仪表 baseline，能否提高256K randrw完整180秒负载的平均R/W？
 修复正确性是前置条件；修复成功不等于性能有效，性能无收益也不等于整个randrw没有空间。
 
+### 1.1 本周执行顺序与源码解释边界
+
+- **无需等配置全部穷尽才做离线修复**；获准后可与06-3证据核对并行。环境性能测试须先满足共同起点要求，不能一边跑缓存矩阵一边跑补丁。
+- 新环境沿用06-3§7.2的最小起点核对和必要恢复方法，但重新核实现场；不自动重跑6～8轮噪声矩阵，不要求达到某个历史最高带宽。
+- 冻结1.4.1实现中，`read → whole-inode Flush → reader.Read`会等待该 inode 脏 slice 的数据上传、依赖提交和`m.Write`元数据提交完成；开启WB只允许**没有冲突读时**脏数据暂存本地，不能绕过同 inode 读前提交。range-flush只能缩小本次读必须等待的slice集合，不能删除该正确性顺序。
+- 保留本客户端read-your-own-writes、chunk内FIFO及实际增长依赖；不能以“不要求多客户端并发写一致性”为由删除flush。不同chunk可并行，不将全部上传/事务时长机械相加。
+- **为什么选择range-flush而不是让读路径直接overlay未提交写数据**：overlay需要让randrw读路径争用
+  `fileWriter.Mutex`形成热锁；维护并遍历按区间排序的pending结构；为尚未冻结、仍在`s.pages`中的尾部
+  block增加内存页/缓存文件/对象存储之外的读数据源；并重新定义本地读与远端客户端读的
+  close-to-open语义。range-flush仍保留提交顺序与现有读源，只缩小本次读需等待的slice集合，工程与
+  语义成本明显更低。该取舍只说明为什么先测range-flush，不预告性能收益。
+- 正式性能构建不带旧重型仪表。需要分解等待时只追加经批准的独立短诊断，区分handle锁、writer锁、冻结/完成通知、元数据提交与实际读取；诊断值不混入性能对照。
+- 无收益时停止此实现，不自动扩为read-overlay或提前冻结方案；有证据指向新方向时先评估正确性与元数据放大，再单独决定。只修range-flush及其必要修复，收益属于这一补丁组合，不能拆成未经测试的单项百分比。
+
 ## 二、构建、正确性与负载合同
 
 ### 2.1 构建身份
@@ -78,6 +95,37 @@ ENVIRONMENT_ASSET_CLEANUP=排空后卸载本任务挂载；隔离语义卷/缓�
 patch、SHA256/MD5/BuildID。不能从带仪表源码直接构建后声称“无仪表”。
 测试注入、逐请求计时、全量accesslog和trace不得进入性能构建；新增诊断须分开运行。
 H不可取得时停在就绪审查，不偷偷把C标成交付版；兼容性smoke不能证明性能等价。
+
+#### 2.1a 2026-09-21离线签收
+
+| 项 | 结果 |
+|---|---|
+| 权威源码 | 06-2冻结包`juicefs-v1.4.1-b-catchup-source.tar.gz`，SHA256=`a3265ff9…7451` |
+| 修复补丁 | `debug/06-2b-range-flush/range-flush-repair.patch`，SHA256=`c1d6240e…22b3` |
+| 通知负例 | 旧逻辑固定覆盖写waiter未获通知，确定性FAIL；修正版PASS |
+| 范围负例 | 旧逻辑把已提交且已出队依赖所在chunk的无关后缀纳入范围，确定性FAIL；修正版PASS |
+| 正向回归 | range定向用例、`TestVFSBasic/TestVFSIO/TestFill`及race检查PASS |
+| 全包回归 | `pkg/vfs`全量尝试运行到Redis用例时受本地socket沙箱阻断；不写PASS，也不构成修复失败 |
+| 构建 | Go 1.26.0、同一依赖/flags完成C/T Ceph构建；C MD5=`4ea96bfb…083e`，T MD5=`2f28b8a4…2844` |
+| 离线Gate | `PASS`，`environment_access=NOT_RUN` |
+| 权威证据 | `/mnt/c/SunRise/test/06-2b/20260921-124344/offline/`，外层`SHA256SUMS`全通过 |
+
+修复只有三项行为变化：读路径调用`FlushRange`；所有slice提交均广播`commitcond`；依赖闭包跳过
+已提交依赖，对异常缺失的未提交依赖保守回退全量live slice。`Truncate`、`CopyFileRange`及原
+`Flush/Close/fsync`仍走全量flush。离线通过只允许进入环境前只读计划，不代表性能有效或可生产交付。
+
+#### 2.1b 2026-09-21环境只读inventory
+
+`RUN_ID=20260921-125717`的只读核验通过，未对157或后端做写操作：
+
+- 主机为`oneasia-c1-cpu-node10`，machine-id=`4d7dca71dfd042a4aa37266eb5a2b258`；
+- H二进制仍为`/tmp/juicefs-1.4.1-patched`，MD5=`24fae0852051c80ca571cb2f20275d46`；
+- 卷UUID=`e1b69ea9-0e3d-427d-bea9-8765928afa66`、BlockSize=`256 KiB`；128个`rw_test.*.0`均为1 GiB且互为独立inode，资产清单SHA256仍为`655faef1…a08a44`；
+- `/mnt/jfs-cache/04tmp3`仍为1002:1002、0700，底层`/dev/nvme1n1` ext4、UUID=`1b691709-e347-452c-96c4-5f37052bc203`，可用`890425892864`字节；该文件系统同时承载`/mnt/beegfs-meta`，继续沿用06-3的业务预留和硬停止门；
+- Ceph FSID=`f8137e5a-8af2-11f1-aa1c-4df480fc234d`、`HEALTH_OK`、6/6 OSD up/in、97/97 PG active+clean，无scrub在跑且无`noscrub/nodeep-scrub`预置；三节点TiKV pending-compaction均为0；
+- 无并发fio、无06-2b挂载/缓存/结果目录残留；既有`/mnt/juicefs`及门户进程指纹与06-3冻结值一致。
+
+因此inventory只说明“可以进入精确执行计划审查”，不构成性能矩阵已经获准或补丁有效。
 
 ### 2.2 必须补齐的定向回归
 
@@ -127,8 +175,9 @@ CV高、W4/W1低、排空较长**不是删除样本或否定突发收益的理�
 
 ### 3.2 起点与安全（必须先完成只读计划）
 
-- 每格使用独立空缓存子目录、相同预热；预热后staging/pending/uploading均归零。
-  从安静期记录宿主Dirty/Writeback基线；预热后恢复至 `Dirty ≤ 安静期P95+8GiB`、
+- 每格使用独立空缓存子目录、相同预热；预热后已注册staging/uploading及私有rawstaging归零。
+  pending等未注册指标记NA，不假记0或因不存在而永久等待；TiKV pending-compaction另行记录。
+  首次负载前120秒安静期冻结宿主Dirty/Writeback基线；预热后恢复至 `Dirty ≤ 安静期P95+8GiB`、
   `Writeback ≤ 安静期P95+1GiB`，持续30秒。它们是起点可比门，不限制正式窗内正常缓存吸收。
   共置业务使基线无法解释时停下评审，禁止全局drop_caches、sync或改dirty内核参数。
 - 每格前后记录对象数、TiKV延迟/compaction、OSD三指标、健康、缓存空间及业务指纹。
@@ -156,22 +205,33 @@ CV高、W4/W1低、排空较长**不是删除样本或否定突发收益的理�
 若需诊断，仅在独立短探针中区分handle锁、writer锁、条件等待、元数据提交和实际读取；
 probe不入性能样本。正式轮不强制新仪表、trace或Amdahl门；原生低频指标保持对称。
 
+### 3.4 2026-09-21环境执行裁决
+
+有效RUN `20260921-140634`按`H0→C1→T1→T2→C2→H1`完成。T1/C1读写为
+`+0.51%/+0.47%`，T2/C2为`+11.41%/+11.55%`；同臂漂移得到
+`ε=5.617%`、`M=11.235%`，四项未全部过门，裁决`SCREEN_STOP`。六格均完成排空、无缓存读回、
+优雅卸载及缓存清理；Ceph最终`HEALTH_OK`且scrub flags恢复。证据：
+`/mnt/c/SunRise/test/06-2b/20260921-140634/environment/`。
+
+首次尝试`20260921-125717`因daemon进程标题截断导致身份门误报，在C1 fio前停止；其H0不拼接。
+修复身份门后使用新合同从头重跑。该事件不改变正式裁决。
+
 ## 四、执行步骤与复用
 
-- [ ] **步骤0**：执行前通读上述规范，以及 `TESTING-GUIDE.md` §1.3/2.2/3、
+- [x] **步骤0**：执行前通读上述规范，以及 `TESTING-GUIDE.md` §1.3/2.2/3、
   `test-commands-reference.md` §8/9、`baseline-reproduction-skill.md` §2/3、长跑监控规范；
   确认本任务端点与“不自动共享GC/compact/drop_caches”是显式覆盖，不机械执行旧模板。
-- [ ] **离线**：复用旧source archive、B-catchup、构建/P0脚本、`t06-2-gate3-semantic.sh`；
+- [x] **离线**：复用旧source archive、B-catchup、构建/P0脚本、`t06-2-gate3-semantic.sh`；
   修通知/范围并完成定向回归；复用 `t06-2-phase-a-coordinator.sh` 和 `t06-1` 采集/排空组件，
   只增加构建臂表与全程端点。不新建编排平台，不热改历史冻结脚本。
-- [ ] **Gate 0**：新增路径语法/安全检查、旧补丁失败新补丁通过、完整字节统计/分组不重复、
+- [x] **Gate 0**：新增路径语法/安全检查、旧补丁失败新补丁通过、完整字节统计/分组不重复、
   长尾不裁切、0完成与缺日志区分、排空失败不卸载、源码与二进制身份；新增缺陷记入fixture目录。
-- [ ] **停点1**：只读inventory后回传精确计划，含六格预算、业务保护、缓存/语义卷、sudo写全集、
+- [x] **停点1**：只读inventory后回传精确计划，含六格预算、业务保护、缓存/语义卷、sudo写全集、
   scrub恢复与失败分支。用户确认后执行语义smoke及完整矩阵；矩阵内部不逐格请示。
-- [ ] **停点2**：第二方复算结果；禁止自动扩参数或升级L2。
-- [ ] **收口**：先保持挂载排空（连续三次确认rawstaging/pending为零），无缓存独立挂载抽样读回，
+- [x] **停点2**：独立复算结果与冻结分析器一致；未扩参数或升级L2。
+- [x] **收口**：先保持挂载排空（连续三次确认rawstaging/pending为零），无缓存独立挂载抽样读回，
   再优雅卸载、核对健康/flags和固定资产、移除精确任务缓存及调查二进制；读回无EIO不等于内容校验。
-- [ ] **末步**：skill合规自查、唯一证据持久化和一次性生命周期收口。无收益不追加无关验证。
+- [x] **末步**：环境资产与scrub租约已收口，唯一证据已持久化；远端证据待报告复核后按生命周期规范精确删除。无收益不追加无关验证。
 
 ## 五、交付、通用注意事项与红线
 
@@ -180,8 +240,8 @@ probe不入性能样本。正式轮不强制新仪表、trace或Amdahl门；原�
 起点/终态、排空/读回、append-only incidents、独立分析与manifest；公共文件一份、cell增量。
 按 `TEST-DATA-LIFECYCLE-POLICY.md` 签收后才清远端证据；环境资产清理另列精确清单。
 报告给出全部H/C/T数据、突发收益及其排空/资源代价，不把H历史绝对值当同轮对照；完成后更新results-table和阶段计划。
-收口时同时引用阶段计划§十.1的`CACHE-BURST-21P7`当前状态；不得因为本任务结束而宣布缓存配置线
-已穷尽或06阶段全部问题已解决，不把补丁收益与历史约21.7%观察增幅叠加。
+同时记录`CACHE-BURST-21P7`的状态与承接位置，不因本任务收口而宣告历史缓存收益已归因。
+结论分别回答正确性是否通过、相对同源基座是否有带宽信号、是否优于交付件、是否值得继续；调查候选不自动升级生产。
 
 通用注意事项引用GUIDE §二.1--23：单位MiB/s、R/W分报、固定资产、身份/实际命令、实际I/O起点、
 对称预热、原始字节/日志、非性能门与性能端点分离、同轮平衡及漂移、脚本冻结、独立复核、

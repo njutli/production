@@ -1,6 +1,6 @@
 # JuiceFS 性能调优现状总览
 
-> 更新日期：2026-09-09（已同步至04-8正式回归）
+> 更新日期：2026-09-22（性能结论已同步至04-8正式回归；新增业务挂载`root-squash`安全基线）
 > 目标：每个读写方向有效带宽达到 `6250 MiB/s`（100GbE 单向带宽的一半）
 > 当前结论：**03阶段已完成，exact patched v1.4.1已批准替代v1.3.1。04-8正式确认`max-fuse-io=1M`可使4MiB单流seqwrite提高`+14.31%`，但兼容性回归中mseqread为`INCONCLUSIVE`、randwrite触发`REGRESSION`，因此通用生产基线继续保持256K，1M仅保留为seqwrite专用挂载灰度候选。04-tmp3系列已证明对象后端读写与应用异步读QD存在余量，但JuiceFS同步大块读写仍未全面达到竞品公开线。**
 
@@ -10,7 +10,9 @@
 |---|---|---|
 | JuiceFS | patched v1.4.1 + B-catchup，`/tmp/juicefs-1.4.1-patched` | md5 `24fae0852051c80ca571cb2f20275d46`；U1 `REPLACE_APPROVED` |
 | 关键代码修复 | B-catchup / FlushTo 补派发 | 避免 256K FUSE 下 randwrite 塌至约 `551 MiB/s` |
-| 挂载参数 | `--max-fuse-io 256K --max-uploads 150 --cache-size 0`，保持默认readahead | 04-tmp确认显式ra0仅约`+1.6%`；04-8否决1M作为通用基线 |
+| 通用性能挂载参数 | `--max-fuse-io 256K --max-uploads 150 --max-downloads 200 --buffer-size 300 --cache-size 0`，保持默认readahead | 04-tmp确认显式ra0仅约`+1.6%`；04-8否决1M作为通用基线。`max-downloads`和`buffer-size`作为后续正式测试统一使用的公共参数固化，不单独宣称新增收益 |
+| 业务挂载安全参数 | `--root-squash=<部署前冻结UID>:<部署前冻结GID>` | 所有业务挂载必须启用；将经业务挂载发出的UID 0请求映射为专用低权限身份，防止客户端root误操作待交付目录。目标数字ID可以在统一身份规划阶段提前预留，也可以在实际挂载前通过客户端、LDAP及既有文件owner冲突检查确定；最终必须确认未被业务用户/组占用并冻结为全客户端一致值 |
+| 管理挂载 | 使用相同通用性能参数及`--cache-size 0`，但不启用`root-squash` | 与业务挂载分离，仅供受控运维节点创建目录、`chown`和应急修复；不向普通用户开放，也不由当前部署脚本自动创建 |
 | 条件性写增强 | 客户端空间充足时，在独立持久本地盘配置`--cache-dir`并启用`--writeback` | 仅用于独占文件的突发写；容量按突发净积压加余量估算，远端持久化以staging归零为准；W16不是推荐容量 |
 | Ceph 客户端 | 私有 `ceph.conf`：`ms_async_op_threads = 8` | 不修改集群配置；当前 6 个 OSD，规则为线程数 `>= OSD 数据连接数 × 1.33` |
 | TiKV 存储 | 维持当前共享 NVMe 生产形态 | WAL/Raft 分离尚未进入交付配置 |
@@ -19,6 +21,8 @@
 仍排除，randwrite仅约`551 MiB/s`。重新构建若校验和改变，须先闭合可重现制品身份与P0 smoke。
 
 **测试边界：**长时间因果 A/B 可在单个 phase 内临时设置 `noscrub + nodeep-scrub` 以排除例行巡检干扰，但必须单独授权、审计并在 phase 后恢复；这不是性能配置，也不交付生产。
+
+**安全参数与历史性能口径：**`root-squash`只转换UID 0请求；现有由普通测试账号执行的历史性能数据不因此重算。正式部署前仍须完成目标数字UID/GID排重和最小兼容验证；这一步决定具体取值，不改变上述性能参数结论。客户端root能控制本机挂载和凭据，仍属于可信运维范围，`root-squash`不作为抵御恶意root的安全边界。
 
 **缓存边界：**当前全部正式基线均使用`--cache-size 0`。04-tmp2d已用交付配置完成有效读缓存曲线：
 75%容量时mseqread/randread约`+173%/+233%`，热集全驻留后约`35--37 GiB/s`，可作为有额外本地盘

@@ -113,3 +113,18 @@ get_metric_change_time <metric> <threshold>  # 回溯时序，找首次超阈值
 ```
 
 > 完整设计（连续采集 CSV 格式、检测延迟计算示例等）见 `framework-design.md` §六。
+
+## long_term.sh / lt-analyze.py — LT长测公共引擎
+
+四个 `cases/LT-*.sh` 仅声明用例编号，数据集合同、fio小时窗口、60秒容量/健康守卫、精确PID停止、最终CRC校验和结果分析统一由公共引擎实现。执行入口：
+
+```text
+plan RUN_ID PROFILE       只读检查并打印冻结计划
+prepare RUN_ID PROFILE    显式ACK后创建独占固定数据集并完成首次CRC校验
+start RUN_ID PROFILE      显式ACK后以nohup控制器运行
+status RUN_ID PROFILE     只读查询状态
+stop RUN_ID PROFILE       显式ACK后请求控制器停止本RUN fio
+verify RUN_ID PROFILE     手工重做完整CRC校验
+```
+
+公共引擎不使用sudo、不改变Ceph/TiKV/JuiceFS配置、不自动compact原生LT-001～003、不删除测试数据。LT-004仅对冻结manifest中的精确文件执行单线程compact，并要求独立ACK。
