@@ -1,6 +1,6 @@
 # 05-3c：randwrite 不同 BS 的工程趋势补测
 
-> 状态：任务书就绪，**未授权执行**。面向执行方；承接 [05-3b 报告](../perf-report/05-3b-random-bs-baseline-repair-and-retest-20260920.md) §11.3 和 [05-6 汇总](../perf-report/05-6-block-size-stage-final-synthesis-20260921.md)。这是在已关闭的 05 阶段后补齐展示缺口，不追认 05-3b 为完整正式曲线。执行前遵守 `skills/SYSTEM-SAFETY-SKILL.md`、`TESTING-GUIDE.md`、`EVIDENCE-INTEGRITY-SKILL.md`、`test-commands-reference.md`、[任务书指南](TASK-BOOK-AUTHORING-GUIDE.md)和[数据生命周期规范](TEST-DATA-LIFECYCLE-POLICY.md)。
+> 状态：**COMPLETED_DESCRIPTIVE_ONLY（2026-09-25）**。RUN `20260924-225547` 六格完成，安全与证据门通过，但256K前后锚漂移127.92%，不能形成稳态BS性能曲线；详见[05-3c报告](../perf-report/05-3c-randwrite-bs-trend-completion-20260925.md)。未占用157的 `/mnt/jfs-cache`，远端本RUN暂存已在权威归档核验后精确清理。本文保留原预注册执行合同及历史准备记录。
 
 ```text
 05-3b：4K 两次相差 25.82%，按当时 10% 漂移门停止
@@ -30,9 +30,9 @@ MAX_PREP_BUDGET=复用既有脚本/分析器，离线核对原则上 ≤1 小时
 MAX_EXECUTION_BUDGET=六格 fio 约 18 分钟；连同准入、采样和必要恢复以 2 小时为决策预算；超时交付部分结果，不为了凑齐继续负载
 ESTIMATED_WALL_CLOCK=约 1–2 小时；如现状需要经批准的精确文件维护，维护时间另计且可停止不测
 EVIDENCE_ROOT=/mnt/c/SunRise/test/05-3c/<RUN_ID>/
-REMOTE_RESULT_ROOT=/tmp/production/05-3c-<RUN_ID>/（须先核对空间；不得作为唯一副本）
+REMOTE_RESULT_ROOT=/tmp/production/05-3c-<RUN_ID>/（须先核对空间；不得作为唯一副本；禁止占用 `/mnt/jfs-cache`）
 EVIDENCE_RETENTION=SCREEN；原始 fio、命令、身份、健康/容量快照与裁决须保留
-REMOTE_CLEANUP=仅在本地持久化及 SHA/条目数核对通过后，按精确目录另行确认
+REMOTE_CLEANUP=AFTER_PERSISTENCE_PASS；在本地权威副本SHA/条目数/可读性核验、事故关闭后，精确清理本RUN的远端暂存，不需再等阶段报告签收
 ENVIRONMENT_ASSET_CLEANUP=仅精确卸载本任务私有挂载、恢复本任务获批改变的 flags；不删除测试文件/卷/pool
 ```
 
@@ -50,8 +50,18 @@ ENVIRONMENT_ASSET_CLEANUP=仅精确卸载本任务私有挂载、恢复本任务
 2. **开跑前安全门（唯一预定人工停点）：** 只读确认157业务不受测试资源竞争影响、Ceph OSD/PG/health、无进行中的 scrub 干扰、DB 与数据盘容量、TiKV/OSD compact backlog、资产身份和本地证据空间。写入一个简短容量计划：以上轮 256K 实测对象/DB 增量为参考，但不能假定其他 BS 相同；逐格设止损，任一容量接近下限或出现 BlueFS spillover/slow ops 就停。若需要先暂停 `noscrub/nodeep-scrub`，必须采用已签收的 lease 机制、先确认原状态并**单独申请授权**，失败时精确恢复。若当前起点不能安全承受首格，不运行 fio。
 3. **离线最小核对：** 尽量复用 05-3b 的 fio 驱动、采样器和分析器，不新写框架；只检查 BS 切换确实进入实际命令、顺序/文件路径正确、日志仍能覆盖正式窗、旧的 10% 性能停门不会意外阻断本任务，以及 health/容量门仍会阻断。若必须修改脚本，保存补丁与哈希并先通过这几项离线 Gate；不在现场边跑边改。配置/脚本身份冻结后再开跑。
 4. **连续执行六格：** 每格前 `check_ceph_health` 与容量/compact 状态检查，每格后记录 fio、对象数/存储量、DB 空闲、健康和队列；必要的被动等待仅为满足安全门，时长及状态写入记录。**不在六格之间主动 GC、compact、清卷、重新 layout 或重新挂载**，避免给 BS 顺序引入另一变量；如不维护就无法满足下一格安全门，停止并交付部分结果，不自行扩大维护权限。性能下降或前后锚显著漂移仍保留数据并继续，除非触发非性能安全门。
-5. **恢复与签收：** 停负载，精确卸载私有挂载，恢复本任务实际设置的 scrub flags；确认 157 共置业务、Ceph/TiKV、主挂载与测试资产无异常。若写后对象/DB 债务需要主动维护，只能先生成精确文件范围和命令计划，**另请批准**；未获批准时标记 `POSTRUN_DEBT_PRESERVED`，不以破坏性清理换取“完成”。把本 RUN 新证据一次性持久化到指定目录，核对 SHA256、条目数、归档可读性；不重复搬运 05-3b 旧整树。
+5. **恢复与签收：** 停负载，精确卸载私有挂载，恢复本任务实际设置的 scrub flags；确认 157 共置业务、Ceph/TiKV、主挂载与测试资产无异常。若写后对象/DB 债务需要主动维护，只能先生成精确文件范围和命令计划，**另请批准**；未获批准时标记 `POSTRUN_DEBT_PRESERVED`，不以破坏性清理换取“完成”。把本 RUN 新证据一次性持久化到指定目录，核对 SHA256、条目数、归档可读性；不重复搬运 05-3b 旧整树。上述持久化通过且事故关闭后，按数据生命周期规范生成精确清单，仅清理 `/tmp/production/05-3c-<RUN_ID>`，核对其他05/06 RUN不变并记录释放空间；不得清理测试文件、卷、pool或其他人的目录。
 6. **末步：** 对照 skill 做合规自查；在 `doc/perf-report/05-3c-randwrite-bs-trend-completion-<YYYYMMDD>.md` 出具短报告，说明各 BS 值、状态顺序与前后锚漂移，并以新增记录更新 results-table。更新 05-6/周报时只新增“描述性趋势补测”栏，不覆盖 05-3b 的停止裁决或把本轮结果提升为正式可交付效应。
+
+### 离线准备与执行边界（2026-09-24历史记录；正式执行见末项）
+
+- 六格驱动：`scripts/FULLBASELINE/debug/t05-3c-randwrite-screen.sh`；离线门：同目录 `t05-3c-gate0-offline.sh`。复用冻结的 05-3b 最终逐 IO 分析器、原 05-3 统计函数及 worker 身份门；三份依赖已按原 SHA 纳入工程。离线门已覆盖六格顺序、实际 fio 参数、分析器自测、错误执行令牌拒绝，以及无旧维护/10% 漂移停门。
+- `plan <RUN_ID>` 只创建本 RUN 的 `matrix.tsv`、`commands-plan.sh`、`scripts.sha256` 和 `capacity-plan.template.tsv`；执行方须根据**现场只读容量快照**填写六行 `batch=trend` 的 `capacity-plan.tsv`，注明来源和保守增长公式。模板中的 `FILL` 不会通过 `preflight`；不得将 05-3b 某一 BS 的增长量直接当成所有 BS 的已知增长量。脚本首先核对脚本哈希、卷/文件身份、私有8线程配置、健康及容量。远端证据仅写入 `/tmp/production/05-3c-<RUN_ID>`；该目录隔离删除范围，**不隔离系统盘容量**。05-3b三格写原始证据未压缩约137 MB，30 GiB不是本任务实际日志需求。157共享系统盘在开跑前、每格前和每格运行中保持至少 **20 GiB可用**，每次采样记录 `disk-free-kib.tsv`；低于门槛或无法读取容量即停当前负载。运行中先查空间，再做较慢的集群采样。20 GiB是对共用系统盘的保守止损余量，不是预计日志大小，也不能代替Ceph/BlueFS独立容量门；本轮结束后持久化核验通过即及时精确清理本RUN远端暂存，不积累历史RUN。不得占用未来缓存测试所需的 `/mnt/jfs-cache`，不得为满足门槛清理其他人的目录。
+- `write-phase <RUN_ID> I_ACK_05_3C_RANDWRITE_<RUN_ID> I_ACK_GLOBAL_CEPH_SCRUB_PAUSE` 只在**用户另行批准测试和 scrub 租约的 sudo 写操作**后使用。驱动通过已有 `u141d-scrub-control.sh` 暂停并恢复 `noscrub/nodeep-scrub`；除这两项获批 flag 外，不做 compact、GC、layout、清文件或其他全局配置修改。六格内每格前后及运行中检查健康/容量，安全门失败即停并保留部分 raw；带宽、CV 和锚漂移不会使它跳过慢格。
+- `plan`/`preflight`/`write-phase` 应用同一冻结部署目录，避免脚本哈希不一致。远端证据仍是临时副本，按本文的持久化和精确清理合同处理；当前离线 Gate 通过不代表现场容量、scrub 授权或业务隔离已通过。
+- 2026-09-24 旧门沿革：05-3b因逐IO日志和当时系统盘仅约20 GiB可用而设30 GiB固定门；该值没有基于05-3c六格日志量计算，现按用户要求改为20 GiB运行中系统余量门。本地新版 `bash -n`、离线Gate 0（含20 GiB边界正反例）和`git diff --check`通过；runner SHA256=`f50f58820b183c861b0e21948259709fa9f7cdcda9b5685f9eb5dbf0751c8854`，Gate 0 SHA256=`2a18b63439507e241cf12cb71d228da4e8733b4c18f1fae2ee4b3d58af684051`。157上04阶段旧暂存精确清理626项、约1.70 GB，审计见 `/mnt/c/SunRise/test/prune-04-stage-20260924.tsv`；随后又精确清理148项非05/06旧文件，剩余78项均为05/06，`/tmp/production`约842 MiB、`/tmp`可用约27.6 GiB。此前在 `/mnt/jfs-cache` 建证据目录的方案及其sudo请求**作废**，不得据此执行。旧部署脚本含30 GiB门，必须以新版脚本哈希重新离线核对与部署；现场/scrub授权仍须另行取得。
+- 2026-09-24 RUN `20260924-225547`：157已同步新版两脚本并以相同SHA通过远端离线Gate 0；`plan`与128文件`inventory`通过，Ceph `HEALTH_OK`、6/6 OSD、六OSD BlueFS慢盘占用0且当前DB空闲约38 GiB，未运行preflight/fio/挂载/scrub sudo。私有8线程配置（仅含内部mon地址/FSID、无密钥）复制动作被安全审查拒绝；157既有同SHA源位于 `/mnt/jfs-cache/05-3b-evidence-20260920-092512/inventory/ceph-msgr8.conf`。在用户明确确认该配置的同机复制及四条全局scrub标志sudo写操作前，不得通过其它路径绕过；RUN现场保留。
+- 2026-09-25 最终执行：用户明确批准后，仅在157同机复制上述既有配置并核对SHA；六格脚本返回PASS，scrub租约精确恢复、无fio/私有挂载残留、Ceph HEALTH_OK。原始证据归档至 `/mnt/c/SunRise/test/05-3c/20260924-225547/05-3c-20260924-225547-evidence.tar.gz`，SHA256 `ed98d17b16415b9a0fe34ef0a2c70bbfd723a999ff6582810f502dfc2810d9ba`、3173项、可读性复核PASS；归档排除私有Ceph配置。远端只删除本RUN目录与同名临时tar，`/tmp/production`顶层条目80→78，其他05/06条目未清理。结果仅为大漂移下的描述性观察，不改变05-3b裁决。
 
 ## 三、结果裁决与红线
 

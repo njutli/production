@@ -1241,3 +1241,17 @@ D为绝对差/两位置均值。64K→16M约+4.18%，4M→16M仅+0.19%；64K-1/1
 | 决策 | 当前eager-freeze实现停止，不重跑挑样本，不升级为生产候选；不外推为所有源码方向均无空间 |
 | 环境与证据 | 四格正确性、排空、无缓存读回及恢复均PASS；portal/scrub恢复、Ceph HEALTH_OK；本地与远端3420文件逐项SHA256一致 |
 | 权威证据 | `/mnt/c/SunRise/test/06-2c/20260922-180504/`；派生清单SHA256=`2948a602f0ed4780af3efa59c32868b7f23b5c569751a8f5562e4b71086350b3` |
+## 05-3c：randwrite 不同BS描述性补测（2026-09-25）
+
+> 报告：`doc/perf-report/05-3c-randwrite-bs-trend-completion-20260925.md`；RUN `20260924-225547`。同一B256/FUSE256K、cache-size0、writeback关、私有msgr8配置，128 jobs/QD128/libaio/direct1，每格180秒，值为`[15,175)`逐IO完成日志均值。**仅描述实际顺序，不是稳态BS效应。**
+
+| 顺序与BS | randwrite（MiB/s） | CV | 解释 |
+|---|---:|---:|---|
+| 256K前锚 | 3156.30 | 19.82% | 同配置起点 |
+| 16K | 64.20 | 49.96% | 顺序观察 |
+| 64K | 174.56 | 45.15% | 顺序观察 |
+| 1M | 3392.26 | 24.94% | 顺序观察 |
+| 4M | 3779.45 | 43.27% | 顺序观察 |
+| 256K后锚 | 693.74 | 26.90% | 与前锚相差127.92% |
+
+六格fio/健康门通过、每格128份日志覆盖180秒；三节点TiKV default/kv pending compaction从0增至约53.35 GiB，表明明显状态积累但不单独证明因果。结论`DESCRIPTIVE_ONLY / STATE_DRIFTED`，不覆盖05-3b的写侧范围裁决。权威归档：`/mnt/c/SunRise/test/05-3c/20260924-225547/05-3c-20260924-225547-evidence.tar.gz`，SHA256 `ed98d17b16415b9a0fe34ef0a2c70bbfd723a999ff6582810f502dfc2810d9ba`；远端本RUN暂存已精确清理。
